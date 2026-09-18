@@ -11,11 +11,11 @@ contextual risk deterministically — with an AI layer that explains, never deci
 
 ## Quickstart
 ```bash
-cp .env.example .env            # then set RISKGRAPH_SECRET_KEY
+cp .env.example .env            # set RISKGRAPH_SECRET_KEY; change *_PORT if 5432/6379/8000/5173 are taken
 make dev                        # postgres, redis, migrate, api, worker, beat, frontend
-curl -s localhost:8000/api/v1/readyz
-open http://localhost:5173      # dashboard skeleton
-open http://localhost:8000/api/v1/docs
+curl -s localhost:${API_PORT:-8000}/api/v1/readyz
+open http://localhost:${FRONTEND_PORT:-5173}      # dashboard skeleton
+open http://localhost:${API_PORT:-8000}/api/v1/docs
 ```
 
 ## Develop

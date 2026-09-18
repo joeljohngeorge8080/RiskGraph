@@ -1,0 +1,44 @@
+# HANDOFF — resume here (written 2026-09-19, end of session 1)
+
+## Where things stand
+- **Blueprint complete** (`docs/blueprint/00–08`), **Phase 0 done** (`docs/PROJECT_SPEC.md`, `docs/THREAT_MODEL.md`, `docs/adr/0001–0008`, `docs/phases/PHASE_00.md`), **Phase 1 done and verified** (`docs/phases/PHASE_01.md`).
+- Last commit: `da286b2 Add blueprint, phase 0 docs and phase 1 dev environment`. Files written after it (uncommitted until you commit): `docs/phases/PHASE_01.md`, `README.md` (port note), `HANDOFF.md`, `workdone.md`.
+- **Next step: `START PHASE 2`** — domain model, Alembic migrations for V1 tables, auth skeleton (users/roles/JWT/refresh/API keys), repositories module. Design: `docs/blueprint/02_DATA_AND_API.md` §16–17, ADR-0003/0004/0008.
+
+## This machine (important, non-obvious)
+- Other projects occupy the default ports (native Postgres on 5432, `hma-postgres` on 5433, `dna-stego-*` on 8000 and 5173, Supabase on 5432x). **Do not stop those containers.**
+- RiskGraph therefore uses, via `.env` (git-ignored, already created with a generated dev secret):
+  `POSTGRES_PORT=15432  REDIS_PORT=16379  API_PORT=18000  FRONTEND_PORT=15173`
+- URLs: API http://127.0.0.1:18000/api/v1/healthz · Swagger http://127.0.0.1:18000/api/v1/docs · Dashboard http://127.0.0.1:15173
+- The Compose stack (`riskgraph-*` containers) was left **running** at the end of the session. `make down` stops it; `make dev-detached` restarts it.
+- Host toolchain verified: Python 3.13 (uv creates a 3.12.13 venv in `backend/.venv`), uv 0.11.28, Node 20.19.2, npm 9.2, Docker 29.6.2, Compose 2.26. RAM 15 GB (only ~3 GB free with everything running).
+
+## Commands that are known to work
+```bash
+make dev-detached                       # full stack in background
+docker compose ps                       # expect: postgres/redis/api/worker healthy, migrate Exited(0), beat/frontend Up
+curl -s 127.0.0.1:18000/api/v1/readyz  # {"status":"ok","checks":{"database":"ok","redis":"ok"}}
+cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest -m "not db and not docker" -q
+cd backend && RISKGRAPH_DATABASE_URL=postgresql+psycopg://riskgraph:riskgraph@localhost:15432/riskgraph_test \
+  RISKGRAPH_REDIS_URL=redis://:riskgraph@localhost:16379/1 uv run pytest -m db -q
+cd frontend && npm run lint && npm run typecheck && npm run build
+docker compose exec api python -c "from riskgraph.entrypoints.worker import ping; print(ping.delay().get(timeout=20))"   # pong
+```
+
+## Gotchas already hit (so you don't hit them again)
+1. Mounting `./backend:/app` shadows the image venv → `exit 127`. Compose mounts `riskgraph/`, `alembic/`, `alembic.ini`, `tests/` only. Keep it that way when adding folders (add a new mount line per new top-level backend folder).
+2. `pyproject.toml` must not reference `../README.md` (hatchling).
+3. `conftest.py` sets `RISKGRAPH_ENV=test`; unit tests that assert on `env` must pass it explicitly.
+4. Frontend: TypeScript 7 is on npm but typescript-eslint 8.70 needs <6.1 → TS pinned `^5.9.3`. Bump dev deps by editing `package.json` and clean-installing, not with `npm install -D a@latest b@latest …` (ERESOLVE).
+5. Worker/beat must not inherit the image HTTP healthcheck (already handled in Compose).
+6. `ruff` on the host PATH is an ancient 0.0.291; always use `uv run ruff`.
+
+## Open items (small, do at the start of Phase 2)
+- Verify `.pre-commit-config.yaml` hook revs (`uvx pre-commit autoupdate`) and the GitHub Action versions in `.github/workflows/ci.yml` (`setup-uv@v5`, `trivy-action@0.28.0`, `gitleaks-action@v2`, `build-push-action@v6`) against current releases. They are BELIEVE, not verified.
+- Push to a GitHub remote and watch CI go green once.
+- `docs/TECH_STACK.md` (dependency log per kit doc 04) not yet created; `docs/blueprint/04_TECH_STACK.md` holds the decisions. Create it when Phase 2 adds its first dependencies (`pwdlib[argon2]`, `PyJWT`).
+
+## Rules of engagement (from the brief and CLAUDE.md)
+- Implement one phase per `START PHASE N`; each phase writes `docs/phases/PHASE_NN.md` with chapters A–S.
+- Never re-decide an ADR; write a superseding one.
+- Report with VERIFIED / CONFIDENT / BELIEVE / GUESS labels; paste real output.
