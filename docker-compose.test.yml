@@ -1,0 +1,13 @@
+# Services only, for running pytest -m db on the host: `make test-services`.
+name: riskgraph-test
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_USER: riskgraph, POSTGRES_PASSWORD: riskgraph, POSTGRES_DB: riskgraph_test }
+    ports: ["127.0.0.1:${POSTGRES_PORT:-5432}:5432"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U riskgraph"], interval: 3s, timeout: 3s, retries: 15 }
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "riskgraph", "--save", ""]
+    ports: ["127.0.0.1:${REDIS_PORT:-6379}:6379"]
+    healthcheck: { test: ["CMD-SHELL", "redis-cli -a riskgraph ping | grep -q PONG"], interval: 3s, timeout: 3s, retries: 15 }

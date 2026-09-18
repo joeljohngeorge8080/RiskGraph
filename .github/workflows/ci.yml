@@ -1,0 +1,89 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  RISKGRAPH_ENV: test
+  RISKGRAPH_SECRET_KEY: ci-only-secret-key-not-used-anywhere-real
+  RISKGRAPH_DATABASE_URL: postgresql+psycopg://riskgraph:riskgraph@localhost:5432/riskgraph_test
+  RISKGRAPH_REDIS_URL: redis://:riskgraph@localhost:6379/1
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: riskgraph, POSTGRES_PASSWORD: riskgraph, POSTGRES_DB: riskgraph_test }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U riskgraph" --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }
+      - name: Install
+        run: uv --directory backend sync --frozen
+      - name: Lint
+        run: |
+          uv --directory backend run ruff check .
+          uv --directory backend run ruff format --check .
+      - name: Typecheck
+        run: uv --directory backend run mypy
+      - name: Unit tests
+        run: uv --directory backend run pytest -m "not db and not docker and not e2e and not perf" --cov --cov-report=term-missing
+      - name: Integration tests
+        # CI redis has no password; override the URL for this step only.
+        env: { RISKGRAPH_REDIS_URL: redis://localhost:6379/1 }
+        run: uv --directory backend run pytest -m db
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run lint
+        working-directory: frontend
+      - run: npm run typecheck
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+
+  security-self-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with: { scan-type: fs, scan-ref: ., severity: "CRITICAL,HIGH", exit-code: "0", format: table }
+
+  images:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with: { context: ., file: docker/backend.Dockerfile, push: false, load: true, tags: riskgraph-backend:ci }
+      - name: Scan backend image
+        uses: aquasecurity/trivy-action@0.28.0
+        with: { image-ref: riskgraph-backend:ci, severity: "CRITICAL", exit-code: "1", ignore-unfixed: true }
