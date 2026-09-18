@@ -2,7 +2,7 @@
 
 ## Where things stand
 - **Blueprint complete** (`docs/blueprint/00–08`), **Phase 0 done** (`docs/PROJECT_SPEC.md`, `docs/THREAT_MODEL.md`, `docs/adr/0001–0008`, `docs/phases/PHASE_00.md`), **Phase 1 done and verified** (`docs/phases/PHASE_01.md`).
-- Last commit: `da286b2 Add blueprint, phase 0 docs and phase 1 dev environment`. Files written after it (uncommitted until you commit): `docs/phases/PHASE_01.md`, `README.md` (port note), `HANDOFF.md`, `workdone.md`.
+- Commits: `da286b2` (blueprint, Phase 0, Phase 1 code) and `1c2ac72` (Phase 1 chapter, HANDOFF.md, workdone.md, README port note). Working tree was clean at end of session.
 - **Next step: `START PHASE 2`** — domain model, Alembic migrations for V1 tables, auth skeleton (users/roles/JWT/refresh/API keys), repositories module. Design: `docs/blueprint/02_DATA_AND_API.md` §16–17, ADR-0003/0004/0008.
 
 ## This machine (important, non-obvious)
