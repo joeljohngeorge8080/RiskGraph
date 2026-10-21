@@ -5,6 +5,7 @@ import math
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
+from riskgraph.modules.context import FindingContext, Observed
 from riskgraph.modules.risk import ScoreInput, priority_for, score
 from riskgraph.modules.risk.model import epss_to_e
 from riskgraph.shared.vocabulary import Priority
@@ -114,3 +115,83 @@ def test_kev_overrides_floor_priority_not_score() -> None:
     assert r.priority is Priority.HIGH
     assert r.overrides[0]["rule"] == "kev_floor_high"
     assert r.score < 45
+
+
+# --- deployment context (v1-ctx) --------------------------------------------------------
+
+
+def _obs(label: str, source: str = "manifest") -> Observed:
+    return Observed(label, source, "high", {"service": "api"})
+
+
+FULL = FindingContext("api", _obs("internet_noauth"), _obs("pii"), _obs("admin"), _obs("high"))
+
+
+def test_full_context_follows_the_blueprint_formula() -> None:
+    r = score(ScoreInput(S.SCA, V.HIGH, epss=0.05, cvss_impact=5.9, context=FULL))
+    e = (math.log10(0.05) + 4) / 4
+    expected = 100 * (e * 1.0 * 0.6) ** (1 / 3) * ((5.9 / 6 + 0.9 + 1.0 + 0.9) / 4)
+    assert r.score == pytest.approx(expected, abs=0.01)
+    assert r.priority is Priority.HIGH  # 69.97: R is still unknown until Phase 8
+    by_name = {f.name: f for f in r.factors}
+    assert (by_name["X"].value, by_name["X"].source, by_name["X"].raw_value) == (
+        1.0,
+        "manifest",
+        "internet_noauth",
+    )
+    assert by_name["D"].evidence == {"service": "api"}
+    assert by_name["R"].source == "default_unknown"
+
+
+def test_context_reaches_critical_without_overrides() -> None:
+    r = score(ScoreInput(S.SAST, V.HIGH, category="ssrf", confidence="HIGH", context=FULL))
+    expected = 100 * (0.8 * 1.0 * 0.6) ** (1 / 3) * ((0.9 + 0.9 + 1.0 + 0.9) / 4)
+    assert r.score == pytest.approx(expected, abs=0.01)
+    assert r.priority is Priority.CRITICAL and r.overrides == []
+
+
+def test_quiet_context_lowers_the_score() -> None:
+    quiet = FindingContext(
+        "batch", _obs("isolated"), _obs("public"), _obs("read_only"), _obs("low")
+    )
+    base = score(ScoreInput(S.SCA, V.HIGH, epss=0.05, cvss_impact=5.9)).score
+    r = score(ScoreInput(S.SCA, V.HIGH, epss=0.05, cvss_impact=5.9, context=quiet))
+    assert r.score < base and r.priority is Priority.LOW
+
+
+def test_secret_in_public_repo_scores_high_without_override() -> None:
+    ctx = FindingContext(exposure=_obs("internet_noauth", "repository_visibility"))
+    r = score(ScoreInput(S.SECRET, V.HIGH, context=ctx))
+    assert r.score == pytest.approx(100 * math.sqrt(0.6 * 1.0) * 0.625, abs=0.01)  # 48.41
+    assert r.priority is Priority.HIGH and r.overrides == []
+
+
+def test_kev_floor_does_not_apply_to_isolated_services() -> None:
+    isolated = FindingContext("batch", _obs("isolated"))
+    r = score(ScoreInput(S.SCA, V.LOW, kev=True, cvss_impact=1.4, context=isolated))
+    assert r.overrides == [] and r.priority is not Priority.HIGH
+    internal = FindingContext("api", _obs("internal"))
+    r2 = score(ScoreInput(S.SCA, V.LOW, kev=True, cvss_impact=1.4, context=internal))
+    assert r2.priority is Priority.HIGH
+
+
+def test_unknown_labels_fall_back_to_defaults() -> None:
+    odd = FindingContext("x", _obs("galactic"), None, None, None)
+    with_odd = score(ScoreInput(S.SCA, V.HIGH, epss=0.05, cvss_impact=5.9, context=odd))
+    plain = score(ScoreInput(S.SCA, V.HIGH, epss=0.05, cvss_impact=5.9))
+    assert with_odd.score == plain.score
+
+
+EXPOSURES = ["isolated", "internal", None, "internet_auth", "internet_noauth"]
+
+
+@given(i=st.integers(0, 4), j=st.integers(0, 4), e=unit)
+def test_monotone_in_exposure(i: int, j: int, e: float) -> None:
+    lo, hi = sorted((i, j))
+
+    def at(k: int) -> float:
+        label = EXPOSURES[k]
+        ctx = FindingContext(exposure=_obs(label)) if label else None
+        return score(ScoreInput(S.SCA, V.HIGH, epss=e, cvss_impact=4.0, context=ctx)).score
+
+    assert at(lo) <= at(hi)

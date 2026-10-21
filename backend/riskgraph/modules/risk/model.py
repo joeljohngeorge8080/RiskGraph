@@ -1,13 +1,14 @@
-"""Risk model v1-cf: the blueprint's hybrid model (§14) without deployment context.
+"""Risk model v1-ctx: the blueprint's hybrid model (§14) with deployment context.
 
     L = geomean(applicable likelihood factors)   E, X, R
     I = mean(impact factors)                     T, D, P, C
     K = 1 + 0.05 · min(scanners agreeing - 1, 2)
     score = min(100, 100 · L · I · K)
 
-X, R, D, P, C use the blueprint's "unknown" values until the context phases exist, so
-with K = 1 this is exactly the §14.3 context-free case. Pure function: same input, same
-output, and every factor is returned with its provenance.
+X, D, P and C come from ``ScoreInput.context`` (manifest, repository visibility) and fall
+back to the blueprint's "unknown" values; R is always unknown until Phase 8. With no
+context and K = 1 this is exactly the §14.3 context-free case. Pure function: same input,
+same output, and every factor is returned with its provenance.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Any
 
+from riskgraph.modules.context import FindingContext, Observed
 from riskgraph.modules.risk import tables as t
 from riskgraph.shared.vocabulary import Priority, Severity, SourceType
 
@@ -39,6 +41,8 @@ class ScoreInput:
     confidence: str | None = None
     # iac
     iac_family: str | None = None
+    # deployment context; None means "nothing known" (all defaults)
+    context: FindingContext | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,6 +142,29 @@ def _technical_impact(inp: ScoreInput) -> Factor:
     )
 
 
+def _context_factor(
+    group: str,
+    name: str,
+    observed: Observed | None,
+    values: dict[str, float],
+    default: tuple[float, str, str],
+) -> Factor:
+    """A context factor from an observation, or the blueprint default with its label."""
+    if observed is not None and observed.label in values:
+        evidence = {k: v for k, v in observed.evidence.items() if v is not None}
+        return Factor(
+            group,
+            name,
+            values[observed.label],
+            observed.source,
+            observed.confidence,
+            observed.label,
+            evidence=evidence,
+        )
+    value, source, raw = default
+    return Factor(group, name, value, source, "low", raw)
+
+
 def priority_for(score: float) -> Priority:
     for threshold, priority in t.BANDS:
         if score >= threshold:
@@ -147,9 +174,17 @@ def priority_for(score: float) -> Priority:
 
 def score(inp: ScoreInput) -> ScoreResult:
     reach_applicable = inp.source_type in (SourceType.SCA, SourceType.SAST)
+    ctx = inp.context or FindingContext()
+    exposure = _context_factor(
+        "likelihood",
+        "X",
+        ctx.exposure,
+        t.X_VALUES,
+        (t.UNKNOWN_EXPOSURE, "default_unknown", "exposure=unknown"),
+    )
     likelihood_factors = [
         _exploitability(inp),
-        Factor("likelihood", "X", t.UNKNOWN_EXPOSURE, "default_unknown", "low", "exposure=unknown"),
+        exposure,
         Factor(
             "likelihood",
             "R",
@@ -162,9 +197,27 @@ def score(inp: ScoreInput) -> ScoreResult:
     ]
     impact_factors = [
         _technical_impact(inp),
-        Factor("impact", "D", t.UNKNOWN_DATA, "default_unknown", "low", "data=unknown"),
-        Factor("impact", "P", t.UNKNOWN_PRIVILEGE, "default_unknown", "low", "privilege=unknown"),
-        Factor("impact", "C", t.DEFAULT_CRITICALITY, "default", "low", "criticality=medium"),
+        _context_factor(
+            "impact",
+            "D",
+            ctx.data,
+            t.D_VALUES,
+            (t.UNKNOWN_DATA, "default_unknown", "data=unknown"),
+        ),
+        _context_factor(
+            "impact",
+            "P",
+            ctx.privilege,
+            t.P_VALUES,
+            (t.UNKNOWN_PRIVILEGE, "default_unknown", "privilege=unknown"),
+        ),
+        _context_factor(
+            "impact",
+            "C",
+            ctx.criticality,
+            t.C_VALUES,
+            (t.DEFAULT_CRITICALITY, "default", "criticality=medium"),
+        ),
     ]
     applicable = [f.value for f in likelihood_factors if f.applicable]
     likelihood = math.prod(applicable) ** (1 / len(applicable))
@@ -185,7 +238,13 @@ def score(inp: ScoreInput) -> ScoreResult:
 
     priority = priority_for(value)
     overrides: list[dict[str, str]] = []
-    if inp.source_type is SourceType.SCA and inp.kev and priority.rank < Priority.HIGH.rank:
+    isolated = ctx.exposure is not None and ctx.exposure.label == "isolated"
+    if (
+        inp.source_type is SourceType.SCA
+        and inp.kev
+        and not isolated
+        and priority.rank < Priority.HIGH.rank
+    ):
         priority = Priority.HIGH
         overrides.append(
             {"rule": "kev_floor_high", "effect": "priority>=high", "reason": "listed in CISA KEV"}

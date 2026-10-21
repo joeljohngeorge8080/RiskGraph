@@ -24,6 +24,8 @@ os.environ.setdefault(
 os.environ.setdefault("RISKGRAPH_REDIS_URL", "redis://:riskgraph@localhost:6379/1")
 os.environ.setdefault("RISKGRAPH_SECRET_KEY", "test-secret-key-do-not-use-in-production!!")
 os.environ.setdefault("RISKGRAPH_DATA_DIR", tempfile.mkdtemp(prefix="riskgraph-test-"))
+# The default (/var/cache/riskgraph/trivy) is only writable inside the worker image.
+os.environ.setdefault("RISKGRAPH_TRIVY_CACHE_DIR", tempfile.mkdtemp(prefix="riskgraph-test-trivy-"))
 os.environ.setdefault("RISKGRAPH_ENRICHMENT_ENABLED", "false")
 
 from riskgraph.entrypoints.api import create_app

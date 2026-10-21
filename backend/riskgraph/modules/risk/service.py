@@ -8,13 +8,15 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from riskgraph.modules.context import VulnIntel
+from riskgraph.modules.context import FindingContext, VulnIntel
 from riskgraph.modules.normalization import MergedFinding
 from riskgraph.modules.risk.model import ScoreInput, ScoreResult, score
 from riskgraph.modules.risk.models import RiskFactor, RiskScore
 
 
-def input_for(merged: MergedFinding, intel: VulnIntel | None) -> ScoreInput:
+def input_for(
+    merged: MergedFinding, intel: VulnIntel | None, context: FindingContext | None = None
+) -> ScoreInput:
     rep = merged.representative
     attrs = merged.attrs
     return ScoreInput(
@@ -31,11 +33,14 @@ def input_for(merged: MergedFinding, intel: VulnIntel | None) -> ScoreInput:
         live_credential=bool(attrs.get("live_credential")),
         confidence=attrs.get("confidence"),
         iac_family=attrs.get("iac_family"),
+        context=context,
     )
 
 
-def score_finding(merged: MergedFinding, intel: VulnIntel | None) -> ScoreResult:
-    return score(input_for(merged, intel))
+def score_finding(
+    merged: MergedFinding, intel: VulnIntel | None, context: FindingContext | None = None
+) -> ScoreResult:
+    return score(input_for(merged, intel, context))
 
 
 def persist_score(

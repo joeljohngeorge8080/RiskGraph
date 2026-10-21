@@ -23,7 +23,7 @@ from typing import Any
 import redis
 from sqlalchemy import update
 
-from riskgraph.modules.context import refresh_intel
+from riskgraph.modules.context import ContextResolver, ManifestResult, load_manifest, refresh_intel
 from riskgraph.modules.findings import clear_scan, persist_merged
 from riskgraph.modules.normalization import RawFinding, fingerprint, merge
 from riskgraph.modules.repositories import Repository
@@ -235,7 +235,8 @@ def run_scanner(scan_id: uuid.UUID, name: ScannerName, deps: PipelineDeps) -> Ru
     status, excerpt, version, result = RunStatus.FAILED, None, None, None
     try:
         ws.prepare_tool(name)
-        settings.trivy_cache_dir.mkdir(parents=True, exist_ok=True)
+        if name is ScannerName.TRIVY:
+            settings.trivy_cache_dir.mkdir(parents=True, exist_ok=True)
         paths = ScanPaths(ws.src, ws.out(name), ws.home(name), settings.trivy_cache_dir)
         cmd = scanner.command(paths, settings)
         version = _version(deps, ws, name, cmd.env)
@@ -364,6 +365,15 @@ def _parse_all(
     return out
 
 
+def _manifest(deps: PipelineDeps, scan_id: uuid.UUID) -> ManifestResult:
+    ws = _workspace(deps, scan_id)
+    if not ws.src.is_dir():
+        return ManifestResult("unavailable", warnings=("checkout no longer on disk",))
+    result = load_manifest(ws)
+    log.info("manifest_loaded", scan_id=str(scan_id), status=result.status, file=result.file)
+    return result
+
+
 def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
     with session_scope() as s:
         scan = s.get(ScanJob, scan_id)
@@ -380,6 +390,8 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
     try:
         raw = _parse_all(deps, scan_id, succeeded, repo_name)
         merged = merge(raw)
+        # MVP scans only public github.com repositories (ADR-0010)
+        resolver = ContextResolver(_manifest(deps, scan_id), public_repository=True)
 
         cvss_by_id: dict[str, dict[str, Any] | None] = {}
         for m in merged:
@@ -406,7 +418,10 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                 finding_id = persist_merged(
                     s, repository_id=repo_id, scan_id=scan_id, run_ids=run_ids, merged=m, now=now
                 )
-                result = score_finding(m, intel.get(m.representative.vulnerability_id or ""))
+                context = resolver.for_finding(m.location.file, m.source_type)
+                result = score_finding(
+                    m, intel.get(m.representative.vulnerability_id or ""), context
+                )
                 persist_score(s, scan_id, finding_id, result)
                 by_priority[result.priority.value] = by_priority.get(result.priority.value, 0) + 1
                 by_source[m.source_type.value] = by_source.get(m.source_type.value, 0) + 1
@@ -432,6 +447,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                     "kev_listed": sum(1 for i in intel.values() if i.kev),
                     "statuses": intel_status,
                 },
+                "context": resolver.summary(),
             }
             s.execute(
                 update(ScanJob)

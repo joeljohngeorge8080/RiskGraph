@@ -37,6 +37,28 @@ export interface ScanSummary {
   by_scanner?: Partial<Record<ScannerName, number>>;
   max_score?: number;
   intel?: { vulnerabilities: number; epss_scored: number; kev_listed: number; statuses: string[] };
+  context?: ScanContext;
+}
+
+export type ManifestStatus = "absent" | "valid" | "invalid" | "unavailable";
+
+export interface ServiceContext {
+  name: string;
+  path: string;
+  exposure: string | null;
+  privilege: string | null;
+  data: string | null;
+  criticality: string | null;
+  findings: number;
+}
+
+export interface ScanContext {
+  manifest: ManifestStatus;
+  file: string | null;
+  warnings: string[];
+  public_repository: boolean;
+  services: ServiceContext[];
+  unmapped_findings: number;
 }
 
 export interface Scan {

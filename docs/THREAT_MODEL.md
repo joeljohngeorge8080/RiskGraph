@@ -82,3 +82,11 @@ The MVP vertical slice (ADR-0009, ADR-0010, `docs/phases/PHASE_MVP.md`) runs sca
 - **Invariants 2, 3 and 5** are implemented and tested: `test_workspace.py`, `tests/e2e`, `test_context.py`.
 
 Do not expose the API beyond localhost before Phase 2 (auth) and Phase 3 (DockerRunner).
+
+## MVP level 2 note (2026-10-21): manifest context
+
+ADR-0011 makes `riskgraph.yaml` an input to scoring, so the manifest becomes attacker-controlled input (the scanned repository is untrusted).
+
+- **Parsing:** only fixed names at the repository root, read through `safe_resolve` (symlinks out of the checkout are ignored), 64 KiB cap, `yaml.safe_load`, aliases and nesting deeper than 8 refused before construction (billion laughs, recursion), strict schema with list caps, warnings length-capped. Tested in `tests/test_manifest.py`.
+- **T-12 (graph poisoning)** is now live: a repository can under-declare its exposure to lower its own scores. Mitigations in place: every context factor shows `source = manifest` in the score breakdown, and the scan's Context panel lists every declared service. Not in place yet: an IaC-vs-manifest conflict flag (Phase 7).
+- Manifest content is never logged; only its status and file name are.

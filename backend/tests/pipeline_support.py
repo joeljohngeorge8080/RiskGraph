@@ -50,11 +50,14 @@ class LocalDirCloner:
     """Builds the kitchen-sink repository instead of cloning from GitHub."""
 
     error: str | None = None
+    extra: dict[str, str] = field(default_factory=dict)  # added files, e.g. riskgraph.yaml
 
     def clone(self, ws: ScanWorkspace, clone_url: str, ref: str) -> CloneResult:
         if self.error:
             raise CloneError(self.error)
         kitchen_sink.build(ws.src)
+        for rel, content in self.extra.items():
+            (ws.src / rel).write_text(content, encoding="utf-8")
         size, files = ws.measure(10**9, 10**6)
         ws.make_readonly()
         return CloneResult(FAKE_SHA, size, files)
