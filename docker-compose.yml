@@ -5,6 +5,7 @@ x-backend: &backend
   build:
     context: .
     dockerfile: docker/backend.Dockerfile
+    target: runtime
   env_file: .env
   environment:
     RISKGRAPH_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-riskgraph}:${POSTGRES_PASSWORD:-riskgraph}@postgres:5432/${POSTGRES_DB:-riskgraph}
@@ -54,12 +55,29 @@ services:
   api:
     <<: *backend
     command: ["uvicorn", "--factory", "riskgraph.entrypoints.api:create_app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-    ports: ["127.0.0.1:${API_PORT:-8000}:8000"]
+    ports: ["127.0.0.1:${API_PORT:-8000}:8000"]   # MVP has no auth: never publish beyond localhost
+    volumes:
+      - ./backend/riskgraph:/app/riskgraph:ro
+      - ./backend/alembic:/app/alembic:ro
+      - ./backend/alembic.ini:/app/alembic.ini:ro
+      - ./backend/tests:/app/tests:ro
+      - riskgraph_data:/var/lib/riskgraph:ro      # stored reports, for downloads
     depends_on:
       migrate: { condition: service_completed_successfully }
 
   worker:
     <<: *backend
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      target: worker
+    volumes:
+      - ./backend/riskgraph:/app/riskgraph:ro
+      - ./backend/alembic:/app/alembic:ro
+      - ./backend/alembic.ini:/app/alembic.ini:ro
+      - ./backend/tests:/app/tests:ro
+      - riskgraph_data:/var/lib/riskgraph          # workspaces + stored reports
+      - trivy_cache:/var/cache/riskgraph/trivy
     command: ["celery", "-A", "riskgraph.entrypoints.worker:celery_app", "worker", "-Q", "scan,analysis", "--concurrency", "2", "--loglevel", "INFO"]
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -94,3 +112,5 @@ services:
 volumes:
   pgdata:
   frontend_node_modules:
+  riskgraph_data:
+  trivy_cache:

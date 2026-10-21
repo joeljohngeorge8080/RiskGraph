@@ -10,3 +10,5 @@
 | [0006](0006-graph-storage.md) | Postgres graph tables + NetworkX; Neo4j rejected | accepted |
 | [0007](0007-task-queue.md) | Celery + Redis instead of a Postgres job table | accepted |
 | [0008](0008-sync-sqlalchemy.md) | Synchronous SQLAlchemy sessions in API and worker | accepted |
+| [0009](0009-subprocess-scanner-runner.md) | MVP runs scanners as subprocesses in the worker (DockerRunner deferred) | accepted |
+| [0010](0010-mvp-scope.md) | MVP vertical slice and its deviations from the blueprint | accepted |

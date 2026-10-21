@@ -50,3 +50,36 @@ ruff clean · mypy clean (22 files) · 15 unit tests pass · 1 db test passes ag
 
 ## 6. After the commit (uncommitted at time of writing)
 `docs/phases/PHASE_01.md`, README port note, `HANDOFF.md`, `workdone.md`; memory updated.
+
+
+# Work done: session 2 (2026-10-21): MVP vertical slice
+
+The owner asked for an MVP, answering the clarifying questions as follows:
+- scanners run as binaries in the worker;
+- no auth, localhost only;
+- the blueprint score in its context-free form, plus EPSS/KEV;
+- overlapping scanners merged into one finding.
+
+The owner kept the 70/45/20 bands. Plan approved; built on `claude/great-mendel-b58dhj`.
+
+## What was built
+- **Backend modules:** `repositories`, `scans` (workspace, clone, storage, state machine, pipeline stages, Celery tasks and canvas, service, router), `scanners` (protocol, `SubprocessRunner`, redaction, four adapters and parsers), `normalization` (canonical model, paths, severity, CWE categories, fingerprints, curated merge families, merge), `findings`, `context` (CVSS sub-scores, EPSS, KEV with CISA GitHub-mirror fallback), `risk` (model `v1-cf.1`).
+- **Data:** one migration with 9 tables.
+- **Shared:** `shared/celery.py` (factory moved out of the worker entrypoint), `shared/http.py` (allow-listed outbound client), `shared/vocabulary.py`.
+- **Frontend:** router, new-scan form, scan list, scan detail (scanner cards, summary tiles, findings table with URL-synced filters and sort, score-breakdown drawer).
+- **Packaging:** `install-scanners.sh` (checksum-verified tarballs, uv tool venvs, vendored Semgrep rules), Dockerfile `worker` target, Compose volumes, Make targets (`scanner-tools`, `api-local`, `worker-local`, `e2e`), CI tweaks.
+- **Docs:** ADR-0009, ADR-0010, `PHASE_MVP.md`, `TECH_STACK.md`, threat-model note, README.
+
+## Problems hit and fixed
+| Problem | Fix |
+|---|---|
+| semgrep.dev, api.first.org and www.cisa.gov blocked by this session's proxy | Rules from `semgrep/semgrep-rules` at a pinned sha; KEV from CISA's GitHub mirror; EPSS degrades to CVSS |
+| `semgrep --version` hangs with no network | Version probe reuses the scan env (`SEMGREP_ENABLE_VERSION_CHECK=0`) |
+| Trivy misconfig IDs are now `AWS-0086`, not `AVD-AWS-0086` | `normalize_check_id` accepts all three historic forms |
+| Gitleaks and Trivy report the same PEM key with different line ranges | Secret merge uses overlapping ranges within a credential family |
+| Semgrep check ids prefixed by the local rules path | `clean_rule_id` |
+| CVSS sub-scores off by 0.1 | NVD rounds half-up (not CVSS Roundup) for sub-scores |
+| API returned a stale PENDING status after CAS to QUEUED | `session.expire_all()` after `start_scan` |
+| Celery folds post-chord tasks into the chord body | Canvas test asserts the real shape |
+| Controlled checkboxes snapped back (React Router URL updates are transitions) | Findings view state is local and mirrored to the URL |
+| 2 new high npm advisories in the existing lockfile (Vite, source-map-js) | `npm audit fix` gives 0 |
