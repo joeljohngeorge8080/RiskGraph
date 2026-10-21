@@ -22,3 +22,6 @@ dist/
 data/
 *.log
 celerybeat-schedule*
+
+# Host-run scan workspaces and reports (make api-local / worker-local)
+.data/
