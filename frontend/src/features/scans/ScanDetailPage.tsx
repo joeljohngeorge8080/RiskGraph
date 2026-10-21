@@ -3,6 +3,7 @@ import { apiGet } from "@/api/client";
 import type { Scan } from "@/api/types";
 import { formatDate, isTerminal, PRIORITIES, PRIORITY_COLOR, SOURCE_LABEL, SOURCE_TYPES } from "@/lib/format";
 import { FindingsSection } from "@/features/findings/FindingsSection";
+import { ContextPanel } from "./ContextPanel";
 import { ScannerStatusCards } from "./ScannerStatusCards";
 import { StatusBadge } from "./StatusBadge";
 
@@ -102,6 +103,8 @@ export function ScanDetailPage({ scanId }: { scanId: string }) {
           )}
         </section>
       )}
+
+      {hasResults && s.summary.context && <ContextPanel context={s.summary.context} />}
 
       {done && hasResults && <FindingsSection scanId={s.id} />}
     </>

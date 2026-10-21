@@ -9,8 +9,17 @@ contextual risk deterministically — with an AI layer that explains, never deci
 
 **Status:** MVP vertical slice: scan a public GitHub repo with Trivy, Semgrep, Checkov and
 Gitleaks, normalize and merge their reports, and rank findings by risk in a web UI
-(`docs/phases/PHASE_MVP.md`). The MVP has **no authentication**: keep it on localhost.
-Roadmap: `docs/blueprint/06_ROADMAP.md`.
+(`docs/phases/PHASE_MVP.md`). Level 2 adds context-aware scoring from a `riskgraph.yaml`
+manifest in the scanned repository (`docs/phases/PHASE_MVP2.md`). The MVP has **no
+authentication**: keep it on localhost. Roadmap: `docs/blueprint/06_ROADMAP.md`.
+
+## Context-aware scoring
+Add a `riskgraph.yaml` at the root of the repository you scan to tell RiskGraph what the
+scanners cannot see: which services are internet-facing, which identity they run as, which
+data they reach, and how critical they are. Findings are mapped to services by path, and the
+exposure, privilege, data-sensitivity and criticality factors replace the "unknown" defaults.
+Example and field reference: `docs/examples/riskgraph.yaml`. An invalid manifest is shown as
+a warning on the scan and ignored; the scan still completes.
 
 ## Quickstart
 ```bash

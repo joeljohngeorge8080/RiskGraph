@@ -42,12 +42,14 @@ def test_full_pipeline_with_recorded_reports(db: None, settings: Settings) -> No
     status = run_pipeline_inline(sid, ALL_SCANNERS, make_deps(settings))
     assert status is ScanStatus.COMPLETED
     scan = _scan(sid)
-    assert scan.commit_sha == FAKE_SHA and scan.risk_model_version == "v1-cf.1"
+    assert scan.commit_sha == FAKE_SHA and scan.risk_model_version == "v1-ctx.1"
     summary = scan.summary
     assert summary["raw_findings"] == 47 and summary["findings"] == 27
     assert summary["cross_scanner"] >= 10
     assert set(summary["by_scanner"]) == {"trivy", "semgrep", "checkov", "gitleaks"}
     assert summary["by_priority"]["critical"] == 2  # two live credentials
+    assert summary["context"]["manifest"] == "absent"
+    assert summary["context"]["unmapped_findings"] == 27
 
     with session_scope() as s:
         runs = repo.runs_for(s, sid)
@@ -179,6 +181,75 @@ def test_enrichment_feeds_drive_the_score(db: None, settings: Settings) -> None:
         ).one()
         assert e2.source == "epss" and float(e2.value) == pytest.approx(0.25)
     assert _scan(sid).summary["intel"]["kev_listed"] == 1
+
+
+KITCHEN_MANIFEST = """
+version: 1
+services:
+  - name: app
+    path: ""
+    exposure: internet
+    auth: none
+    runs_as: app-role
+    connects_to: [users-db]
+identities:
+  - name: app-role
+    privilege: admin
+data_stores:
+  - name: users-db
+    kind: sqlite
+    sensitivity: pii
+criticality:
+  app: high
+"""
+
+
+def _factor(s: object, score_id: uuid.UUID, name: str) -> RiskFactor:
+    return s.scalars(  # type: ignore[attr-defined, no-any-return]
+        select(RiskFactor).where(RiskFactor.risk_score_id == score_id, RiskFactor.name == name)
+    ).one()
+
+
+def test_manifest_context_raises_scores(db: None, settings: Settings) -> None:
+    base_id = _new_scan(settings)
+    assert run_pipeline_inline(base_id, ALL_SCANNERS, make_deps(settings)) is ScanStatus.COMPLETED
+
+    cloner = LocalDirCloner(extra={"riskgraph.yaml": KITCHEN_MANIFEST})
+    sid = _new_scan(settings, "ctx")
+    assert run_pipeline_inline(sid, ALL_SCANNERS, make_deps(settings, cloner=cloner)) is (
+        ScanStatus.COMPLETED
+    )
+    ctx = _scan(sid).summary["context"]
+    assert ctx["manifest"] == "valid" and ctx["unmapped_findings"] == 0
+    assert ctx["services"][0]["findings"] == 27
+
+    with session_scope() as s:
+        before = {
+            r[0].id: float(r[2].score)
+            for r in list_scan_findings(s, base_id, FindingFilters(), limit=200)[0]
+        }
+        rows, _ = list_scan_findings(s, sid, FindingFilters(), limit=200)
+        assert all(float(r[2].score) >= before[r[0].id] for r in rows)
+        sast = next(r for r in rows if r[0].source_type is SourceType.SAST)
+        x = _factor(s, sast[2].id, "X")
+        assert (x.source, x.raw_value, float(x.value)) == ("manifest", "internet_noauth", 1.0)
+        assert _factor(s, sast[2].id, "D").raw_value == "pii"
+        assert _factor(s, sast[2].id, "P").raw_value == "admin"
+        secret = next(r for r in rows if r[0].source_type is SourceType.SECRET)
+        assert _factor(s, secret[2].id, "X").source == "repository_visibility"
+        top = [r[2].priority for r in rows]
+        assert top.count(Priority.CRITICAL) > 2  # context, not only overrides, reaches critical
+
+
+def test_invalid_manifest_is_a_warning_not_a_failure(db: None, settings: Settings) -> None:
+    cloner = LocalDirCloner(extra={"riskgraph.yaml": "version: 1\nservices: [oops\n"})
+    sid = _new_scan(settings)
+    assert run_pipeline_inline(sid, ALL_SCANNERS, make_deps(settings, cloner=cloner)) is (
+        ScanStatus.COMPLETED
+    )
+    ctx = _scan(sid).summary["context"]
+    assert ctx["manifest"] == "invalid" and ctx["warnings"]
+    assert ctx["services"] == []
 
 
 def test_dedup_index_blocks_two_active_scans(db: None, settings: Settings) -> None:

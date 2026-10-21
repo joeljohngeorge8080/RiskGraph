@@ -12,3 +12,4 @@
 | [0008](0008-sync-sqlalchemy.md) | Synchronous SQLAlchemy sessions in API and worker | accepted |
 | [0009](0009-subprocess-scanner-runner.md) | MVP runs scanners as subprocesses in the worker (DockerRunner deferred) | accepted |
 | [0010](0010-mvp-scope.md) | MVP vertical slice and its deviations from the blueprint | accepted |
+| [0011](0011-manifest-context-scoring.md) | Context-aware scoring from the repository manifest (MVP level 2) | accepted |

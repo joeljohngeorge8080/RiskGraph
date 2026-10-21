@@ -1,4 +1,14 @@
-# HANDOFF: resume here (updated 2026-10-21, session 2: MVP slice)
+# HANDOFF: resume here (updated 2026-10-21, session 3: MVP level 2)
+
+## Session 3 (2026-10-21): run, debug, MVP level 2 (context-aware scoring), done
+- Branch `cloud-mvp-integration` (main + the cloud MVP merge `3c44f97` + this work). Chapter: `docs/phases/PHASE_MVP2.md`. Decision: ADR-0011.
+- **Level 2:** `riskgraph.yaml` manifest (strict, hardened) plus repository visibility give X/D/P/C per finding. Model `v1-ctx.1`, identical to `v1-cf.1` without context. Context panel in the UI; the drawer shows the factor origin.
+- **Bugs fixed:** non-trivy scanners crashed on a non-root host because the pipeline created the Trivy cache dir for every scanner; `tsconfig.app.tsbuildinfo` was tracked.
+- **Verified on the dev machine:** 165 unit + 24 db tests, frontend gate, `docker compose build` (incl. worker image with scanners). **Not yet run:** `make dev` with a live scan.
+- **Next:** Phase 2 (auth) is still required before anything but localhost. Then Phase 7 proper (IaC/Compose/K8s extraction under the manifest, conflict flag for T-12) and Phase 8 (reachability, the last unknown factor R).
+
+---
+# Session 2 handoff (2026-10-21)
 
 ## Session 2 (2026-10-21): MVP vertical slice, done
 - Branch `claude/great-mendel-b58dhj`. The owner asked for an MVP ahead of the roadmap: a GitHub URL goes in; Trivy, Semgrep, Checkov and Gitleaks run; reports are normalized and merged; findings are scored; a FastAPI + React UI shows the result. Full chapter: `docs/phases/PHASE_MVP.md`. Decisions: ADR-0009 (subprocess runner) and ADR-0010 (scope deviations, including **no auth**).

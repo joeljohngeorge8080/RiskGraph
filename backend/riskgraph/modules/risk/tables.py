@@ -1,18 +1,36 @@
-"""Factor tables for risk model v1-cf (blueprint §14.2, context-free MVP variant)."""
+"""Factor tables for risk model v1-ctx (blueprint §14.2).
+
+v1-ctx.1 adds deployment context (X, D, P, C) to v1-cf.1. With no context the two
+versions give identical scores; they differ in the KEV rule, which no longer floors a
+finding on an isolated service (§14.5).
+"""
 
 from __future__ import annotations
 
 from riskgraph.shared.vocabulary import Priority, Severity
 
-MODEL_VERSION = "v1-cf.1"
+MODEL_VERSION = "v1-ctx.1"
 FLOOR = 0.05
 
-# Context the MVP cannot observe yet: blueprint "unknown" defaults (§14.2, §14.3).
+# "Unknown" defaults when no context source covers a finding (§14.2, §14.3).
 UNKNOWN_EXPOSURE = 0.5  # X
-UNKNOWN_REACHABILITY = 0.6  # R
+UNKNOWN_REACHABILITY = 0.6  # R (reachability is not computed yet: Phase 8)
 UNKNOWN_DATA = 0.5  # D
 UNKNOWN_PRIVILEGE = 0.5  # P
 DEFAULT_CRITICALITY = 0.5  # C
+
+# Context values (§14.2), keyed by the labels the context module produces.
+X_VALUES = {"internet_noauth": 1.0, "internet_auth": 0.7, "internal": 0.4, "isolated": 0.15}
+D_VALUES = {
+    "credentials": 1.0,
+    "financial": 0.9,
+    "pii": 0.9,
+    "confidential": 0.7,
+    "internal": 0.4,
+    "public": 0.1,
+}
+P_VALUES = {"admin": 1.0, "elevated": 0.8, "limited": 0.5, "read_only": 0.3}
+C_VALUES = {"high": 0.9, "medium": 0.5, "low": 0.2}
 
 # Exploitability E when a CVE has neither KEV nor EPSS nor a CVSS vector.
 E_BY_SEVERITY = {

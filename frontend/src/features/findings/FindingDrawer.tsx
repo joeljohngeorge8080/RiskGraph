@@ -15,7 +15,16 @@ const FACTOR_NAME: Record<string, string> = {
   K: "Scanner agreement",
 };
 
+/** Where a context factor came from: the service, or the hop path to a data store. */
+function contextOrigin(f: RiskFactor): string | null {
+  const path = f.evidence.path;
+  if (Array.isArray(path) && path.every((p) => typeof p === "string")) return path.join(" → ");
+  const service = f.evidence.service;
+  return typeof service === "string" ? `service ${service}` : null;
+}
+
 function FactorRow({ f }: { f: RiskFactor }) {
+  const origin = contextOrigin(f);
   return (
     <tr style={{ opacity: f.applicable ? 1 : 0.5 }}>
       <td>
@@ -26,6 +35,7 @@ function FactorRow({ f }: { f: RiskFactor }) {
         {f.raw_value}
         <div className="muted">
           {f.source} · {f.confidence}
+          {origin && <> · {origin}</>}
         </div>
       </td>
     </tr>
