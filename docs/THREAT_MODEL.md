@@ -71,3 +71,14 @@ S12 CI action (token in runner)
 5. Every outbound HTTP host is in a static allow-list.
 6. Scanner containers cannot reach the network (test: scanner image runs `curl` → fails).
 7. The LLM output validator rejects any claim without a valid evidence id (golden tests).
+
+## MVP note (2026-10-21)
+
+The MVP vertical slice (ADR-0009, ADR-0010, `docs/phases/PHASE_MVP.md`) runs scanners as subprocesses in the worker, not in isolated containers, and has no authentication.
+
+- **T-01** residual risk is raised until the DockerRunner lands: scanner compromise = worker compromise.
+- **Invariant 1** holds in a weaker form: no string commands; list argv via `SubprocessRunner` instead of the Docker API.
+- **Invariant 6** (scanners cannot reach the network) does **not** hold yet.
+- **Invariants 2, 3 and 5** are implemented and tested: `test_workspace.py`, `tests/e2e`, `test_context.py`.
+
+Do not expose the API beyond localhost before Phase 2 (auth) and Phase 3 (DockerRunner).
