@@ -1,49 +1,59 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiGet, type Health, type Readiness, ApiError } from "../api/client";
+import { Link, Route, Routes, useParams } from "react-router-dom";
+import { apiGet, type Readiness } from "@/api/client";
+import { UUID_RE } from "@/lib/format";
+import { NewScanForm } from "@/features/scans/NewScanForm";
+import { ScanList } from "@/features/scans/ScanList";
+import { ScanDetailPage } from "@/features/scans/ScanDetailPage";
 
-function StatusRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: "flex", gap: 12, padding: "4px 0" }}>
-      <span style={{ width: 120, color: "#6b7280" }}>{label}</span>
-      <span>{value}</span>
-    </div>
-  );
-}
-
-export function App() {
-  const health = useQuery({ queryKey: ["healthz"], queryFn: () => apiGet<Health>("/healthz") });
+function HealthDot() {
   const ready = useQuery({
     queryKey: ["readyz"],
     queryFn: () => apiGet<Readiness>("/readyz"),
-    refetchInterval: 10_000,
+    refetchInterval: 15_000,
   });
-
-  const readyChecks: Record<string, string> =
-    ready.data?.checks ??
-    (ready.error instanceof ApiError && ready.error.problem
-      ? ((ready.error.problem.checks as Record<string, string> | undefined) ?? {})
-      : {});
-
+  const ok = ready.data?.status === "ok";
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", maxWidth: 640, margin: "48px auto" }}>
-      <h1 style={{ marginBottom: 4 }}>RiskGraph</h1>
-      <p style={{ color: "#6b7280", marginTop: 0 }}>
-        Context-aware security risk prioritization. Phase 1 skeleton.
-      </p>
-      <section>
-        <h2 style={{ fontSize: 16 }}>API</h2>
-        <StatusRow
-          label="healthz"
-          value={health.isLoading ? "…" : health.data ? `${health.data.status} (v${health.data.version})` : "unreachable"}
-        />
-        <StatusRow
-          label="readyz"
-          value={ready.isLoading ? "…" : ready.data ? ready.data.status : "not ready"}
-        />
-        {Object.entries(readyChecks).map(([name, value]) => (
-          <StatusRow key={name} label={`  ${name}`} value={value} />
-        ))}
-      </section>
-    </main>
+    <span className="muted" title={ok ? "API, database and Redis reachable" : "API not ready"}>
+      <span className={`dot ${ok ? "bg-ok" : ready.isLoading ? "bg-idle" : "bg-bad"}`} />
+      {ok ? "API ready" : ready.isLoading ? "checking…" : "API unavailable"}
+    </span>
+  );
+}
+
+function HomePage() {
+  return (
+    <>
+      <NewScanForm />
+      <ScanList />
+    </>
+  );
+}
+
+function ScanRoute() {
+  const { id } = useParams();
+  if (!id || !UUID_RE.test(id)) {
+    return <div className="panel error">That is not a valid scan id.</div>;
+  }
+  return <ScanDetailPage scanId={id} />;
+}
+
+export function App() {
+  return (
+    <>
+      <header className="topbar">
+        <Link to="/" className="brand">
+          RiskGraph<small>scan → normalize → merge → prioritize</small>
+        </Link>
+        <HealthDot />
+      </header>
+      <main className="page">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/scans/:id" element={<ScanRoute />} />
+          <Route path="*" element={<div className="panel">Page not found. <Link to="/">Home</Link></div>} />
+        </Routes>
+      </main>
+    </>
   );
 }

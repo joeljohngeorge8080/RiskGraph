@@ -7,7 +7,9 @@ Unit tests never need services. Tests marked ``db`` expect the compose test prof
 from __future__ import annotations
 
 import os
+import tempfile
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -21,10 +23,26 @@ os.environ.setdefault(
 )
 os.environ.setdefault("RISKGRAPH_REDIS_URL", "redis://:riskgraph@localhost:6379/1")
 os.environ.setdefault("RISKGRAPH_SECRET_KEY", "test-secret-key-do-not-use-in-production!!")
+os.environ.setdefault("RISKGRAPH_DATA_DIR", tempfile.mkdtemp(prefix="riskgraph-test-"))
+os.environ.setdefault("RISKGRAPH_ENRICHMENT_ENABLED", "false")
 
 from riskgraph.entrypoints.api import create_app
 from riskgraph.shared.config import Settings, get_settings
-from riskgraph.shared.db import dispose_engine
+from riskgraph.shared.db import dispose_engine, get_engine
+from sqlalchemy import text
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+TABLES = (
+    "risk_factors",
+    "risk_scores",
+    "scan_findings",
+    "finding_occurrences",
+    "findings",
+    "scanner_runs",
+    "scan_jobs",
+    "repositories",
+    "vulnerabilities",
+)
 
 
 @pytest.fixture()
@@ -39,3 +57,29 @@ def client(settings: Settings) -> Iterator[TestClient]:
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
     dispose_engine()
+
+
+def _alembic(*args: str) -> None:
+    from alembic import command
+    from alembic.config import Config
+
+    cfg = Config(str(BACKEND_DIR / "alembic.ini"))
+    cfg.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
+    getattr(command, args[0])(cfg, *args[1:])
+
+
+@pytest.fixture(scope="session")
+def migrated_db() -> Iterator[None]:
+    """Schema at head for ``db`` tests (the test database is dedicated to tests)."""
+    get_settings.cache_clear()
+    _alembic("upgrade", "head")
+    yield
+    dispose_engine()
+
+
+@pytest.fixture()
+def db(migrated_db: None) -> Iterator[None]:
+    """Empty tables before each test; tests then use session_scope()/the API."""
+    with get_engine().begin() as conn:
+        conn.execute(text(f"TRUNCATE {', '.join(TABLES)} CASCADE"))
+    yield
