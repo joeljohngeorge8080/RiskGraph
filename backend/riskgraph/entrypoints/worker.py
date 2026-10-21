@@ -7,42 +7,15 @@ settings on purpose: a worker with a bad configuration must not start.
 
 from __future__ import annotations
 
-from celery import Celery
 from celery.signals import setup_logging, task_postrun, task_prerun
-from kombu import Queue
 
-from riskgraph.shared.config import Settings, get_settings
+from riskgraph.shared.celery import QUEUE_ANALYSIS, QUEUE_SCAN, create_celery, get_celery_app
+from riskgraph.shared.config import get_settings
 from riskgraph.shared.logging import configure_logging
 
-QUEUE_SCAN = "scan"
-QUEUE_ANALYSIS = "analysis"
+__all__ = ["QUEUE_ANALYSIS", "QUEUE_SCAN", "celery_app", "create_celery", "ping"]
 
-
-def create_celery(settings: Settings | None = None) -> Celery:
-    settings = settings or get_settings()
-    app = Celery("riskgraph", broker=settings.redis_url, backend=settings.redis_url)
-    app.conf.update(
-        task_serializer="json",
-        result_serializer="json",
-        accept_content=["json"],
-        timezone="UTC",
-        enable_utc=True,
-        task_acks_late=True,
-        task_reject_on_worker_lost=True,
-        worker_prefetch_multiplier=1,
-        task_track_started=True,
-        result_expires=24 * 3600,
-        broker_connection_retry_on_startup=True,
-        task_default_queue=QUEUE_ANALYSIS,
-        task_queues=(Queue(QUEUE_SCAN), Queue(QUEUE_ANALYSIS)),
-        beat_schedule={},
-        worker_hijack_root_logger=False,
-    )
-    app.conf.riskgraph_settings = settings
-    return app
-
-
-celery_app = create_celery()
+celery_app = get_celery_app()
 
 
 @setup_logging.connect

@@ -1,0 +1,473 @@
+{
+ "engine_requested": "OSS",
+ "errors": [],
+ "paths": {
+  "scanned": [
+   "Dockerfile",
+   "app.py",
+   "deploy/id_rsa",
+   "main.tf",
+   "requirements.txt"
+  ]
+ },
+ "profiling_results": [],
+ "results": [
+  {
+   "check_id": "root..local.share.riskgraph-tools.semgrep-rules.dockerfile.security.missing-user",
+   "end": {
+    "col": 30,
+    "line": 4,
+    "offset": 98
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "By not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can control a process running as root, they may have control over the container. Ensure that the last USER in a Dockerfile is a USER other than 'root'.",
+    "metadata": {
+     "category": "security",
+     "confidence": "MEDIUM",
+     "cwe": [
+      "CWE-250: Execution with Unnecessary Privileges"
+     ],
+     "impact": "MEDIUM",
+     "likelihood": "LOW",
+     "owasp": [
+      "A04:2021 - Insecure Design",
+      "A06:2025 - Insecure Design"
+     ],
+     "references": [
+      "https://owasp.org/Top10/A04_2021-Insecure_Design"
+     ],
+     "subcategory": [
+      "audit"
+     ],
+     "technology": [
+      "dockerfile"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "Dockerfile",
+   "start": {
+    "col": 1,
+    "line": 4,
+    "offset": 69
+   }
+  },
+  {
+   "check_id": "root..local.share.riskgraph-tools.semgrep-rules.python.sqlalchemy.security.sqlalchemy-execute-raw-query",
+   "end": {
+    "col": 67,
+    "line": 14,
+    "offset": 287
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Avoiding SQL string concatenation: untrusted input concatenated with raw SQL query can result in SQL Injection. In order to execute raw query safely, prepared statement should be used. SQLAlchemy provides TextualSQL to easily used prepared statement with named parameters. For complex SQL composition, use SQL Expression Language or Schema Definition Language. In most cases, SQLAlchemy ORM will be a better option.",
+    "metadata": {
+     "category": "security",
+     "confidence": "LOW",
+     "cwe": [
+      "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "HIGH",
+     "likelihood": "LOW",
+     "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+     ],
+     "references": [
+      "https://docs.sqlalchemy.org/en/14/core/tutorial.html#using-textual-sql",
+      "https://www.tutorialspoint.com/sqlalchemy/sqlalchemy_quick_guide.htm",
+      "https://docs.sqlalchemy.org/en/14/core/tutorial.html#using-more-specific-text-with-table-expression-literal-column-and-expression-column"
+     ],
+     "subcategory": [
+      "audit"
+     ],
+     "technology": [
+      "sqlalchemy"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "app.py",
+   "start": {
+    "col": 5,
+    "line": 14,
+    "offset": 225
+   }
+  },
+  {
+   "check_id": "root..local.share.riskgraph-tools.semgrep-rules.python.django.security.injection.tainted-sql-string",
+   "end": {
+    "col": 66,
+    "line": 14,
+    "offset": 286
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction could accidentally result in a SQL injection. An attacker could use a SQL injection to steal or modify contents of the database. Instead, use a parameterized query which is available by default in most database engines. Alternatively, consider using the Django object-relational mappers (ORM) instead of raw SQL queries.",
+    "metadata": {
+     "category": "security",
+     "confidence": "LOW",
+     "cwe": [
+      "CWE-915: Improperly Controlled Modification of Dynamically-Determined Object Attributes"
+     ],
+     "impact": "LOW",
+     "likelihood": "MEDIUM",
+     "owasp": [
+      "A08:2021 - Software and Data Integrity Failures",
+      "A08:2025 - Software or Data Integrity Failures"
+     ],
+     "references": [
+      "https://docs.djangoproject.com/en/3.0/topics/security/#sql-injection-protection"
+     ],
+     "subcategory": [
+      "audit"
+     ],
+     "technology": [
+      "django"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "app.py",
+   "start": {
+    "col": 17,
+    "line": 14,
+    "offset": 237
+   }
+  },
+  {
+   "check_id": "root..local.share.riskgraph-tools.semgrep-rules.python.flask.security.injection.tainted-sql-string",
+   "end": {
+    "col": 66,
+    "line": 14,
+    "offset": 286
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction could accidentally result in a SQL injection. An attacker could use a SQL injection to steal or modify contents of the database. Instead, use a parameterized query which is available by default in most database engines. Alternatively, consider using an object-relational mapper (ORM) such as SQLAlchemy which will protect your queries.",
+    "metadata": {
+     "category": "security",
+     "confidence": "MEDIUM",
+     "cwe": [
+      "CWE-704: Incorrect Type Conversion or Cast"
+     ],
+     "impact": "MEDIUM",
+     "likelihood": "MEDIUM",
+     "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+     ],
+     "references": [
+      "https://docs.sqlalchemy.org/en/14/core/tutorial.html#using-textual-sql",
+      "https://www.tutorialspoint.com/sqlalchemy/sqlalchemy_quick_guide.htm",
+      "https://docs.sqlalchemy.org/en/14/core/tutorial.html#using-more-specific-text-with-table-expression-literal-column-and-expression-column"
+     ],
+     "subcategory": [
+      "vuln"
+     ],
+     "technology": [
+      "sqlalchemy",
+      "flask"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "app.py",
+   "start": {
+    "col": 17,
+    "line": 14,
+    "offset": 237
+   }
+  },
+  {
+   "check_id": "root..local.share.riskgraph-tools.semgrep-rules.python.flask.security.injection.subprocess-injection",
+   "end": {
+    "col": 68,
+    "line": 21,
+    "offset": 456
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Detected user input entering a `subprocess` call unsafely. This could result in a command injection vulnerability. An attacker could use this vulnerability to execute arbitrary commands on the host, which allows them to download malware, scan sensitive data, or run any command they wish on the server. Do not let users choose the command to run. In general, prefer to use Python API versions of system commands. If you must use subprocess, use a dictionary to allowlist a set of commands.",
+    "metadata": {
+     "category": "security",
+     "confidence": "HIGH",
+     "cwe": [
+      "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "MEDIUM",
+     "likelihood": "HIGH",
+     "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+     ],
+     "references": [
+      "https://semgrep.dev/docs/cheat-sheets/python-command-injection/"
+     ],
+     "subcategory": [
+      "vuln"
+     ],
+     "technology": [
+      "flask"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "app.py",
+   "start": {
+    "col": 12,
+    "line": 21,
+    "offset": 400
+   }
+  },
+  {
+   "check_id": "root..local.share.riskgraph-tools.semgrep-rules.python.lang.security.audit.dangerous-subprocess-use-audit",
+   "end": {
+    "col": 68,
+    "line": 21,
+    "offset": 456
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Detected subprocess function 'check_output' without a static string. If this data can be controlled by a malicious actor, it may be an instance of command injection. Audit the use of this call to ensure it is not controllable by an external resource. You may consider using 'shlex.escape()'.",
+    "metadata": {
+     "asvs": {
+      "control_id": "5.3.8 OS Command Injection",
+      "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v53-output-encoding-and-injection-prevention-requirements",
+      "section": "V5: Validation, Sanitization and Encoding Verification Requirements",
+      "version": "4"
+     },
+     "category": "security",
+     "confidence": "LOW",
+     "cwe": [
+      "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "HIGH",
+     "likelihood": "LOW",
+     "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+     ],
+     "references": [
+      "https://stackoverflow.com/questions/3172470/actual-meaning-of-shell-true-in-subprocess",
+      "https://docs.python.org/3/library/subprocess.html",
+      "https://docs.python.org/3/library/shlex.html",
+      "https://semgrep.dev/docs/cheat-sheets/python-command-injection/"
+     ],
+     "subcategory": [
+      "audit"
+     ],
+     "technology": [
+      "python"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "app.py",
+   "start": {
+    "col": 12,
+    "line": 21,
+    "offset": 400
+   }
+  },
+  {
+   "check_id": "root..local.share.riskgraph-tools.semgrep-rules.python.lang.security.dangerous-subprocess-use",
+   "end": {
+    "col": 55,
+    "line": 21,
+    "offset": 443
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Detected subprocess function 'check_output' with user controlled data. A malicious actor could leverage this to perform command injection. You may consider using 'shlex.escape()'.",
+    "metadata": {
+     "asvs": {
+      "control_id": "5.3.8 OS Command Injection",
+      "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v53-output-encoding-and-injection-prevention-requirements",
+      "section": "V5: Validation, Sanitization and Encoding Verification Requirements",
+      "version": "4"
+     },
+     "category": "security",
+     "confidence": "MEDIUM",
+     "cwe": [
+      "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "HIGH",
+     "likelihood": "MEDIUM",
+     "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+     ],
+     "references": [
+      "https://stackoverflow.com/questions/3172470/actual-meaning-of-shell-true-in-subprocess",
+      "https://docs.python.org/3/library/subprocess.html",
+      "https://docs.python.org/3/library/shlex.html",
+      "https://semgrep.dev/docs/cheat-sheets/python-command-injection/"
+     ],
+     "subcategory": [
+      "vuln"
+     ],
+     "technology": [
+      "python"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "app.py",
+   "start": {
+    "col": 36,
+    "line": 21,
+    "offset": 424
+   }
+  },
+  {
+   "check_id": "root..local.share.riskgraph-tools.semgrep-rules.python.lang.security.audit.subprocess-shell-true",
+   "end": {
+    "col": 67,
+    "line": 21,
+    "offset": 455
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Found 'subprocess' function 'check_output' with 'shell=True'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use 'shell=False' instead.",
+    "metadata": {
+     "category": "security",
+     "confidence": "MEDIUM",
+     "cwe": [
+      "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "LOW",
+     "likelihood": "HIGH",
+     "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+     ],
+     "references": [
+      "https://stackoverflow.com/questions/3172470/actual-meaning-of-shell-true-in-subprocess",
+      "https://docs.python.org/3/library/subprocess.html"
+     ],
+     "source-rule-url": "https://bandit.readthedocs.io/en/latest/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+     "subcategory": [
+      "secure default"
+     ],
+     "technology": [
+      "python"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "app.py",
+   "start": {
+    "col": 63,
+    "line": 21,
+    "offset": 451
+   }
+  }
+ ],
+ "skipped_rules": [],
+ "time": {
+  "fixpoint_timeouts": [],
+  "matching_time": {
+   "per_file_and_rule_time": {
+    "mean": 0.0008806075368608748,
+    "std_dev": 1.0731459240517146e-06
+   },
+   "total_time": 0.024657011032104492,
+   "very_slow_rules_on_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "max_memory_bytes": 563786816,
+  "parsing_time": {
+   "per_file_time": {
+    "mean": 0.00048285722732543945,
+    "std_dev": 3.978834243919696e-06
+   },
+   "total_time": 0.013520002365112305,
+   "very_slow_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "prefiltering": {
+   "file_level_time": 0.0,
+   "project_level_time": 0.0,
+   "rules_matched_ratio": 0.10661764705882353,
+   "rules_selected_ratio": 0.10661764705882353,
+   "rules_with_file_prefilters_ratio": 0.9852941176470589,
+   "rules_with_project_prefilters_ratio": 0.0
+  },
+  "profiling_times": {
+   "config_time": 34.328813791275024,
+   "core_time": 1.1483643054962158,
+   "ignores_time": 0.0017445087432861328,
+   "total_time": 35.488152265548706
+  },
+  "rules": [],
+  "rules_parse_time": 0.5887660980224609,
+  "scanning_time": {
+   "per_file_time": {
+    "mean": 0.004996836185455321,
+    "std_dev": 0.00015263886918740846
+   },
+   "total_time": 0.05996203422546387,
+   "very_slow_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "tainting_time": {
+   "per_def_and_rule_time": {
+    "mean": 0.00017244165593927556,
+    "std_dev": 2.2307252780071388e-07
+   },
+   "total_time": 0.005690574645996094,
+   "very_slow_rules_on_defs": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "targets": [],
+  "total_bytes": 0
+ },
+ "version": "1.182.0"
+}

@@ -1,0 +1,858 @@
+{
+ "ArtifactName": ".",
+ "ArtifactType": "filesystem",
+ "CreatedAt": "2026-10-21T03:10:24.046675978Z",
+ "ReportID": "01a15c70-452e-7a3c-be6e-b10fcdf42c72",
+ "Results": [
+  {
+   "Class": "lang-pkgs",
+   "Packages": [
+    {
+     "AnalyzedBy": "pip",
+     "Identifier": {
+      "PURL": "pkg:pypi/django@2.2.0",
+      "UID": "382b312ce416d7bd"
+     },
+     "Locations": [
+      {
+       "EndLine": 1,
+       "StartLine": 1
+      }
+     ],
+     "Name": "django",
+     "Version": "2.2.0"
+    },
+    {
+     "AnalyzedBy": "pip",
+     "Identifier": {
+      "PURL": "pkg:pypi/pyyaml@5.3",
+      "UID": "71ee91b5efd1f6b1"
+     },
+     "Locations": [
+      {
+       "EndLine": 3,
+       "StartLine": 3
+      }
+     ],
+     "Name": "pyyaml",
+     "Version": "5.3"
+    },
+    {
+     "AnalyzedBy": "pip",
+     "Identifier": {
+      "PURL": "pkg:pypi/requests@2.19.0",
+      "UID": "6d59e745010602d4"
+     },
+     "Locations": [
+      {
+       "EndLine": 2,
+       "StartLine": 2
+      }
+     ],
+     "Name": "requests",
+     "Version": "2.19.0"
+    }
+   ],
+   "Target": "requirements.txt",
+   "Type": "pip",
+   "Vulnerabilities": [
+    {
+     "CVSS": {
+      "ghsa": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+       "V40Score": 9.3,
+       "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      },
+      "nvd": {
+       "V2Score": 7.5,
+       "V2Vector": "AV:N/AC:L/Au:N/C:P/I:P/A:P",
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "redhat": {
+       "V3Score": 5.3,
+       "V3Vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
+      }
+     },
+     "CweIDs": [
+      "CWE-89"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "An issue was discovered in Django 1.11.x before 1.11.23, 2.1.x before 2.1.11, and 2.2.x before 2.2.4. Due to an error in shallow key transformation, key and index lookups for django.contrib.postgres.fields.JSONField, and key lookups for django.contrib.postgres.fields.HStoreField, were subject to SQL injection. This could, for example, be exploited via crafted use of \"OR 1=1\" in a key or index name to return all records, using a suitably crafted dictionary, with dictionary expansion, as the **kwargs passed to the QuerySet.filter() function.",
+     "Fingerprint": "sha256:398eee643b5b41387a6093cbd1fa9d4807e9a8abca7e0546facebc9fb590396e",
+     "FixedVersion": "1.11.23, 2.1.11, 2.2.4",
+     "InstalledVersion": "2.2.0",
+     "LastModifiedDate": "2026-06-17T02:18:00.427Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/django@2.2.0",
+      "UID": "382b312ce416d7bd"
+     },
+     "PkgName": "django",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2019-14234",
+     "PublishedDate": "2019-08-09T13:15:11.777Z",
+     "References": [
+      "http://lists.opensuse.org/opensuse-security-announce/2019-08/msg00025.html",
+      "https://access.redhat.com/security/cve/CVE-2019-14234"
+     ],
+     "Severity": "CRITICAL",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "Django: SQL injection possibility in key and index lookups for JSONField/HStoreField",
+     "VendorIDs": [
+      "GHSA-6r97-cj55-9hrq"
+     ],
+     "VendorSeverity": {
+      "ghsa": 4,
+      "nvd": 4,
+      "redhat": 2,
+      "ubuntu": 2
+     },
+     "VulnerabilityID": "CVE-2019-14234"
+    },
+    {
+     "CVSS": {
+      "ghsa": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+       "V40Score": 9.3,
+       "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      },
+      "nvd": {
+       "V2Score": 5,
+       "V2Vector": "AV:N/AC:L/Au:N/C:N/I:P/A:N",
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "redhat": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      }
+     },
+     "CweIDs": [
+      "CWE-640"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "Django before 1.11.27, 2.x before 2.2.9, and 3.x before 3.0.1 allows account takeover. A suitably crafted email address (that is equal to an existing user's email address after case transformation of Unicode characters) would allow an attacker to be sent a password reset token for the matched user account. (One mitigation in the new releases is to send password reset tokens only to the registered user email address.)",
+     "Fingerprint": "sha256:94692e91da6d0539c8abd71e0249c17e2844c724f287bf9e9f0c339c9176a089",
+     "FixedVersion": "1.11.27, 2.2.9, 3.0.1",
+     "InstalledVersion": "2.2.0",
+     "LastModifiedDate": "2026-06-17T02:27:20.267Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/django@2.2.0",
+      "UID": "382b312ce416d7bd"
+     },
+     "PkgName": "django",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2019-19844",
+     "PublishedDate": "2019-12-18T19:15:11.78Z",
+     "References": [
+      "http://packetstormsecurity.com/files/155872/Django-Account-Hijack.html",
+      "https://access.redhat.com/security/cve/CVE-2019-19844"
+     ],
+     "Severity": "CRITICAL",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "Django: crafted email address allows account takeover",
+     "VendorIDs": [
+      "GHSA-vfq6-hq5r-27r6"
+     ],
+     "VendorSeverity": {
+      "ghsa": 4,
+      "nvd": 4,
+      "redhat": 4,
+      "ubuntu": 3
+     },
+     "VulnerabilityID": "CVE-2019-19844"
+    },
+    {
+     "CVSS": {
+      "bitnami": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "ghsa": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+       "V40Score": 9.3,
+       "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      },
+      "nvd": {
+       "V2Score": 7.5,
+       "V2Vector": "AV:N/AC:L/Au:N/C:P/I:P/A:P",
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "redhat": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      }
+     },
+     "CweIDs": [
+      "CWE-89"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "Django 1.11 before 1.11.28, 2.2 before 2.2.10, and 3.0 before 3.0.3 allows SQL Injection if untrusted data is used as a StringAgg delimiter (e.g., in Django applications that offer downloads of data as a series of rows with a user-specified column delimiter). By passing a suitably crafted delimiter to a contrib.postgres.aggregates.StringAgg instance, it was possible to break escaping and inject malicious SQL.",
+     "Fingerprint": "sha256:bfc8a946311cb998540fab1a8bea2e000422a13a3492e97614c953e054949ba5",
+     "FixedVersion": "1.11.28, 2.2.10, 3.0.3",
+     "InstalledVersion": "2.2.0",
+     "LastModifiedDate": "2026-06-17T03:24:50.777Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/django@2.2.0",
+      "UID": "382b312ce416d7bd"
+     },
+     "PkgName": "django",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2020-7471",
+     "PublishedDate": "2020-02-03T12:15:26.993Z",
+     "References": [
+      "http://www.openwall.com/lists/oss-security/2020/02/03/1",
+      "https://access.redhat.com/security/cve/CVE-2020-7471"
+     ],
+     "Severity": "CRITICAL",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "django: potential SQL injection via StringAgg(delimiter)",
+     "VendorIDs": [
+      "GHSA-hmr4-m2h5-33qx"
+     ],
+     "VendorSeverity": {
+      "bitnami": 4,
+      "ghsa": 4,
+      "nvd": 4,
+      "redhat": 3,
+      "ubuntu": 2
+     },
+     "VulnerabilityID": "CVE-2020-7471"
+    },
+    {
+     "CVSS": {
+      "bitnami": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "ghsa": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+       "V40Score": 9.3,
+       "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      },
+      "nvd": {
+       "V2Score": 7.5,
+       "V2Vector": "AV:N/AC:L/Au:N/C:P/I:P/A:P",
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "redhat": {
+       "V3Score": 9.4,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:L"
+      }
+     },
+     "CweIDs": [
+      "CWE-89"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "An issue was discovered in Django 2.2 before 2.2.28, 3.2 before 3.2.13, and 4.0 before 4.0.4. QuerySet.annotate(), aggregate(), and extra() methods are subject to SQL injection in column aliases via a crafted dictionary (with dictionary expansion) as the passed **kwargs.",
+     "Fingerprint": "sha256:77fb593330df8330192be9f4399741a6725a6e18b9149e278b36ef65c8b62049",
+     "FixedVersion": "2.2.28, 3.2.13, 4.0.4",
+     "InstalledVersion": "2.2.0",
+     "LastModifiedDate": "2026-06-17T04:38:24.5Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/django@2.2.0",
+      "UID": "382b312ce416d7bd"
+     },
+     "PkgName": "django",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2022-28346",
+     "PublishedDate": "2022-04-12T05:15:06.927Z",
+     "References": [
+      "http://www.openwall.com/lists/oss-security/2022/04/11/1",
+      "https://access.redhat.com/security/cve/CVE-2022-28346"
+     ],
+     "Severity": "CRITICAL",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "Django: SQL injection in QuerySet.annotate(),aggregate() and extra()",
+     "VendorIDs": [
+      "GHSA-2gwj-7jmv-h26r"
+     ],
+     "VendorSeverity": {
+      "bitnami": 4,
+      "ghsa": 4,
+      "nvd": 4,
+      "redhat": 3,
+      "ubuntu": 3
+     },
+     "VulnerabilityID": "CVE-2022-28346"
+    },
+    {
+     "CVSS": {
+      "bitnami": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "ghsa": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+       "V40Score": 9.3,
+       "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      },
+      "nvd": {
+       "V2Score": 7.5,
+       "V2Vector": "AV:N/AC:L/Au:N/C:P/I:P/A:P",
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "redhat": {
+       "V3Score": 9.4,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:L"
+      }
+     },
+     "CweIDs": [
+      "CWE-89"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "A SQL injection issue was discovered in QuerySet.explain() in Django 2.2 before 2.2.28, 3.2 before 3.2.13, and 4.0 before 4.0.4. This occurs by passing a crafted dictionary (with dictionary expansion) as the **options argument, and placing the injection payload in an option name.",
+     "Fingerprint": "sha256:a551e2d1f952a0b187c9003c5c38a35104dd4c47bc756205fd7fade86280857c",
+     "FixedVersion": "2.2.28, 3.2.13, 4.0.4",
+     "InstalledVersion": "2.2.0",
+     "LastModifiedDate": "2026-06-17T04:38:24.63Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/django@2.2.0",
+      "UID": "382b312ce416d7bd"
+     },
+     "PkgName": "django",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2022-28347",
+     "PublishedDate": "2022-04-12T05:15:07.357Z",
+     "References": [
+      "http://www.openwall.com/lists/oss-security/2022/04/11/1",
+      "https://access.redhat.com/security/cve/CVE-2022-28347"
+     ],
+     "Severity": "CRITICAL",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "Django: SQL injection via QuerySet.explain(options) on PostgreSQL",
+     "VendorIDs": [
+      "GHSA-w24h-v9qh-8gxj"
+     ],
+     "VendorSeverity": {
+      "bitnami": 4,
+      "ghsa": 4,
+      "nvd": 4,
+      "redhat": 3,
+      "ubuntu": 3
+     },
+     "VulnerabilityID": "CVE-2022-28347"
+    },
+    {
+     "CVSS": {
+      "bitnami": {
+       "V3Score": 9.1,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
+      },
+      "ghsa": {
+       "V3Score": 9.1,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
+      },
+      "redhat": {
+       "V3Score": 8.3,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L"
+      }
+     },
+     "CweIDs": [
+      "CWE-89"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "An issue was discovered in 5.1 before 5.1.14, 4.2 before 4.2.26, and 5.2 before 5.2.8.\nThe methods `QuerySet.filter()`, `QuerySet.exclude()`, and `QuerySet.get()`, and the class `Q()`, are subject to SQL injection when using a suitably crafted dictionary, with dictionary expansion, as the `_connector` argument.\nEarlier, unsupported Django series (such as 5.0.x, 4.1.x, and 3.2.x) were not evaluated and may also be affected.\nDjango would like to thank cyberstan for reporting this issue.",
+     "Fingerprint": "sha256:c0b2e7efdf1e25327fe1d05cb11d826c0d3d682789fa5a78fae1da46fba35beb",
+     "FixedVersion": "5.2.8, 5.1.14, 4.2.26",
+     "InstalledVersion": "2.2.0",
+     "LastModifiedDate": "2026-06-17T09:54:24.473Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/django@2.2.0",
+      "UID": "382b312ce416d7bd"
+     },
+     "PkgName": "django",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2025-64459",
+     "PublishedDate": "2025-11-05T15:15:41.08Z",
+     "References": [
+      "https://access.redhat.com/security/cve/CVE-2025-64459",
+      "https://advisory.echohq.com/cve/CVE-2025-64459"
+     ],
+     "Severity": "CRITICAL",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "django: Django SQL injection",
+     "VendorIDs": [
+      "GHSA-frmv-pr5f-9mcr"
+     ],
+     "VendorSeverity": {
+      "bitnami": 4,
+      "ghsa": 4,
+      "redhat": 3,
+      "ubuntu": 2
+     },
+     "VulnerabilityID": "CVE-2025-64459"
+    }
+   ]
+  },
+  {
+   "Class": "config",
+   "MisconfSummary": {
+    "Failures": 0,
+    "Successes": 69
+   },
+   "Target": ".",
+   "Type": "terraform"
+  },
+  {
+   "Class": "config",
+   "MisconfSummary": {
+    "Failures": 2,
+    "Successes": 25
+   },
+   "Misconfigurations": [
+    {
+     "CauseMetadata": {
+      "Provider": "Dockerfile",
+      "Service": "general"
+     },
+     "Description": "Running containers with 'root' user can lead to a container escape situation. It is a best practice to run containers as non-root users, which can be done by adding a 'USER' statement to the Dockerfile.",
+     "ID": "DS-0002",
+     "Message": "Specify at least 1 USER command in Dockerfile with non-root user as argument",
+     "Namespace": "builtin.dockerfile.DS002",
+     "PrimaryURL": "https://avd.aquasec.com/misconfig/ds-0002",
+     "Query": "data.builtin.dockerfile.DS002.deny",
+     "References": [
+      "https://docs.docker.com/develop/develop-images/dockerfile_best-practices/",
+      "https://avd.aquasec.com/misconfig/ds-0002"
+     ],
+     "Resolution": "Add 'USER <non root user name>' line to the Dockerfile",
+     "Severity": "HIGH",
+     "Status": "FAIL",
+     "Title": "Image user should not be 'root'",
+     "Type": "Dockerfile Security Check"
+    },
+    {
+     "CauseMetadata": {
+      "Provider": "Dockerfile",
+      "Service": "general"
+     },
+     "Description": "You should add HEALTHCHECK instruction in your docker container images to perform the health check on running containers.",
+     "ID": "DS-0026",
+     "Message": "Add HEALTHCHECK instruction in your Dockerfile",
+     "Namespace": "builtin.dockerfile.DS026",
+     "PrimaryURL": "https://avd.aquasec.com/misconfig/ds-0026",
+     "Query": "data.builtin.dockerfile.DS026.deny",
+     "References": [
+      "https://blog.aquasec.com/docker-security-best-practices",
+      "https://avd.aquasec.com/misconfig/ds-0026"
+     ],
+     "Resolution": "Add HEALTHCHECK instruction in Dockerfile",
+     "Severity": "LOW",
+     "Status": "FAIL",
+     "Title": "No HEALTHCHECK defined",
+     "Type": "Dockerfile Security Check"
+    }
+   ],
+   "Target": "Dockerfile",
+   "Type": "dockerfile"
+  },
+  {
+   "Class": "config",
+   "MisconfSummary": {
+    "Failures": 12,
+    "Successes": 0
+   },
+   "Misconfigurations": [
+    {
+     "CauseMetadata": {
+      "EndLine": 10,
+      "Provider": "AWS",
+      "Resource": "aws_s3_bucket.data",
+      "Service": "s3",
+      "StartLine": 7
+     },
+     "Description": "S3 buckets should block public ACLs on buckets and any objects they contain. By blocking, PUTs with fail if the object has any public ACL a.\n",
+     "ID": "AWS-0086",
+     "Message": "No public access block so not blocking public acls",
+     "Namespace": "builtin.aws.s3.aws0086",
+     "PrimaryURL": "https://avd.aquasec.com/misconfig/aws-0086",
+     "Query": "data.builtin.aws.s3.aws0086.deny",
+     "References": [
+      "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",
+      "https://avd.aquasec.com/misconfig/aws-0086"
+     ],
+     "Resolution": "Enable blocking any PUT calls with a public ACL specified",
+     "Severity": "HIGH",
+     "Status": "FAIL",
+     "Title": "S3 Access block should block public ACL",
+     "Type": "Terraform Security Check"
+    },
+    {
+     "CauseMetadata": {
+      "EndLine": 10,
+      "Provider": "AWS",
+      "Resource": "aws_s3_bucket.data",
+      "Service": "s3",
+      "StartLine": 7
+     },
+     "Description": "S3 bucket policy should have block public policy to prevent users from putting a policy that enable public access.\n",
+     "ID": "AWS-0087",
+     "Message": "No public access block so not blocking public policies",
+     "Namespace": "builtin.aws.s3.aws0087",
+     "PrimaryURL": "https://avd.aquasec.com/misconfig/aws-0087",
+     "Query": "data.builtin.aws.s3.aws0087.deny",
+     "References": [
+      "https://docs.aws.amazon.com/AmazonS3/latest/dev-retired/access-control-block-public-access.html",
+      "https://avd.aquasec.com/misconfig/aws-0087"
+     ],
+     "Resolution": "Prevent policies that allow public access being PUT",
+     "Severity": "HIGH",
+     "Status": "FAIL",
+     "Title": "S3 Access block should block public policy",
+     "Type": "Terraform Security Check"
+    },
+    {
+     "CauseMetadata": {
+      "EndLine": 10,
+      "Provider": "AWS",
+      "Resource": "aws_s3_bucket.data",
+      "Service": "s3",
+      "StartLine": 7
+     },
+     "Description": "Ensures S3 bucket logging is enabled for S3 buckets",
+     "ID": "AWS-0089",
+     "Message": "Bucket has logging disabled",
+     "Namespace": "builtin.aws.s3.aws0089",
+     "PrimaryURL": "https://avd.aquasec.com/misconfig/aws-0089",
+     "Query": "data.builtin.aws.s3.aws0089.deny",
+     "References": [
+      "https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerLogs.html",
+      "https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html",
+      "https://avd.aquasec.com/misconfig/aws-0089"
+     ],
+     "Resolution": "Add a logging block to the resource to enable access logging",
+     "Severity": "LOW",
+     "Status": "FAIL",
+     "Title": "S3 Bucket Logging",
+     "Type": "Terraform Security Check"
+    },
+    {
+     "CauseMetadata": {
+      "EndLine": 10,
+      "Provider": "AWS",
+      "Resource": "aws_s3_bucket.data",
+      "Service": "s3",
+      "StartLine": 7
+     },
+     "Description": "Versioning in Amazon S3 is a means of keeping multiple variants of an object in the same bucket.\n\nYou can use the S3 Versioning feature to preserve, retrieve, and restore every version of every object stored in your buckets.\n\nWith versioning you can recover more easily from both unintended user actions and application failures.\n\nWhen you enable versioning, also keep in mind the potential costs of storing noncurrent versions of objects. To help manage those costs, consider setting up an S3 Lifecycle configuration.\n",
+     "ID": "AWS-0090",
+     "Message": "Bucket does not have versioning enabled",
+     "Namespace": "builtin.aws.s3.aws0090",
+     "PrimaryURL": "https://avd.aquasec.com/misconfig/aws-0090",
+     "Query": "data.builtin.aws.s3.aws0090.deny",
+     "References": [
+      "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html",
+      "https://aws.amazon.com/blogs/storage/reduce-storage-costs-with-fewer-noncurrent-versions-using-amazon-s3-lifecycle/",
+      "https://avd.aquasec.com/misconfig/aws-0090"
+     ],
+     "Resolution": "Enable versioning to protect against accidental/malicious removal or modification",
+     "Severity": "MEDIUM",
+     "Status": "FAIL",
+     "Title": "S3 Data should be versioned",
+     "Type": "Terraform Security Check"
+    },
+    {
+     "CauseMetadata": {
+      "EndLine": 10,
+      "Provider": "AWS",
+      "Resource": "aws_s3_bucket.data",
+      "Service": "s3",
+      "StartLine": 7
+     },
+     "Description": "S3 buckets should ignore public ACLs on buckets and any objects they contain. By ignoring rather than blocking, PUT calls with public ACLs will still be applied but the ACL will be ignored.\n",
+     "ID": "AWS-0091",
+     "Message": "No public access block so not blocking public acls",
+     "Namespace": "builtin.aws.s3.aws0091",
+     "PrimaryURL": "https://avd.aquasec.com/misconfig/aws-0091",
+     "Query": "data.builtin.aws.s3.aws0091.deny",
+     "References": [
+      "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",
+      "https://avd.aquasec.com/misconfig/aws-0091"
+     ],
+     "Resolution": "Enable ignoring the application of public ACLs in PUT calls",
+     "Severity": "HIGH",
+     "Status": "FAIL",
+     "Title": "S3 Access Block should Ignore Public ACL",
+     "Type": "Terraform Security Check"
+    },
+    {
+     "CauseMetadata": {
+      "EndLine": 9,
+      "Occurrences": [
+       {
+        "Filename": "main.tf",
+        "Location": {
+         "EndLine": 10,
+         "StartLine": 7
+        },
+        "Resource": "aws_s3_bucket.data"
+       }
+      ],
+      "Provider": "AWS",
+      "Resource": "aws_s3_bucket.data",
+      "Service": "s3",
+      "StartLine": 9
+     },
+     "Description": "Buckets should not have ACLs that allow public access\n",
+     "ID": "AWS-0092",
+     "Message": "Bucket has a public ACL: \"public-read\"",
+     "Namespace": "builtin.aws.s3.aws0092",
+     "PrimaryURL": "https://avd.aquasec.com/misconfig/aws-0092",
+     "Query": "data.builtin.aws.s3.aws0092.deny",
+     "References": [
+      "https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html",
+      "https://avd.aquasec.com/misconfig/aws-0092"
+     ],
+     "Resolution": "Don't use canned ACLs or switch to private acl",
+     "Severity": "HIGH",
+     "Status": "FAIL",
+     "Title": "S3 Buckets not publicly accessible through ACL.",
+     "Type": "Terraform Security Check"
+    },
+    {
+     "CauseMetadata": {
+      "EndLine": 10,
+      "Provider": "AWS",
+      "Resource": "aws_s3_bucket.data",
+      "Service": "s3",
+      "StartLine": 7
+     },
+     "Description": "S3 buckets should restrict public policies for the bucket. By enabling, the restrict_public_buckets, only the bucket owner and AWS Services can access if it has a public policy.\n",
+     "ID": "AWS-0093",
+     "Message": "No public access block so not restricting public buckets",
+     "Namespace": "builtin.aws.s3.aws0093",
+     "PrimaryURL": "https://avd.aquasec.com/misconfig/aws-0093",
+     "Query": "data.builtin.aws.s3.aws0093.deny",
+     "References": [
+      "https://docs.aws.amazon.com/AmazonS3/latest/dev-retired/access-control-block-public-access.html",
+      "https://avd.aquasec.com/misconfig/aws-0093"
+     ],
+     "Resolution": "Limit the access to public buckets to only the owner or AWS Services (eg; CloudFront)",
+     "Severity": "HIGH",
+     "Status": "FAIL",
+     "Title": "S3 Access block should restrict public bucket to limit access",
+     "Type": "Terraform Security Check"
+    },
+    {
+     "CauseMetadata": {
+      "EndLine": 10,
+      "Provider": "AWS",
+      "Resource": "aws_s3_bucket.data",
+      "Service": "s3",
+      "StartLine": 7
+     },
+     "Description": "The \"block public access\" settings in S3 override individual policies that apply to a given bucket, meaning that all public access can be controlled in one central types for that bucket. It is therefore good practice to define these settings for each bucket in order to clearly define the public access that can be allowed for it.\n",
+     "ID": "AWS-0094",
+     "Message": "Bucket does not have a corresponding public access block.",
+     "Namespace": "builtin.aws.s3.aws0094",
+     "PrimaryURL": "https://avd.aquasec.com/misconfig/aws-0094",
+     "Query": "data.builtin.aws.s3.aws0094.deny",
+     "References": [
+      "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",
+      "https://avd.aquasec.com/misconfig/aws-0094"
+     ],
+     "Resolution": "Define a aws_s3_bucket_public_access_block for the given bucket to control public access policies",
+     "Severity": "LOW",
+     "Status": "FAIL",
+     "Title": "S3 buckets should each define an aws_s3_bucket_public_access_block",
+     "Type": "Terraform Security Check"
+    },
+    {
+     "CauseMetadata": {
+      "EndLine": 20,
+      "Provider": "AWS",
+      "Resource": "aws_security_group.ssh",
+      "Service": "ec2",
+      "StartLine": 12
+     },
+     "Description": "Security groups should include a description for auditing purposes.\n\nSimplifies auditing, debugging, and managing security groups.\n",
+     "ID": "AWS-0099",
+     "Message": "Security group explicitly uses the default description.",
+     "Namespace": "builtin.aws.ec2.aws0099",
+     "PrimaryURL": "https://avd.aquasec.com/misconfig/aws-0099",
+     "Query": "data.builtin.aws.ec2.aws0099.deny",
+     "References": [
+      "https://www.cloudconformity.com/knowledge-base/aws/EC2/security-group-rules-description.html",
+      "https://avd.aquasec.com/misconfig/aws-0099"
+     ],
+     "Resolution": "Add descriptions for all security groups",
+     "Severity": "LOW",
+     "Status": "FAIL",
+     "Title": "Missing description for security group.",
+     "Type": "Terraform Security Check"
+    },
+    {
+     "CauseMetadata": {
+      "EndLine": 18,
+      "Occurrences": [
+       {
+        "Filename": "main.tf",
+        "Location": {
+         "EndLine": 19,
+         "StartLine": 14
+        },
+        "Resource": "ingress"
+       },
+       {
+        "Filename": "main.tf",
+        "Location": {
+         "EndLine": 20,
+         "StartLine": 12
+        },
+        "Resource": "aws_security_group.ssh"
+       }
+      ],
+      "Provider": "AWS",
+      "Resource": "aws_security_group.ssh",
+      "Service": "ec2",
+      "StartLine": 18
+     },
+     "Description": "Security groups provide stateful filtering of ingress and egress network traffic to AWS\nresources. It is recommended that no security group allows unrestricted ingress access to\nremote server administration ports, such as SSH to port 22 and RDP to port 3389.\n",
+     "ID": "AWS-0107",
+     "Message": "Security group rule allows unrestricted ingress from any IP address.",
+     "Namespace": "builtin.aws.ec2.aws0107",
+     "PrimaryURL": "https://avd.aquasec.com/misconfig/aws-0107",
+     "Query": "data.builtin.aws.ec2.aws0107.deny",
+     "References": [
+      "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/security-group-rules-reference.html",
+      "https://docs.aws.amazon.com/securityhub/latest/userguide/ec2-controls.html#ec2-13",
+      "https://docs.aws.amazon.com/securityhub/latest/userguide/ec2-controls.html#ec2-14",
+      "https://avd.aquasec.com/misconfig/aws-0107"
+     ],
+     "Resolution": "Set a more restrictive CIDR range",
+     "Severity": "HIGH",
+     "Status": "FAIL",
+     "Title": "Security groups should not allow unrestricted ingress to SSH or RDP from any IP address.",
+     "Type": "Terraform Security Check"
+    },
+    {
+     "CauseMetadata": {
+      "EndLine": 19,
+      "Occurrences": [
+       {
+        "Filename": "main.tf",
+        "Location": {
+         "EndLine": 20,
+         "StartLine": 12
+        },
+        "Resource": "aws_security_group.ssh"
+       }
+      ],
+      "Provider": "AWS",
+      "Resource": "aws_security_group.ssh",
+      "Service": "ec2",
+      "StartLine": 14
+     },
+     "Description": "Security group rules should include a description for auditing purposes.\n\nSimplifies auditing, debugging, and managing security groups.\n",
+     "ID": "AWS-0124",
+     "Message": "Security group rule does not have a description.",
+     "Namespace": "builtin.aws.ec2.aws0124",
+     "PrimaryURL": "https://avd.aquasec.com/misconfig/aws-0124",
+     "Query": "data.builtin.aws.ec2.aws0124.deny",
+     "References": [
+      "https://www.cloudconformity.com/knowledge-base/aws/EC2/security-group-rules-description.html",
+      "https://avd.aquasec.com/misconfig/aws-0124"
+     ],
+     "Resolution": "Add descriptions for all security groups rules",
+     "Severity": "LOW",
+     "Status": "FAIL",
+     "Title": "Missing description for security group rule.",
+     "Type": "Terraform Security Check"
+    },
+    {
+     "CauseMetadata": {
+      "EndLine": 10,
+      "Provider": "AWS",
+      "Resource": "aws_s3_bucket.data",
+      "Service": "s3",
+      "StartLine": 7
+     },
+     "Description": "Encryption using AWS keys provides protection for your S3 buckets. To gain greater control over encryption, such as key rotation, access policies, and auditability, use customer managed keys (CMKs) with SSE-KMS.\nNote that SSE-KMS is not supported for S3 server access logging destination buckets; in such cases, use SSE-S3 instead.\n",
+     "ID": "AWS-0132",
+     "Message": "Bucket does not encrypt data with a customer managed key.",
+     "Namespace": "builtin.aws.s3.aws0132",
+     "PrimaryURL": "https://avd.aquasec.com/misconfig/aws-0132",
+     "Query": "data.builtin.aws.s3.aws0132.deny",
+     "References": [
+      "https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucket-encryption.html",
+      "https://avd.aquasec.com/misconfig/aws-0132"
+     ],
+     "Resolution": "Use SSE-KMS with a customer managed key (CMK)",
+     "Severity": "HIGH",
+     "Status": "FAIL",
+     "Title": "S3 encryption should use Customer Managed Keys",
+     "Type": "Terraform Security Check"
+    }
+   ],
+   "Target": "main.tf",
+   "Type": "terraform"
+  },
+  {
+   "Class": "secret",
+   "Secrets": [
+    {
+     "Category": "AsymmetricPrivateKey",
+     "EndLine": 14,
+     "Offset": 32,
+     "RuleID": "private-key",
+     "Severity": "HIGH",
+     "StartLine": 2,
+     "Title": "Asymmetric Private Key"
+    }
+   ],
+   "Target": "deploy/id_rsa"
+  },
+  {
+   "Class": "secret",
+   "Secrets": [
+    {
+     "Category": "AWS",
+     "EndLine": 3,
+     "Offset": 60,
+     "RuleID": "aws-access-key-id",
+     "Severity": "CRITICAL",
+     "StartLine": 3,
+     "Title": "AWS Access Key ID"
+    }
+   ],
+   "Target": "main.tf"
+  }
+ ],
+ "SchemaVersion": 2,
+ "Trivy": {
+  "Version": "0.76.0"
+ }
+}
