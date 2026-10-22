@@ -47,6 +47,25 @@ services:
       timeout: 3s
       retries: 10
 
+  # The only route to the Docker daemon (blueprint §9.3, "Trusted side"). Allow-list:
+  # containers and images, POST for create/start/kill, nothing else. Residual risk: POST
+  # to /containers/create accepts binds, so a worker compromise is still host compromise.
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2
+    environment:
+      CONTAINERS: 1
+      IMAGES: 1
+      POST: 1
+      EXEC: 0
+      VOLUMES: 0
+      NETWORKS: 0
+      BUILD: 0
+      SWARM: 0
+      SYSTEM: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # read-write: connecting needs it
+    restart: unless-stopped
+
   migrate:
     <<: *backend
     restart: "no"
@@ -78,9 +97,20 @@ services:
       - ./backend/tests:/app/tests:ro
       - riskgraph_data:/var/lib/riskgraph          # workspaces + stored reports
       - trivy_cache:/var/cache/riskgraph/trivy
+    # The anchor's environment is replaced, not merged, so the database URLs are repeated.
+    environment:
+      RISKGRAPH_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-riskgraph}:${POSTGRES_PASSWORD:-riskgraph}@postgres:5432/${POSTGRES_DB:-riskgraph}
+      RISKGRAPH_REDIS_URL: redis://:${REDIS_PASSWORD:-riskgraph}@redis:6379/0
+      # Scanners run as containers through the socket proxy (ADR-0014). The host paths are
+      # where Docker keeps the volumes below; `make dev` sets them.
+      RISKGRAPH_SCANNER_RUNNER: docker
+      RISKGRAPH_HOST_DATA_DIR: ${RISKGRAPH_HOST_DATA_DIR:?run make dev}
+      RISKGRAPH_HOST_TRIVY_CACHE_DIR: ${RISKGRAPH_HOST_TRIVY_CACHE_DIR:?run make dev}
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
     command: ["celery", "-A", "riskgraph.entrypoints.worker:celery_app", "worker", "-Q", "scan,analysis", "--concurrency", "2", "--loglevel", "INFO"]
     depends_on:
       migrate: { condition: service_completed_successfully }
+      docker-socket-proxy: { condition: service_started }
     healthcheck:
       test: ["CMD-SHELL", "celery -A riskgraph.entrypoints.worker:celery_app inspect ping -d celery@$$HOSTNAME --timeout 5 | grep -q pong"]
       interval: 30s
@@ -112,5 +142,14 @@ services:
 volumes:
   pgdata:
   frontend_node_modules:
+  # Fixed names: the Makefile looks up their host paths (RISKGRAPH_HOST_DATA_DIR).
   riskgraph_data:
+    name: riskgraph-data
   trivy_cache:
+    name: riskgraph-trivy-cache
+
+networks:
+  # Created by `make dev` (idempotent). Only fetcher and tool-DB containers join it.
+  riskgraph_egress:
+    name: riskgraph_egress
+    external: true

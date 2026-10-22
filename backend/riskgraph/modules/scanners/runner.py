@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Protocol
 
 from riskgraph.modules.scanners.base import Network
+from riskgraph.modules.scanners.containers import Mount
 
 SYSTEM_PATH = ("/usr/local/bin", "/usr/bin", "/bin")
 EGRESS_ENV = (
@@ -60,6 +61,12 @@ class RunSpec:
     fsize_limit: int = DEFAULT_FSIZE_LIMIT
     log_name: str = "run"
     memory_limit: int | None = None  # RLIMIT_AS bytes (parsers of untrusted input)
+    # Container runner only (ignored by SubprocessRunner): the image to run, the paths
+    # to mount (same path inside, see containers.py), and labels for cancel and cleanup.
+    image: str | None = None
+    mounts: tuple[Mount, ...] = ()
+    user: str | None = None  # container uid:gid; None means the scanner default (nobody)
+    labels: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

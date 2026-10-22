@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["dev", "test", "prod"]
@@ -59,6 +59,27 @@ class Settings(BaseSettings):
     enrichment_enabled: bool = True
     epss_ttl_hours: int = 24
     kev_ttl_hours: int = 12
+    nvd_ttl_hours: int = 168
+    # NVD is refreshed by Beat, never on the scan path (its rate limit is 5 requests per
+    # 30 s without a key). Scans use cached NVD data and fall back to scanner CVSS.
+    nvd_api_key: SecretStr | None = None
+    nvd_refresh_limit: int = 200
+    timeout_syft_s: int = 300
+    timeout_trivy_db_s: int = 900
+
+    # --- scanner containers (P3, ADR-0014) --------------------------------------------
+    # "subprocess" is the MVP runner (host tools, dev only); "docker" runs every scanner
+    # as a hardened container through docker-socket-proxy (DOCKER_HOST) and is required
+    # for any deployment beyond localhost.
+    scanner_runner: Literal["subprocess", "docker"] = "subprocess"
+    # Host directories that back data_dir and trivy_cache_dir. The daemon binds host
+    # paths, not the worker's, so the worker needs the mapping (docker runner only).
+    host_data_dir: Path | None = None
+    host_trivy_cache_dir: Path | None = None
+    scanner_egress_network: str = "riskgraph_egress"
+    scanner_max_slots: int = 4
+    scanner_slot_lease_s: int = 3600
+    scanner_slot_wait_s: int = 600
 
     @field_validator("database_url")
     @classmethod
@@ -73,6 +94,17 @@ class Settings(BaseSettings):
         if not value.startswith(("redis://", "rediss://")):
             raise ValueError("redis_url must use the redis:// or rediss:// scheme")
         return value
+
+    @model_validator(mode="after")
+    def _docker_needs_host_paths(self) -> Settings:
+        if self.scanner_runner == "docker":
+            for name, value in (
+                ("RISKGRAPH_HOST_DATA_DIR", self.host_data_dir),
+                ("RISKGRAPH_HOST_TRIVY_CACHE_DIR", self.host_trivy_cache_dir),
+            ):
+                if value is None or not value.is_absolute():
+                    raise ValueError(f"{name} must be an absolute host path for the docker runner")
+        return self
 
     @field_validator("secret_key")
     @classmethod

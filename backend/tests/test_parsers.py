@@ -16,6 +16,9 @@ CTX = ParseContext(REPO)
 def test_counts_match_parsed_findings() -> None:
     for name, scanner in SCANNERS.items():
         doc = load(name)
+        if name is ScannerName.SYFT:  # an inventory: no findings, the components are the SBOM
+            assert scanner.count(doc) == len(scanner.parse(doc, CTX)) == 0
+            continue
         assert scanner.count(doc) == len(scanner.parse(doc, CTX)) > 0, name
 
 

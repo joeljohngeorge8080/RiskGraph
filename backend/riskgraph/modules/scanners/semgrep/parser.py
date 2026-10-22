@@ -18,7 +18,12 @@ _RULES_DIR_MARKER = "semgrep-rules."
 def clean_rule_id(check_id: str) -> str:
     """A local rules directory prefixes ids with its path (``root..opt.semgrep-rules.``)."""
     idx = check_id.rfind(_RULES_DIR_MARKER)
-    return check_id[idx + len(_RULES_DIR_MARKER) :] if idx >= 0 else check_id
+    rule = check_id[idx + len(_RULES_DIR_MARKER) :] if idx >= 0 else check_id
+    # A rule file named like its directory repeats the last segment (``missing-user.missing-user``).
+    parts = rule.split(".")
+    if len(parts) >= 2 and parts[-1] == parts[-2]:
+        return ".".join(parts[:-1])
+    return rule
 
 
 def _results(doc: Any) -> list[dict[str, Any]]:

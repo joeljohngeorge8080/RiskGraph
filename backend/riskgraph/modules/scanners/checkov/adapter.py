@@ -45,6 +45,7 @@ class CheckovScanner:
         {0}
     )  # --soft-fail: findings never change the exit code
     output_name: str = "results_json.json"  # fixed by checkov for -o json + --output-file-path
+    image_tag: str = "3.3.30"
 
     def timeout_s(self, settings: Settings) -> int:
         return settings.timeout_checkov_s

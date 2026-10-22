@@ -6,6 +6,7 @@ from riskgraph.modules.scanners.base import Scanner
 from riskgraph.modules.scanners.checkov import CheckovScanner
 from riskgraph.modules.scanners.gitleaks import GitleaksScanner
 from riskgraph.modules.scanners.semgrep import SemgrepScanner
+from riskgraph.modules.scanners.syft import SyftScanner
 from riskgraph.modules.scanners.trivy import TrivyScanner
 from riskgraph.shared.vocabulary import ScannerName
 
@@ -14,6 +15,7 @@ SCANNERS: dict[ScannerName, Scanner] = {
     ScannerName.SEMGREP: SemgrepScanner(),
     ScannerName.CHECKOV: CheckovScanner(),
     ScannerName.GITLEAKS: GitleaksScanner(),
+    ScannerName.SYFT: SyftScanner(),
 }
 
 # Gitleaks first: its redaction yields the raw secrets every other report is scrubbed of.
@@ -22,6 +24,7 @@ REDACTION_ORDER = (
     ScannerName.TRIVY,
     ScannerName.SEMGREP,
     ScannerName.CHECKOV,
+    ScannerName.SYFT,
 )
 
 
