@@ -14,6 +14,7 @@ from typing import Any
 from celery import chain, chord, group
 from celery.canvas import Signature
 
+from riskgraph.modules.scanners import get_scanner
 from riskgraph.modules.scans import pipeline, repo
 from riskgraph.shared.celery import QUEUE_ANALYSIS, QUEUE_SCAN, get_celery_app
 from riskgraph.shared.config import Settings
@@ -29,20 +30,14 @@ def _sig(name: str, *args: object, immutable: bool = True, **options: Any) -> Si
 
 def build_canvas(scan_id: uuid.UUID, scanners: list[ScannerName], settings: Settings) -> Signature:
     sid = str(scan_id)
-    timeouts = {
-        ScannerName.TRIVY: settings.timeout_trivy_s,
-        ScannerName.SEMGREP: settings.timeout_semgrep_s,
-        ScannerName.CHECKOV: settings.timeout_checkov_s,
-        ScannerName.GITLEAKS: settings.timeout_gitleaks_s,
-    }
     header = group(
         _sig(
             "riskgraph.scans.run_scanner",
             sid,
             name.value,
             queue=QUEUE_SCAN,
-            soft_time_limit=timeouts[name] + 60,
-            time_limit=timeouts[name] + 120,
+            soft_time_limit=get_scanner(name).timeout_s(settings) + 60,
+            time_limit=get_scanner(name).timeout_s(settings) + 120,
         )
         for name in scanners
     )
@@ -61,6 +56,11 @@ def build_canvas(scan_id: uuid.UUID, scanners: list[ScannerName], settings: Sett
 
 def enqueue(scan_id: uuid.UUID, scanners: list[ScannerName], settings: Settings) -> None:
     build_canvas(scan_id, scanners, settings).apply_async()
+
+
+def enqueue_kill(scan_id: uuid.UUID) -> None:
+    """Ask the worker (the only process with Docker access) to stop a cancelled scan."""
+    _sig("riskgraph.scans.kill", str(scan_id), queue=QUEUE_SCAN).apply_async()
 
 
 def run_pipeline_inline(

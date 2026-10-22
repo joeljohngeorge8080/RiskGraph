@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,11 +22,17 @@ from riskgraph.modules.scans.models import ScanJob, ScannerRun
 from riskgraph.modules.scans.storage import report_path
 from riskgraph.shared.config import Settings
 from riskgraph.shared.logging import get_logger
-from riskgraph.shared.problems import NotFound, ServiceUnavailable, TooManyRequests
+from riskgraph.shared.problems import Conflict, NotFound, ServiceUnavailable, TooManyRequests
 from riskgraph.shared.vocabulary import RunStatus, ScannerName, ScanStatus
 
 log = get_logger(__name__)
-ALL_SCANNERS = [ScannerName.TRIVY, ScannerName.SEMGREP, ScannerName.CHECKOV, ScannerName.GITLEAKS]
+ALL_SCANNERS = [
+    ScannerName.TRIVY,
+    ScannerName.SEMGREP,
+    ScannerName.CHECKOV,
+    ScannerName.GITLEAKS,
+    ScannerName.SYFT,
+]
 
 
 class TooManyActiveScans(TooManyRequests):
@@ -130,3 +137,25 @@ def report_file(
     if not path.is_file():
         raise NotFound("Report file is no longer available")
     return path
+
+
+def cancel_scan(session: Session, scan_id: uuid.UUID) -> ScanJob:
+    """Stop a scan that has not finished. Stages check the status before they act, so a
+    cancelled scan's remaining stages do nothing. Running containers are killed by the
+    worker (orchestration.enqueue_kill), not here: the API has no Docker access."""
+    scan = session.get(ScanJob, scan_id)
+    if scan is None:
+        raise NotFound("scan not found")
+    if scan.status.is_terminal:
+        raise Conflict("scan has already finished")
+    now = dt.datetime.now(dt.UTC)
+    if not repo.cas_scan(
+        session, scan_id, scan.status, ScanStatus.CANCELLED, "cancelled by request", finished_at=now
+    ):
+        raise Conflict("scan changed state; retry")
+    for run in repo.runs_for(session, scan_id):
+        if run.status in (RunStatus.QUEUED, RunStatus.RUNNING):
+            repo.cas_run(session, run.id, run.status, RunStatus.FAILED, error_excerpt="cancelled")
+    session.flush()
+    session.refresh(scan)
+    return scan

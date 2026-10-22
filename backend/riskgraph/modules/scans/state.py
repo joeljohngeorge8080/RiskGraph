@@ -6,11 +6,12 @@ from collections.abc import Iterable
 
 from riskgraph.shared.vocabulary import RunStatus, ScanStatus
 
+_CANCEL = frozenset({ScanStatus.CANCELLED})
 SCAN_TRANSITIONS: dict[ScanStatus, frozenset[ScanStatus]] = {
-    ScanStatus.PENDING: frozenset({ScanStatus.QUEUED, ScanStatus.FAILED}),
-    ScanStatus.QUEUED: frozenset({ScanStatus.CLONING, ScanStatus.FAILED}),
-    ScanStatus.CLONING: frozenset({ScanStatus.SCANNING, ScanStatus.FAILED}),
-    ScanStatus.SCANNING: frozenset({ScanStatus.ANALYZING, ScanStatus.FAILED}),
+    ScanStatus.PENDING: frozenset({ScanStatus.QUEUED, ScanStatus.FAILED}) | _CANCEL,
+    ScanStatus.QUEUED: frozenset({ScanStatus.CLONING, ScanStatus.FAILED}) | _CANCEL,
+    ScanStatus.CLONING: frozenset({ScanStatus.SCANNING, ScanStatus.FAILED}) | _CANCEL,
+    ScanStatus.SCANNING: frozenset({ScanStatus.ANALYZING, ScanStatus.FAILED}) | _CANCEL,
     ScanStatus.ANALYZING: frozenset({ScanStatus.COMPLETED, ScanStatus.PARTIAL, ScanStatus.FAILED}),
 }
 RUN_TRANSITIONS: dict[RunStatus, frozenset[RunStatus]] = {
