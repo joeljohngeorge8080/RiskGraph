@@ -11,6 +11,7 @@ scanner report ever selects a directory.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import re
@@ -50,11 +51,17 @@ class ScanWorkspace:
     def prepare_tool(self, tool: str) -> None:
         for d in (self.out(tool), self.home(tool) / "tmp", self.logs(tool)):
             d.mkdir(parents=True, exist_ok=True)
+        # Writable by the scanner's uid (65534) in the container runner; see create().
+        for d in (self.out(tool), self.home(tool), self.home(tool) / "tmp"):
+            d.chmod(0o777)
 
     def create(self) -> None:
         if self.path.exists():
             self.cleanup()
-        self.path.mkdir(parents=True, mode=0o700)
+        # 0711: the scanner runs as nobody (65534) and must traverse this directory; it can
+        # enter it but not list it. Every scan path is a random UUID (blueprint §9.3).
+        self.path.mkdir(parents=True, mode=0o711)
+        self.path.chmod(0o711)
 
     def measure(self, max_bytes: int, max_files: int) -> tuple[int, int]:
         """Size and file count of ``src`` (symlinks are not followed)."""
@@ -124,8 +131,31 @@ class ScanWorkspace:
 
 
 def _force_writable(func, path, _exc):  # type: ignore[no-untyped-def]
+    """Make a read-only tree removable. Directories a scanner container wrote are already
+    world-writable (discard_workspace widens them first) and belong to another uid, so a
+    chmod there is refused; that is fine, the removal below still goes ahead."""
     parent = os.path.dirname(path)
-    os.chmod(parent, 0o700)
+    with contextlib.suppress(OSError):
+        os.chmod(parent, 0o700)
     if os.path.isdir(path) and not os.path.islink(path):
-        os.chmod(path, 0o700)
+        with contextlib.suppress(OSError):
+            os.chmod(path, 0o700)
+    if func not in (os.unlink, os.rmdir):
+        raise _exc  # a failed open/scan cannot be fixed by retrying it: report it
     func(path)
+
+
+def widen_own_directories(root: Path) -> None:
+    """Worker-side pass: make every directory the worker owns world-writable, so a scanner
+    uid can delete entries in it (blueprint §9.3, cleanup). Others' directories are left
+    to the scanner's own fixup pass; a refusal there is not an error."""
+    uid = os.getuid()
+    for dirpath, dirnames, _filenames in os.walk(root, followlinks=False):
+        for name in dirnames:
+            full = os.path.join(dirpath, name)
+            with contextlib.suppress(OSError):
+                if os.lstat(full).st_uid == uid:
+                    os.chmod(full, 0o777)  # noqa: S103 - the scanner uid must write here (UUID-scoped)
+        with contextlib.suppress(OSError):
+            if os.lstat(dirpath).st_uid == uid:
+                os.chmod(dirpath, 0o777)  # noqa: S103 - as above

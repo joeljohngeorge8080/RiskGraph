@@ -22,13 +22,17 @@ from typing import Any
 
 import redis
 from sqlalchemy import update
+from sqlalchemy.orm import Session
 
 from riskgraph.modules.context import (
     ContextResolver,
     FindingContext,
+    IacResult,
     ManifestResult,
     Observed,
+    extract_iac,
     load_manifest,
+    persist_assets,
     refresh_intel,
 )
 from riskgraph.modules.findings import apply_history, clear_scan, persist_merged
@@ -49,6 +53,8 @@ from riskgraph.modules.risk import (
     rescore,
     score,
 )
+from riskgraph.modules.sbom import attach_findings, canonical_purl, persist_components
+from riskgraph.modules.sbom.service import PackageSeen
 from riskgraph.modules.scanners import (
     REDACTION_ORDER,
     ParseContext,
@@ -62,6 +68,11 @@ from riskgraph.modules.scanners import (
     scrub,
     trivy_dependency_graph,
 )
+from riskgraph.modules.scanners.containers import SCAN_LABEL, container_fields, scanner_image
+from riskgraph.modules.scanners.docker_runner import DockerRunner, PathRoot, make_removable
+from riskgraph.modules.scanners.slots import SlotLimiter
+from riskgraph.modules.scanners.syft.parser import Component
+from riskgraph.modules.scanners.syft.parser import components as syft_components
 from riskgraph.modules.scans import repo
 from riskgraph.modules.scans.clone import CloneError, Cloner, GitCloner
 from riskgraph.modules.scans.models import ScanJob, ScannerRun
@@ -72,7 +83,7 @@ from riskgraph.modules.scans.storage import (
     read_report,
     write_report,
 )
-from riskgraph.modules.scans.workspace import ScanWorkspace
+from riskgraph.modules.scans.workspace import ScanWorkspace, widen_own_directories
 from riskgraph.shared.config import Settings, get_settings
 from riskgraph.shared.db import session_scope
 from riskgraph.shared.http import OutboundClient
@@ -135,16 +146,39 @@ def _kev_cache() -> redis.Redis | None:
         return None
 
 
+def build_runner(s: Settings) -> ScannerRunner:
+    """The MVP host runner, or the hardened container runner (ADR-0014)."""
+    if s.scanner_runner == "subprocess":
+        return SubprocessRunner(s.scanner_bin_dir)
+    roots = [
+        PathRoot(str(s.data_dir), str(s.host_data_dir)),
+        PathRoot(str(s.trivy_cache_dir), str(s.host_trivy_cache_dir)),
+    ]
+    slots = SlotLimiter(get_redis(), s.scanner_max_slots, s.scanner_slot_lease_s)
+    return DockerRunner.from_env(roots, s.scanner_egress_network, slots=slots)
+
+
 def default_deps(settings: Settings | None = None) -> PipelineDeps:
     s = settings or get_settings()
-    runner = SubprocessRunner(s.scanner_bin_dir)
+    runner = build_runner(s)
     return PipelineDeps(
         settings=s,
         runner=runner,
-        cloner=GitCloner(runner, s),
+        cloner=GitCloner(runner, s, image=fetcher_image()),
         outbound=lambda: OutboundClient() if s.enrichment_enabled else None,
         kev_cache=_kev_cache,
         scanner_lock=redis_scanner_lock,
+    )
+
+
+def fetcher_image() -> str:
+    return "riskgraph/git-fetcher:bookworm"
+
+
+def _container_fields(scan_id: uuid.UUID, name: ScannerName, paths: ScanPaths) -> dict[str, Any]:
+    """Image, mounts and labels for a RunSpec. Ignored by the subprocess runner."""
+    return container_fields(
+        name.value, get_scanner(name).image_tag, paths, {SCAN_LABEL: str(scan_id)}
     )
 
 
@@ -159,6 +193,25 @@ def _workspace(deps: PipelineDeps, scan_id: uuid.UUID) -> ScanWorkspace:
 def _excerpt(text: str, ws: ScanWorkspace) -> str:
     cleaned = text.replace(str(ws.path), "<workspace>")
     return cleaned[-EXCERPT_LIMIT:]
+
+
+def discard_workspace(deps: PipelineDeps, scan_id: uuid.UUID) -> None:
+    """Remove a scan's workspace after its containers are stopped (cancel, reaper).
+
+    With the container runner, files the scanners wrote belong to nobody (65534) and the
+    worker cannot delete them, so a scanner image first widens their modes (ADR-0014)."""
+    if deps.settings.keep_workspaces:
+        return
+    ws = _workspace(deps, scan_id)
+    if isinstance(deps.runner, DockerRunner) and ws.path.is_dir():
+        widen_own_directories(ws.path)
+        make_removable(
+            deps.runner,
+            str(ws.path),
+            scanner_image("checkov", get_scanner(ScannerName.CHECKOV).image_tag),
+            ws.logs("cleanup"),
+        )
+    ws.cleanup()
 
 
 def fail_scan(scan_id: uuid.UUID, reason: str) -> None:
@@ -211,10 +264,24 @@ def clone(scan_id: uuid.UUID, deps: PipelineDeps) -> bool:
 # --- stage 2: run one scanner --------------------------------------------------------
 
 
-def _version(deps: PipelineDeps, ws: ScanWorkspace, name: ScannerName, env: Any) -> str | None:
+def _version(
+    deps: PipelineDeps,
+    ws: ScanWorkspace,
+    name: ScannerName,
+    env: Any,
+    fields: dict[str, Any],
+) -> str | None:
     scanner = get_scanner(name)
     result = deps.runner.run(
-        RunSpec(scanner.version_argv(), ws.src, ws.logs(name), 60, env=env, log_name="version")
+        RunSpec(
+            scanner.version_argv(),
+            ws.src,
+            ws.logs(name),
+            60,
+            env=env,
+            log_name="version",
+            **fields,
+        )
     )
     if result.exit_code != 0:
         return None
@@ -267,7 +334,8 @@ def run_scanner(scan_id: uuid.UUID, name: ScannerName, deps: PipelineDeps) -> Ru
             settings.trivy_cache_dir.mkdir(parents=True, exist_ok=True)
         paths = ScanPaths(ws.src, ws.out(name), ws.home(name), settings.trivy_cache_dir)
         cmd = scanner.command(paths, settings)
-        version = _version(deps, ws, name, cmd.env)
+        fields = _container_fields(scan_id, name, paths)
+        version = _version(deps, ws, name, cmd.env, fields)
         timeout = scanner.timeout_s(settings)
         with deps.scanner_lock(name, timeout) as acquired:
             if not acquired:
@@ -283,6 +351,7 @@ def run_scanner(scan_id: uuid.UUID, name: ScannerName, deps: PipelineDeps) -> Ru
                         cmd.env,
                         EGRESS_FSIZE if scanner.network == "egress" else DEFAULT_FSIZE,
                         log_name="scan",
+                        **fields,
                     )
                 )
                 status, excerpt = _classify(
@@ -393,6 +462,13 @@ def _parse_all(
     return out
 
 
+def _iac(deps: PipelineDeps, scan_id: uuid.UUID) -> IacResult:
+    ws = _workspace(deps, scan_id)
+    if not ws.src.is_dir():
+        return IacResult((), ("checkout no longer on disk",), 0)
+    return extract_iac(ws.src)
+
+
 def _manifest(deps: PipelineDeps, scan_id: uuid.UUID) -> ManifestResult:
     ws = _workspace(deps, scan_id)
     if not ws.src.is_dir():
@@ -400,6 +476,20 @@ def _manifest(deps: PipelineDeps, scan_id: uuid.UUID) -> ManifestResult:
     result = load_manifest(ws)
     log.info("manifest_loaded", scan_id=str(scan_id), status=result.status, file=result.file)
     return result
+
+
+def _sbom_documents(
+    deps: PipelineDeps, scan_id: uuid.UUID, succeeded: list[ScannerName]
+) -> list[Component]:
+    if ScannerName.SYFT not in succeeded:
+        return []
+    doc = read_report(
+        deps.settings.scan_output_root,
+        scan_id,
+        ScannerName.SYFT,
+        deps.settings.raw_report_max_bytes,
+    )
+    return syft_components(doc)
 
 
 def _trivy_dependencies(
@@ -427,8 +517,14 @@ def _reachability(
         [e for s in manifest.manifest.services for e in s.entrypoints] if manifest.manifest else []
     )
     try:
+        # The extractor is RiskGraph's own code, run in its own process (ADR-0012). It has no
+        # scanner image, so it always uses the subprocess runner, whatever runner scans use.
         run = run_extractor(
-            deps.runner, ws.src, ws.path / "reachability", dependency_graph, entrypoints
+            SubprocessRunner(deps.settings.scanner_bin_dir),
+            ws.src,
+            ws.path / "reachability",
+            dependency_graph,
+            entrypoints,
         )
     except Exception:
         log.exception("reachability_crashed", scan_id=str(scan_id))
@@ -455,6 +551,41 @@ class _Scored:
     result: ScoreResult
 
 
+def _persist_sbom(
+    session: Session,
+    scan_id: uuid.UUID,
+    inventory: list[Component],
+    scored: list[_Scored],
+    finding_ids: dict[int, uuid.UUID],
+) -> dict[str, int]:
+    """Write the SBOM and attach each SCA finding to its package (blueprint §10.2)."""
+    seen: list[PackageSeen] = []
+    wanted: dict[int, str] = {}
+    for i, x in enumerate(scored):
+        pkg = x.merged.representative.package
+        if x.merged.source_type is not SourceType.SCA or not pkg or not pkg.get("purl"):
+            continue
+        purl = str(pkg["purl"])
+        wanted[i] = canonical_purl(purl)
+        seen.append(
+            PackageSeen(
+                purl=purl,
+                name=str(pkg.get("name") or ""),
+                version=str(pkg.get("version") or ""),
+                location=x.merged.location.file,
+            )
+        )
+    ids = persist_components(session, scan_id, inventory, seen)
+    links = {finding_ids[i]: ids[key] for i, key in wanted.items() if key in ids}
+    attached = attach_findings(session, scan_id, links)
+    return {
+        "components": len(ids),
+        "syft": len(inventory),
+        "trivy_only": sum(1 for c in ids if c not in {canonical_purl(x.purl) for x in inventory}),
+        "findings_attached": attached,
+    }
+
+
 def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
     with session_scope() as s:
         scan = s.get(ScanJob, scan_id)
@@ -471,9 +602,11 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
     try:
         raw = _parse_all(deps, scan_id, succeeded, repo_name)
         merged = merge(raw)
+        syft_inventory = _sbom_documents(deps, scan_id, succeeded)
         manifest = _manifest(deps, scan_id)
+        iac = _iac(deps, scan_id)
         # MVP scans only public github.com repositories (ADR-0010)
-        resolver = ContextResolver(manifest, public_repository=True)
+        resolver = ContextResolver(manifest, public_repository=True, iac=iac.assets)
         reach = _reachability(
             deps, scan_id, _trivy_dependencies(deps, scan_id, succeeded), manifest
         )
@@ -495,7 +628,12 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
         scored: list[_Scored] = []
         for m in merged:
             context = resolver.for_finding(m.location.file, m.source_type)
-            verdict = reach.classify(m.source_type, m.location.file, m.representative.package)
+            verdict = reach.classify(
+                m.source_type,
+                m.location.file,
+                m.representative.package,
+                m.representative.vulnerability_id,
+            )
             observed = (
                 None
                 if verdict.tier is ReachabilityTier.NOT_APPLICABLE
@@ -558,6 +696,8 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                 multi += len(m.detected_by) > 1
                 max_score = max(max_score, result.score)
             persist_graph(s, scan_id, analysis, finding_ids)
+            assets_written = persist_assets(s, scan_id, iac.assets)
+            sbom_summary = _persist_sbom(s, scan_id, syft_inventory, scored, finding_ids)
             s.flush()
             history = apply_history(
                 s,
@@ -588,6 +728,12 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                 "context": resolver.summary(),
                 "reachability": reach.summary(tiers),
                 "graph": analysis.summary(),
+                "sbom": sbom_summary,
+                "iac": {
+                    "assets": assets_written,
+                    "files": iac.files_read,
+                    "warnings": list(iac.warnings),
+                },
                 "history": history,
             }
             s.execute(
@@ -636,7 +782,6 @@ def finalize(scan_id: uuid.UUID, deps: PipelineDeps) -> ScanStatus | None:
         s.refresh(scan)
         final = scan.status
 
-    if not deps.settings.keep_workspaces:
-        _workspace(deps, scan_id).cleanup()
+    discard_workspace(deps, scan_id)
     log.info("scan_finished", scan_id=str(scan_id), status=final.value)
     return final

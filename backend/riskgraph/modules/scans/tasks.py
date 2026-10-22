@@ -6,12 +6,16 @@ chord member would stop ``collect`` from ever running and leave the scan stuck.
 
 from __future__ import annotations
 
+import datetime as dt
 import uuid
 from typing import Any
 
 from celery import shared_task
 
-from riskgraph.modules.scans import pipeline
+from riskgraph.modules.scanners.docker_runner import DockerRunner
+from riskgraph.modules.scans import pipeline, reaper
+from riskgraph.shared.config import get_settings
+from riskgraph.shared.db import session_scope
 from riskgraph.shared.logging import get_logger
 from riskgraph.shared.vocabulary import RunStatus, ScannerName
 
@@ -61,6 +65,33 @@ def analyze_task(scan_id: str) -> None:
         pipeline.analyze(uuid.UUID(scan_id), pipeline.default_deps())
     except Exception:
         _guard("analyze", scan_id)
+
+
+@shared_task(name="riskgraph.scans.kill")
+def kill_task(scan_id: str) -> None:
+    """Stop a cancelled scan's containers and remove its workspace (worker has Docker)."""
+    try:
+        deps = pipeline.default_deps()
+        sid = uuid.UUID(scan_id)
+        if isinstance(deps.runner, DockerRunner):
+            deps.runner.kill_scan(sid)
+        pipeline.discard_workspace(deps, sid)
+    except Exception:
+        log.exception("kill_crashed", scan_id=scan_id)
+
+
+@shared_task(name="riskgraph.scans.reap")
+def reap_task() -> dict[str, int]:
+    """Beat: recover runs and scans whose worker died (blueprint §9.2)."""
+    settings = get_settings()
+    with session_scope() as s:
+        result = reaper.reap(s, settings, dt.datetime.now(dt.UTC))
+    deps = pipeline.default_deps(settings)
+    for sid in result.failed_scan_ids:
+        if isinstance(deps.runner, DockerRunner):
+            deps.runner.kill_scan(sid)
+        pipeline.discard_workspace(deps, sid)
+    return {"runs_timed_out": result.runs_timed_out, "scans_failed": result.scans_failed}
 
 
 @shared_task(name="riskgraph.scans.finalize")

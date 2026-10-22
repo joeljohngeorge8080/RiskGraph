@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from riskgraph.modules.scans import service
+from riskgraph.modules.scans import orchestration, service
 from riskgraph.modules.scans.schemas import (
     RepositoryOut,
     ScanCreate,
@@ -89,6 +89,14 @@ def list_scans(
 
 @router.get("/{scan_id}", response_model=ScanOut)
 def get_scan(scan_id: uuid.UUID, session: SessionDep) -> ScanOut:
+    return to_out(service.get_scan(session, scan_id))
+
+
+@router.post("/{scan_id}/cancel", status_code=status.HTTP_202_ACCEPTED, response_model=ScanOut)
+def cancel_scan(scan_id: uuid.UUID, session: SessionDep) -> ScanOut:
+    service.cancel_scan(session, scan_id)
+    session.commit()
+    orchestration.enqueue_kill(scan_id)
     return to_out(service.get_scan(session, scan_id))
 
 

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 from riskgraph.modules.scanners import RunSpec, ScannerRunner
+from riskgraph.modules.scanners.containers import SCAN_LABEL, Mount
 from riskgraph.modules.scans.workspace import ScanWorkspace, WorkspaceError
 from riskgraph.shared.config import Settings
 
@@ -62,13 +64,29 @@ def git_env(home: str) -> dict[str, str]:
 
 
 class GitCloner:
-    def __init__(self, runner: ScannerRunner, settings: Settings) -> None:
+    """Clones with git. With the container runner it runs in ``image`` (git-fetcher, the
+    only egress container, ADR-0014) and writes only the scan workspace."""
+
+    def __init__(self, runner: ScannerRunner, settings: Settings, image: str | None = None) -> None:
         self._runner = runner
         self._settings = settings
+        self._image = image
+
+    def _container_fields(self, ws: ScanWorkspace) -> dict[str, Any]:
+        if self._image is None:
+            return {}
+        # The fetcher runs as the worker's uid so cleanup can remove what it wrote.
+        return {
+            "image": self._image,
+            "mounts": (Mount(str(ws.path)),),
+            "labels": {SCAN_LABEL: ws.path.name},
+            "user": f"{os.getuid()}:{os.getgid()}",
+        }
 
     def clone(self, ws: ScanWorkspace, clone_url: str, ref: str) -> CloneResult:
         ws.prepare_tool("git")
         env = git_env(str(ws.home("git")))
+        fields = self._container_fields(ws)
         result = self._runner.run(
             RunSpec(
                 build_clone_argv(clone_url, ref, str(ws.src)),
@@ -79,6 +97,7 @@ class GitCloner:
                 env=env,
                 fsize_limit=self._settings.clone_max_bytes,
                 log_name="clone",
+                **fields,
             )
         )
         if result.missing_binary:
@@ -101,10 +120,13 @@ class GitCloner:
                 timeout_s=30,
                 env=env,
                 log_name="rev-parse",
+                **fields,
             )
         )
+        if rev.exit_code != 0 or rev.missing_binary:
+            raise CloneError(f"could not determine the cloned commit: {rev.stderr_tail[-200:]}")
         sha = (ws.logs("git") / "rev-parse.stdout.log").read_text().strip()
-        if rev.exit_code != 0 or not _SHA.match(sha):
+        if not _SHA.match(sha):
             raise CloneError("could not determine the cloned commit")
         # Scanners never see git internals (hooks, config, packed history).
         shutil.rmtree(ws.src / ".git", ignore_errors=True)

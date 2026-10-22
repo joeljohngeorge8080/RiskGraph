@@ -17,7 +17,17 @@ from riskgraph.shared.config import Settings, get_settings
 QUEUE_SCAN = "scan"
 QUEUE_ANALYSIS = "analysis"
 
-TASK_MODULES = ["riskgraph.modules.scans.tasks"]
+TASK_MODULES = [
+    "riskgraph.modules.scans.tasks",
+    "riskgraph.modules.scanners.tasks",
+    "riskgraph.modules.context.tasks",
+]
+
+BEAT_SCHEDULE = {
+    "reap-stale-scans": {"task": "riskgraph.scans.reap", "schedule": 300.0},
+    "refresh-trivy-db": {"task": "riskgraph.scanners.refresh_trivy_db", "schedule": 6 * 3600.0},
+    "refresh-feeds": {"task": "riskgraph.context.refresh_feeds", "schedule": 3600.0},
+}
 
 
 def create_celery(settings: Settings | None = None) -> Celery:
@@ -39,7 +49,7 @@ def create_celery(settings: Settings | None = None) -> Celery:
         broker_connection_retry_on_startup=True,
         task_default_queue=QUEUE_ANALYSIS,
         task_queues=(Queue(QUEUE_SCAN), Queue(QUEUE_ANALYSIS)),
-        beat_schedule={},
+        beat_schedule=dict(BEAT_SCHEDULE),
         worker_hijack_root_logger=False,
     )
     app.conf.riskgraph_settings = settings
