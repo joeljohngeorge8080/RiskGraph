@@ -9,18 +9,22 @@ from __future__ import annotations
 import contextlib
 import datetime as dt
 import json
+import time
+import uuid
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
 import redis
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from riskgraph.modules.context.cvss import subscores
-from riskgraph.modules.context.feeds import EpssScore, fetch_epss, fetch_kev
-from riskgraph.modules.context.models import Vulnerability
+from riskgraph.modules.context.feeds import EpssScore, fetch_epss, fetch_kev, fetch_nvd
+from riskgraph.modules.context.iac import IacAsset
+from riskgraph.modules.context.models import Asset, Vulnerability
 from riskgraph.shared.config import Settings
 from riskgraph.shared.http import OutboundClient, OutboundError
 from riskgraph.shared.logging import get_logger
@@ -114,7 +118,10 @@ def refresh_intel(
         cvss = cvss_by_id.get(vid) or {}
         sub = subscores(str(cvss.get("vector") or "")) if cvss else None
         values: dict[str, Any] = {"id": vid}
-        if sub is not None:
+        existing = rows.get(vid)
+        # NVD outranks scanner-reported CVSS (blueprint §11.2): keep a cached NVD score.
+        nvd_owned = existing is not None and existing.cvss_source == "nvd"
+        if sub is not None and not nvd_owned:
             values |= {
                 "cvss_version": str(cvss.get("version") or "")[:8] or None,
                 "cvss_vector": cvss.get("vector"),
@@ -177,3 +184,93 @@ def refresh_intel(
             kev_status=kev_status,
         )
     return intel
+
+
+def nvd_refresh(
+    session: Session,
+    settings: Settings,
+    client: OutboundClient,
+    now: dt.datetime,
+    sleep: Callable[[float], None] = time.sleep,
+) -> dict[str, int]:
+    """Beat job: NVD CVSS for the oldest-checked CVEs, within the rate limit.
+
+    A CVE NVD answers for is stored as ``cvss_source='nvd'``. A CVE NVD has no score for is
+    still stamped with ``nvd_checked_at`` (negative cache), so it is not asked again every
+    run. The first rate-limit or network error stops the run; the rest waits for the next.
+    """
+    min_interval = 0.7 if settings.nvd_api_key else 6.5
+    stale = session.scalars(
+        select(Vulnerability.id)
+        .where(Vulnerability.id.startswith("CVE-"))
+        .where(
+            (Vulnerability.nvd_checked_at.is_(None))
+            | (Vulnerability.nvd_checked_at < now - dt.timedelta(hours=settings.nvd_ttl_hours))
+        )
+        .order_by(Vulnerability.nvd_checked_at.asc().nulls_first(), Vulnerability.id)
+        .limit(settings.nvd_refresh_limit)
+    ).all()
+    counts = {"fetched": 0, "scored": 0, "unscored": 0, "errors": 0}
+    api_key = settings.nvd_api_key.get_secret_value() if settings.nvd_api_key else None
+    for index, cve in enumerate(stale):
+        if index:
+            sleep(min_interval)
+        try:
+            found = fetch_nvd(client, cve, api_key)
+        except OutboundError as exc:
+            log.warning("nvd_unavailable", cve=cve, error=str(exc))
+            counts["errors"] += 1
+            break
+        counts["fetched"] += 1
+        values: dict[str, Any] = {"nvd_checked_at": now}
+        if found is not None:
+            sub = subscores(found.vector)
+            values |= {
+                "cvss_version": found.version,
+                "cvss_vector": found.vector,
+                "cvss_base": found.base,
+                "cvss_source": "nvd",
+                "cvss_impact": Decimal(str(sub.impact)) if sub else None,
+                "cvss_exploitability": Decimal(str(sub.exploitability)) if sub else None,
+            }
+            counts["scored"] += 1
+        else:
+            counts["unscored"] += 1
+        session.execute(update(Vulnerability).where(Vulnerability.id == cve).values(**values))
+    session.flush()
+    log.info("nvd_refresh", **counts)
+    return counts
+
+
+def persist_assets(session: Session, scan_id: uuid.UUID, assets: Sequence[IacAsset]) -> int:
+    """Replace the scan's environment assets. One row per (kind, name); a repeat is dropped
+    rather than failing the scan, because the same name can appear in two files."""
+    session.execute(delete(Asset).where(Asset.scan_job_id == scan_id))
+    seen: set[tuple[str, str]] = set()
+    written = 0
+    for a in assets:
+        key = (a.kind, a.name)
+        if key in seen:
+            continue
+        seen.add(key)
+        session.add(
+            Asset(
+                id=uuid.uuid4(),
+                scan_job_id=scan_id,
+                kind=a.kind,
+                name=a.name,
+                source_path=a.source_path,
+                attrs=dict(a.attrs),
+            )
+        )
+        written += 1
+    session.flush()
+    return written
+
+
+def list_assets(session: Session, scan_id: uuid.UUID) -> list[Asset]:
+    return list(
+        session.scalars(
+            select(Asset).where(Asset.scan_job_id == scan_id).order_by(Asset.kind, Asset.name)
+        )
+    )

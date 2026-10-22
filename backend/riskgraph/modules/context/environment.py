@@ -15,9 +15,11 @@ finding's service within two hops over RUNS_AS → CAN_ACCESS and CONNECTS_TO.
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from riskgraph.modules.context.iac import IacAsset
 from riskgraph.modules.context.manifest import Manifest, ManifestResult, ServiceDecl
 from riskgraph.shared.vocabulary import SourceType
 
@@ -61,13 +63,26 @@ def _clean_file(file: str) -> str:
 class ContextResolver:
     """Resolves the context of findings for one scan (pure; built once per analysis)."""
 
-    def __init__(self, manifest: ManifestResult, *, public_repository: bool = True) -> None:
+    def __init__(
+        self,
+        manifest: ManifestResult,
+        *,
+        public_repository: bool = True,
+        iac: Sequence[IacAsset] = (),
+    ) -> None:
         self.manifest_result = manifest
         self.public_repository = public_repository
         m = manifest.manifest
         self._m: Manifest | None = m
         # longest prefix first, so 'backend/api/' wins over 'backend/'
         self._services = sorted(m.services, key=lambda s: len(s.path), reverse=True) if m else []
+        # Compose services that build a code directory (P7). Used only where the manifest
+        # says nothing about exposure, so a manifest always wins (blueprint §11).
+        self._iac = sorted(
+            (a for a in iac if a.path_prefix is not None and a.exposure is not None),
+            key=lambda a: len(a.path_prefix or ""),
+            reverse=True,
+        )
         self._cache: dict[str, FindingContext] = {}
         self.mapped: dict[str, int] = {}
         self.unmapped = 0
@@ -86,6 +101,12 @@ class ContextResolver:
         else:
             self.mapped[service.name] = self.mapped.get(service.name, 0) + 1
         base = self._service_context(service) if service else FindingContext()
+        if base.exposure is None:
+            iac_exposure = self._iac_exposure(file)
+            if iac_exposure is not None:
+                base = FindingContext(
+                    base.service, iac_exposure, base.data, base.privilege, base.criticality
+                )
         if source_type is SourceType.SECRET and self.public_repository:
             exposure = Observed(
                 "internet_noauth",
@@ -97,6 +118,32 @@ class ContextResolver:
                 base.service, exposure, base.data, base.privilege, base.criticality
             )
         return base
+
+    def _iac_exposure(self, file: str) -> Observed | None:
+        f = _clean_file(file)
+        for a in self._iac:
+            prefix = (a.path_prefix or "").strip("/")
+            if prefix and not f.startswith(prefix + "/") and f != prefix:
+                continue
+            if not prefix and not f:
+                continue
+            if a.exposure == "internal":
+                return Observed(
+                    "internal", "compose", "medium", {"service": a.name, "file": a.source_path}
+                )
+            # Published with no auth information: the same worst-case rule as a manifest
+            # internet service without `auth:`, but with lower confidence (it is inferred).
+            return Observed(
+                "internet_noauth",
+                "compose",
+                "low",
+                {
+                    "service": a.name,
+                    "file": a.source_path,
+                    "published": a.attrs.get("published_ports", []),
+                },
+            )
+        return None
 
     def _service_context(self, s: ServiceDecl) -> FindingContext:
         cached = self._cache.get(s.name)
@@ -197,4 +244,13 @@ class ContextResolver:
             "public_repository": self.public_repository,
             "services": services,
             "unmapped_findings": self.unmapped,
+            "iac_services": [
+                {
+                    "name": a.name,
+                    "path": a.path_prefix,
+                    "exposure": a.exposure,
+                    "file": a.source_path,
+                }
+                for a in self._iac
+            ],
         }
