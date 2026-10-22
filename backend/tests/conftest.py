@@ -6,7 +6,9 @@ Unit tests never need services. Tests marked ``db`` expect the compose test prof
 
 from __future__ import annotations
 
+import atexit
 import os
+import shutil
 import tempfile
 from collections.abc import Iterator
 from pathlib import Path
@@ -23,18 +25,31 @@ os.environ.setdefault(
 )
 os.environ.setdefault("RISKGRAPH_REDIS_URL", "redis://:riskgraph@localhost:6379/1")
 os.environ.setdefault("RISKGRAPH_SECRET_KEY", "test-secret-key-do-not-use-in-production!!")
-os.environ.setdefault("RISKGRAPH_DATA_DIR", tempfile.mkdtemp(prefix="riskgraph-test-"))
+_TEST_DATA_DIR = tempfile.mkdtemp(prefix="riskgraph-test-")
+os.environ.setdefault("RISKGRAPH_DATA_DIR", _TEST_DATA_DIR)
 # The default (/var/cache/riskgraph/trivy) is only writable inside the worker image.
-os.environ.setdefault("RISKGRAPH_TRIVY_CACHE_DIR", tempfile.mkdtemp(prefix="riskgraph-test-trivy-"))
+_TEST_TRIVY_DIR = tempfile.mkdtemp(prefix="riskgraph-test-trivy-")
+os.environ.setdefault("RISKGRAPH_TRIVY_CACHE_DIR", _TEST_TRIVY_DIR)
+# Scans write a lot (clones, reports). Remove this run's temp trees when the run ends.
+atexit.register(shutil.rmtree, _TEST_DATA_DIR, True)
+atexit.register(shutil.rmtree, _TEST_TRIVY_DIR, True)
 os.environ.setdefault("RISKGRAPH_ENRICHMENT_ENABLED", "false")
 
-from riskgraph.entrypoints.api import create_app
-from riskgraph.shared.config import Settings, get_settings
-from riskgraph.shared.db import dispose_engine, get_engine
-from sqlalchemy import text
+from riskgraph.entrypoints.api import create_app  # noqa: E402 - after environment defaults
+from riskgraph.shared.config import (  # noqa: E402 - after environment defaults
+    Settings,
+    get_settings,
+)
+from riskgraph.shared.db import (  # noqa: E402 - after environment defaults
+    dispose_engine,
+    get_engine,
+)
+from sqlalchemy import text  # noqa: E402 - after environment defaults
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 TABLES = (
+    "assets",
+    "sbom_components",
     "audit_logs",
     "attack_path_findings",
     "attack_paths",

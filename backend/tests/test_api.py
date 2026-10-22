@@ -57,7 +57,7 @@ def test_create_scan_enqueues_and_dedups(api: TestClient, enqueued: list[uuid.UU
     body = resp.json()
     assert body["status"] == "QUEUED" and body["deduplicated"] is False
     assert body["repository"]["full_name"] == "acme/kitchen-sink"
-    assert [r["status"] for r in body["scanner_runs"]] == ["QUEUED"] * 4
+    assert [r["status"] for r in body["scanner_runs"]] == ["QUEUED"] * 5
     assert enqueued == [uuid.UUID(body["id"])]
 
     again = api.post("/api/v1/scans", json={"repo_url": URL + ".git", "ref": "main"})
@@ -111,7 +111,7 @@ def test_queue_failure_is_503_and_marks_failed(
 def test_get_and_list_scans(api: TestClient, enqueued: list[uuid.UUID], settings: Settings) -> None:
     sid = _completed_scan(api, settings, enqueued)
     one = api.get(f"/api/v1/scans/{sid}").json()
-    assert one["status"] == "COMPLETED" and one["summary"]["findings"] == 27
+    assert one["status"] == "COMPLETED" and one["summary"]["findings"] == 31
     assert all(r["report_available"] for r in one["scanner_runs"])
     listing = api.get("/api/v1/scans", params={"status": "COMPLETED"}).json()
     assert listing["total"] == 1 and listing["items"][0]["id"] == sid
@@ -125,7 +125,7 @@ def test_findings_sort_filter_and_detail(
     sid = _completed_scan(api, settings, enqueued)
     base = f"/api/v1/scans/{sid}/findings"
     page = api.get(base, params={"limit": 200}).json()
-    assert page["total"] == 27
+    assert page["total"] == 31
     keys = [
         ({"critical": 3, "high": 2, "medium": 1, "low": 0}[i["priority"]], i["score"])
         for i in page["items"]
