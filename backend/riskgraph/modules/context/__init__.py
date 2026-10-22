@@ -8,6 +8,8 @@
 
 from riskgraph.modules.context.cvss import CvssSubscores, subscores
 from riskgraph.modules.context.environment import ContextResolver, FindingContext, Observed
+from riskgraph.modules.context.iac import IacResult
+from riskgraph.modules.context.iac import extract as extract_iac
 from riskgraph.modules.context.manifest import (
     Manifest,
     ManifestResult,
@@ -15,19 +17,30 @@ from riskgraph.modules.context.manifest import (
     parse_manifest,
 )
 from riskgraph.modules.context.models import Vulnerability
-from riskgraph.modules.context.service import VulnIntel, refresh_intel
+from riskgraph.modules.context.service import (
+    VulnIntel,
+    list_assets,
+    nvd_refresh,
+    persist_assets,
+    refresh_intel,
+)
 
 __all__ = [
     "ContextResolver",
     "CvssSubscores",
     "FindingContext",
+    "IacResult",
     "Manifest",
     "ManifestResult",
     "Observed",
     "VulnIntel",
     "Vulnerability",
+    "extract_iac",
+    "list_assets",
     "load_manifest",
+    "nvd_refresh",
     "parse_manifest",
+    "persist_assets",
     "refresh_intel",
     "subscores",
 ]

@@ -19,6 +19,7 @@ ALLOWED_TARGETS = (
     ("api.first.org", "/data/"),
     ("www.cisa.gov", "/sites/default/files/feeds/"),
     ("raw.githubusercontent.com", "/cisagov/kev-data/"),
+    ("services.nvd.nist.gov", "/rest/json/cves/2.0"),
 )
 DEFAULT_TIMEOUT_S = 10.0
 MAX_BODY_BYTES = 20 * 1024 * 1024
@@ -46,7 +47,12 @@ class OutboundClient:
         )
         self._max = max_body_bytes
 
-    def get_json(self, url: str, params: dict[str, str] | None = None) -> Any:
+    def get_json(
+        self,
+        url: str,
+        params: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> Any:
         parts = urlsplit(url)
         allowed = any(
             parts.hostname == host and parts.path.startswith(prefix)
@@ -55,7 +61,7 @@ class OutboundClient:
         if parts.scheme != "https" or parts.port not in (None, 443) or not allowed:
             raise OutboundError(f"target not allowed: {parts.hostname}{parts.path}")
         try:
-            with self._client.stream("GET", url, params=params) as resp:
+            with self._client.stream("GET", url, params=params, headers=headers) as resp:
                 if resp.status_code != 200:
                     raise OutboundError(f"{parts.hostname} returned HTTP {resp.status_code}")
                 body = bytearray()
