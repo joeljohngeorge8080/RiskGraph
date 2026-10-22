@@ -37,9 +37,10 @@ def test_kitchen_sink_merges_across_scanners() -> None:
     assert secrets["private_key"].detected_by == ("gitleaks", "trivy")  # ranges 1-15 vs 2-14
     assert secrets["aws"].representative.scanner is ScannerName.GITLEAKS
     assert secrets["aws"].attrs["live_credential"] is True
-    # four semgrep rules flag the same line for CWE-78: one finding
+    # the pinned semgrep image flags this line with three CWE-78 rules: one finding.
+    # (The MVP host rule set reported four; fixtures are recorded from the image, ADR-0014.)
     shell = [m for m in merged if m.source_type is SourceType.SAST and m.location.line_start == 21]
-    assert len(shell) == 1 and len(shell[0].members) == 4
+    assert len(shell) == 1 and len(shell[0].members) == 3
 
 
 def test_merge_is_deterministic() -> None:

@@ -22,6 +22,7 @@ class SemgrepScanner:
     network: Network = "none"
     ok_exit_codes: frozenset[int] = frozenset({0, 1})  # 1 = findings present
     output_name: str = "semgrep.json"
+    image_tag: str = "1.182.0"
 
     def timeout_s(self, settings: Settings) -> int:
         return settings.timeout_semgrep_s

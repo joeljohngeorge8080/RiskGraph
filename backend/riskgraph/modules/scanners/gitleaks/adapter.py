@@ -21,6 +21,7 @@ class GitleaksScanner:
     network: Network = "none"
     ok_exit_codes: frozenset[int] = frozenset({0})
     output_name: str = "gitleaks.json"
+    image_tag: str = "8.30.1"
 
     def timeout_s(self, settings: Settings) -> int:
         return settings.timeout_gitleaks_s

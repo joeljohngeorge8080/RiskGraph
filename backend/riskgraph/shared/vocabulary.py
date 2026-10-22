@@ -14,6 +14,7 @@ class ScannerName(StrEnum):
     SEMGREP = "semgrep"
     CHECKOV = "checkov"
     GITLEAKS = "gitleaks"
+    SYFT = "syft"
 
 
 class SourceType(StrEnum):
@@ -67,10 +68,16 @@ class ScanStatus(StrEnum):
     COMPLETED = "COMPLETED"
     PARTIAL = "PARTIAL"
     FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
 
     @property
     def is_terminal(self) -> bool:
-        return self in {ScanStatus.COMPLETED, ScanStatus.PARTIAL, ScanStatus.FAILED}
+        return self in {
+            ScanStatus.COMPLETED,
+            ScanStatus.PARTIAL,
+            ScanStatus.FAILED,
+            ScanStatus.CANCELLED,
+        }
 
 
 ACTIVE_SCAN_STATUSES = (
@@ -118,5 +125,6 @@ class ReachabilityTier(StrEnum):
     L0 = "L0"  # package not imported anywhere in scope
     L1 = "L1"  # imported, but only from code no entry point reaches
     L2 = "L2"  # imported by code reachable from an entry point
+    L3 = "L3"  # a curated vulnerable symbol is called on a path from an entry point (ADR-0015)
     UNKNOWN = "unknown"
     NOT_APPLICABLE = "n_a"

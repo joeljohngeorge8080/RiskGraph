@@ -26,11 +26,20 @@ help: ## Show targets
 > cp .env.example .env
 > @echo "Created .env from .env.example — set RISKGRAPH_SECRET_KEY before prod use."
 
+# The worker hands Docker host paths to the daemon (ADR-0014): the volumes' host mountpoints.
+HOST_PATHS = export RISKGRAPH_HOST_DATA_DIR=$$(docker volume create riskgraph-data >/dev/null && docker volume inspect -f '{{.Mountpoint}}' riskgraph-data) \
+  RISKGRAPH_HOST_TRIVY_CACHE_DIR=$$(docker volume create riskgraph-trivy-cache >/dev/null && docker volume inspect -f '{{.Mountpoint}}' riskgraph-trivy-cache) && \
+  (docker network inspect riskgraph_egress >/dev/null 2>&1 || docker network create riskgraph_egress >/dev/null) && \
+  $(MAKE) --no-print-directory scanner-images &&
+
+scanner-images: ## Build the pinned scanner images (docker/scanner-versions.env, ADR-0014)
+> infrastructure/scripts/build-scanner-images.sh
+
 dev: .env ## Start the full local stack (postgres, redis, migrate, api, worker, beat, frontend)
-> docker compose up --build
+> $(HOST_PATHS) docker compose up --build
 
 dev-detached: .env ## Same, in the background
-> docker compose up --build -d
+> $(HOST_PATHS) docker compose up --build -d
 
 down: ## Stop the stack (keeps volumes)
 > docker compose down

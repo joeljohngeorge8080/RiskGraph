@@ -44,6 +44,7 @@ class Scanner(Protocol):
     network: Network
     ok_exit_codes: frozenset[int]
     output_name: str  # fixed file name inside ScanPaths.out
+    image_tag: str  # scanner image tag, see docker/scanner-versions.env
 
     def timeout_s(self, settings: Settings) -> int: ...
 

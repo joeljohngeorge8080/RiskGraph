@@ -17,9 +17,10 @@ _SNIPPET_KEYS = frozenset({"Code", "Match", "Lines"})
 
 class TrivyScanner:
     name: ScannerName = ScannerName.TRIVY
-    network: Network = "egress"
+    network: Network = "none"  # the DB is refreshed by the trusted job, never here
     ok_exit_codes: frozenset[int] = frozenset({0})
     output_name: str = "trivy.json"
+    image_tag: str = "0.76.0"
 
     def timeout_s(self, settings: Settings) -> int:
         return settings.timeout_trivy_s
@@ -42,6 +43,8 @@ class TrivyScanner:
             f"{max(60, self.timeout_s(settings) - 30)}s",  # finish before the hard kill
             "--quiet",
             "--skip-version-check",
+            "--skip-db-update",
+            "--skip-java-db-update",
             "--disable-telemetry",
             ".",
         )
