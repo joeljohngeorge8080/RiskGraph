@@ -57,7 +57,7 @@ cd frontend && npm run dev      # terminal 3 → http://localhost:5173
 ```bash
 make install                    # uv sync + npm install
 make test                       # unit tests, no services
-make test-services && make test-db
+make test-services && make test-db   # or just make test-db while make dev is up (same .env ports)
 make e2e                        # real scanners end to end (after make scanner-tools)
 make lint                       # ruff, mypy, eslint, tsc
 ```
