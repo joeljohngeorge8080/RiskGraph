@@ -163,9 +163,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_column("scan_findings", "change")
     op.drop_column("risk_scores", "effective_impact")
-    # WARNING: constraint name is None; this directive will fail as
-    # rendered.  Add a name, or use a naming convention; see
-    # https://alembic.sqlalchemy.org/en/latest/naming.html
     op.drop_constraint("finding_status", "findings", type_="check")
     op.drop_constraint("fk_findings_fixed_in_scan", "findings", type_="foreignkey")
     op.drop_column("findings", "fixed_in_scan_id")

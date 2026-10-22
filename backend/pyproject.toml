@@ -33,7 +33,13 @@ dev = [
   "mypy>=1.11",
   "celery-types>=0.22",
   "types-networkx>=3.6.1.20261021",
+  # starlette.testclient prefers httpx2 and warns on httpx; pinned to a release >2 weeks old
+  "httpx2==2.13.1",
 ]
+
+[tool.uv]
+# httpx2's transitive truststore 0.10.5 is under 2 weeks old; hold the previous release
+constraint-dependencies = ["truststore<0.10.5"]
 
 [build-system]
 requires = ["hatchling"]
