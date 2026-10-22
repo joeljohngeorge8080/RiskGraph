@@ -1,4 +1,33 @@
-# HANDOFF: resume here (updated 2026-10-22, session 4: MVP level 2 extended)
+# HANDOFF: resume here (updated 2026-10-22, session 5: integration and graphify)
+
+## Session 5 (2026-10-22, local): integrate, fix CI, graph — current state
+- **Branch:** `mvp-level2-integration` at `74b40f3`, pushed. It is `cloud-mvp-integration` (`1ccaa41`) plus `mvp-level2-extended` (`392e68f`, a fast-forward), then the fixes and the graphify commit. `main` is still at `8fa3a97`.
+- **PR:** draft **#2** `mvp-level2-integration` → `main`. CI green on `74b40f3`: backend, frontend, security-self-scan, images. Mark ready and merge when you're happy. **PR #1** (`claude/great-mendel-b58dhj`) is superseded by #2 and still open; close it after #2 merges.
+- **CI fixes (`d253adc`, `e708cbb`):**
+  - `aquasecurity/trivy-action@0.28.0` no longer exists upstream; pinned to v0.36.0 by commit `ed142fd0…`. This was why the security and image jobs died at setup.
+  - The image scan then found a **critical** advisory in `certifi 2026.7.22` (GHSA-6q48-6c7w-9gw2, emSign CA keys). Bumped to `2026.10.19`, which is two days old at the time.
+  - `httpx2==2.13.1` added as a dev dependency so Starlette's TestClient stops warning about httpx. Its transitive `truststore` is held at `0.10.4`, which is my choice: 0.10.5 was under two weeks old and I didn't check with you before holding it back.
+  - `make test-db`, `test-all` and `e2e` now read the database and Redis ports from `.env` (`15432`/`16379` here).
+- **Verified here:** ruff, format and mypy clean; 192 unit tests passed; 32 db tests passed (2 e2e skipped: no scanners on the host); migration round trip; frontend lint, typecheck, 8 tests, build, npm audit 0.
+- **Verified live (`make dev`, Docker):** all services healthy; migration at head `b7dac1b028da`; readyz OK. Live scan of OWASP/NodeGoat: COMPLETED, 124 findings (1 critical), reachability L0 4 / L1 3 / L2 37 / unknown 74. A rescan showed 0 new, 0 fixed, 124 existing, and the gate went from fail to pass after one finding was marked `accepted_risk`.
+- **Not verified:** attack paths on a live scan. NodeGoat has no `riskgraph.yaml`, so its graph is empty. The DB tests cover the path logic. Scanning a repo with a manifest would close this.
+- **Dev DB leftovers:** two NodeGoat scans and one `accepted_risk` finding (reason "integration test").
+- **graphify:** `graphify-out/` built: 2021 nodes, 5827 edges, 91 communities. Committed in `74b40f3` with the `CLAUDE.md` section, `.claude/settings.json` hook-guards and `.gitattributes`. The graph was built by Claude subagents over the docs and the AST over code; the Gemini extraction was discarded as too sparse.
+  - The git post-commit hook rebuilds the graph after every commit and leaves uncommitted changes in `graphify-out/`. How to handle this is still undecided (see Open items).
+  - `.claude/settings.json` points at `/home/jojo/.local/bin/graphify`, which only exists on this machine.
+- **Gotchas found this session:**
+  - Dev and test compose both bind 15432/16379 from `.env`. Run one stack at a time; `make test-db` works while `make dev` is up.
+  - Starlette 1.6.0 still emits one `anyio` deprecation warning. Starlette 1.7+ removes it.
+- **Next:** Phase 2 auth (`docs/adr/0004-auth-model.md`); it gates hosted CI and webhooks.
+
+## Open items (decide before Phase 2)
+- Graphify post-commit hook: keep it and ignore its outputs (add `.pending`, `.sig` and the dated snapshot folder to `.gitignore`), or remove it with `graphify hook uninstall` and rebuild by hand with `graphify update .`.
+- Commit the rebuilt `graphify-out/graph.json`, or leave it uncommitted. Cloud sessions only see it if it is committed.
+- Move `.claude/settings.json` to `.claude/settings.local.json` if its machine-specific graphify path is a problem for cloud sessions.
+- Mark PR #2 ready, merge to `main`, and close PR #1.
+- `docs/TECH_STACK.md` dependency log is still not created (see the session 1 open items).
+
+---
 
 ## Session 4 (2026-10-22, cloud): MVP level 2 extended, done
 - Branch `mvp-level2-extended`, cut from `cloud-mvp-integration`. Chapter: `docs/phases/PHASE_MVP2_EXT.md`. Decisions: ADR-0012 (reachability L0–L2) and ADR-0013 (graph and attack paths, effective impact, triage, history, CI gate).
@@ -53,8 +82,7 @@ make dev-detached                       # full stack in background
 docker compose ps                       # expect: postgres/redis/api/worker healthy, migrate Exited(0), beat/frontend Up
 curl -s 127.0.0.1:18000/api/v1/readyz  # {"status":"ok","checks":{"database":"ok","redis":"ok"}}
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest -m "not db and not docker" -q
-cd backend && RISKGRAPH_DATABASE_URL=postgresql+psycopg://riskgraph:riskgraph@localhost:15432/riskgraph_test \
-  RISKGRAPH_REDIS_URL=redis://:riskgraph@localhost:16379/1 uv run pytest -m db -q
+make test-db                            # reads .env ports; needs make dev or make test-services running
 cd frontend && npm run lint && npm run typecheck && npm run build
 docker compose exec api python -c "from riskgraph.entrypoints.worker import ping; print(ping.delay().get(timeout=20))"   # pong
 ```

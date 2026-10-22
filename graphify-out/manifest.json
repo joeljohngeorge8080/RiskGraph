@@ -1032,10 +1032,10 @@
     "semantic_hash": "26dd51ddcc4647b5bbb21ed711ce54b0"
   },
   "CLAUDE.md": {
-    "mtime": 1789758621.647003,
-    "seen": 1792660894.3192966,
-    "ast_hash": "0bd87a0d7770cdd2d60340517a631df5",
-    "semantic_hash": "0bd87a0d7770cdd2d60340517a631df5"
+    "mtime": 1792660899.700756,
+    "seen": 1792661633.208375,
+    "ast_hash": "17cd506c4f7747c12ef8e9b465d6f997",
+    "semantic_hash": ""
   },
   "HANDOFF.md": {
     "mtime": 1792658527.3389108,
@@ -1270,5 +1270,11 @@
     "seen": 1792660894.3193247,
     "ast_hash": "c2ed10835981b71e633c46825a221fbb",
     "semantic_hash": "c2ed10835981b71e633c46825a221fbb"
+  },
+  ".claude/settings.json": {
+    "mtime": 1792660899.7010167,
+    "seen": 1792661633.2081532,
+    "ast_hash": "278574ff15ef1335f9401f4717862f71",
+    "semantic_hash": ""
   }
 }

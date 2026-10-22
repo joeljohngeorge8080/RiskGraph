@@ -13,8 +13,21 @@ are working on in `docs/phases/`. Decisions live in `docs/adr/`; do not re-decid
 - Migrations only via Alembic (`make migration m="..."`), reviewed by hand.
 - Every phase writes `docs/phases/PHASE_NN.md` with the A–S chapter template.
 
+## Current state
+Read `HANDOFF.md` for where work stands. The newest session section is first. Active branch
+and PR are in there, along with the open items. `docs/phases/` has the chapter for the phase
+in progress.
+
 ## Commands
-`make dev` · `make test` · `make test-services && make test-db` · `make lint` · `make fmt`
+`make dev` · `make test` · `make test-db` · `make test-all` · `make lint` · `make fmt` · `make e2e`
+- `make test-db` reads postgres and redis ports from `.env` and runs against the dev stack
+  (`make dev`) or `make test-services`. Run only one of those at a time: both use the same ports.
+- `make e2e` needs the scanners installed (`make scanner-tools`), or it skips.
+
+## Dependencies
+- New dev or runtime packages go in `backend/pyproject.toml` and are locked with `uv lock`.
+  Commit `uv.lock` in the same change.
+- CI pins third-party actions by commit SHA, not by tag, because tags can be removed upstream.
 
 ## graphify
 
