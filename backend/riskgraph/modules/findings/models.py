@@ -121,6 +121,10 @@ class ScanFinding(Base):
         ForeignKey("findings.id", ondelete="CASCADE"), primary_key=True
     )
     detected_by: Mapped[list[str]] = mapped_column(ARRAY(String(32)), nullable=False)
+    # The SBOM component an SCA finding attaches to in this scan (P5), if any.
+    component_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("sbom_components.id", ondelete="SET NULL")
+    )
     change: Mapped[FindingChange] = mapped_column(
         str_enum(FindingChange, "finding_change"), default=FindingChange.NEW, nullable=False
     )
