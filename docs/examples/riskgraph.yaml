@@ -18,6 +18,9 @@ identities:
   - name: api-role
     privilege: elevated       # read_only | limited | elevated | admin
     can_access: [customers-db, secrets-manager]
+    credentials: [aws]        # leaked secrets of these families authenticate as this identity
+                              # (attack-graph edge, ADR-0013): aws, github, gcp, azure, slack,
+                              # stripe, private_key, generic, ...
 data_stores:
   - name: customers-db
     kind: postgres

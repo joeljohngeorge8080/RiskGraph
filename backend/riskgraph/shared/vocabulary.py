@@ -89,3 +89,34 @@ class RunStatus(StrEnum):
     FAILED = "FAILED"
     TIMED_OUT = "TIMED_OUT"
     SKIPPED = "SKIPPED"
+
+
+class FindingStatus(StrEnum):
+    OPEN = "open"
+    FIXED = "fixed"  # set by the system only (fixed detection)
+    FALSE_POSITIVE = "false_positive"
+    ACCEPTED_RISK = "accepted_risk"
+    WONT_FIX = "wont_fix"
+
+
+TRIAGE_STATUSES = (
+    FindingStatus.FALSE_POSITIVE,
+    FindingStatus.ACCEPTED_RISK,
+    FindingStatus.WONT_FIX,
+)
+
+
+class FindingChange(StrEnum):
+    """How a finding relates to the previous scan of the same repository and ref."""
+
+    NEW = "new"
+    EXISTING = "existing"
+    REOPENED = "reopened"
+
+
+class ReachabilityTier(StrEnum):
+    L0 = "L0"  # package not imported anywhere in scope
+    L1 = "L1"  # imported, but only from code no entry point reaches
+    L2 = "L2"  # imported by code reachable from an entry point
+    UNKNOWN = "unknown"
+    NOT_APPLICABLE = "n_a"

@@ -61,6 +61,9 @@ LIVE_CREDENTIAL_RULES = frozenset(
 )
 
 
+SECRET_FAMILIES = frozenset({family for _, family in _SECRET_PREFIX_FAMILY} | {"generic"})
+
+
 def secret_family(rule_id: str) -> str:
     rid = rule_id.lower()
     for prefix, family in _SECRET_PREFIX_FAMILY:

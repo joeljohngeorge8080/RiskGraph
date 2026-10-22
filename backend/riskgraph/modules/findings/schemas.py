@@ -6,9 +6,17 @@ import datetime as dt
 import uuid
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
-from riskgraph.shared.vocabulary import Priority, ScannerName, Severity, SourceType
+from riskgraph.shared.vocabulary import (
+    FindingChange,
+    FindingStatus,
+    Priority,
+    ReachabilityTier,
+    ScannerName,
+    Severity,
+    SourceType,
+)
 
 
 class FindingListItem(BaseModel):
@@ -26,6 +34,9 @@ class FindingListItem(BaseModel):
     package: dict[str, Any] | None
     epss: float | None
     kev: bool | None
+    status: FindingStatus
+    change: FindingChange
+    reachability: ReachabilityTier | None
 
 
 class FindingList(BaseModel):
@@ -55,6 +66,7 @@ class RiskScoreOut(BaseModel):
     corroboration: float
     overrides: list[dict[str, Any]]
     factors: list[RiskFactorOut]
+    effective_impact: float | None = None
     computed_at: dt.datetime
 
 
@@ -95,9 +107,87 @@ class FindingDetailOut(BaseModel):
     location: dict[str, Any]
     package: dict[str, Any] | None
     detected_by: list[str]
-    status: str
+    status: FindingStatus
+    status_reason: str | None
+    status_changed_at: dt.datetime | None
+    change: FindingChange | None
     first_seen_at: dt.datetime
     last_seen_at: dt.datetime
     occurrences: list[OccurrenceOut]
     risk: RiskScoreOut | None
     vulnerability: VulnerabilityOut | None
+    reachability: ReachabilityOut | None
+    attack_paths: list[AttackPathOut]
+    history: list[AuditOut]
+
+
+class ReachabilityOut(BaseModel):
+    tier: ReachabilityTier
+    confidence: str
+    evidence: dict[str, Any]
+    analyzer_version: str
+
+
+class AttackPathOut(BaseModel):
+    id: uuid.UUID
+    source: str
+    sink: str
+    rank: int
+    hops: int
+    nodes: list[dict[str, Any]]
+    edges: list[dict[str, Any]]
+    probability: float
+    sink_impact: float
+    score: float
+    finding_ids: list[uuid.UUID]
+
+
+class AuditOut(BaseModel):
+    at: dt.datetime
+    actor: str
+    action: str
+    before: dict[str, Any]
+    after: dict[str, Any]
+    reason: str | None
+
+
+class TriageIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: FindingStatus
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class TriageOut(BaseModel):
+    id: uuid.UUID
+    status: FindingStatus
+    status_reason: str | None
+    status_changed_at: dt.datetime | None
+
+
+class DiffItem(BaseModel):
+    id: uuid.UUID
+    title: str
+    source_type: SourceType
+    severity: Severity
+    location: dict[str, Any]
+    status: FindingStatus
+    priority: Priority | None = None
+    score: float | None = None
+
+
+class DiffOut(BaseModel):
+    scan_id: uuid.UUID
+    previous_scan_id: uuid.UUID | None
+    new: list[DiffItem]
+    reopened: list[DiffItem]
+    fixed: list[DiffItem]
+
+
+class GateOut(BaseModel):
+    scan_id: uuid.UUID
+    scan_status: str
+    passed: bool
+    policy: dict[str, Any]
+    evaluated: int
+    violations: list[dict[str, Any]]

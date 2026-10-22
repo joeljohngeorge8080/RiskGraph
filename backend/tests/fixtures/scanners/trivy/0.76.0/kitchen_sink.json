@@ -1,8 +1,8 @@
 {
  "ArtifactName": ".",
  "ArtifactType": "filesystem",
- "CreatedAt": "2026-10-21T03:10:24.046675978Z",
- "ReportID": "01a15c70-452e-7a3c-be6e-b10fcdf42c72",
+ "CreatedAt": "2026-10-22T07:27:57.039624885Z",
+ "ReportID": "01a16282-6c6f-7978-9f81-77be4973e136",
  "Results": [
   {
    "Class": "lang-pkgs",
@@ -123,6 +123,130 @@
        "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
       },
       "nvd": {
+       "V2Score": 10,
+       "V2Vector": "AV:N/AC:L/Au:N/C:C/I:C/A:C",
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "redhat": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      }
+     },
+     "CweIDs": [
+      "CWE-20"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "A vulnerability was discovered in the PyYAML library in versions before 5.4, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. This flaw allows an attacker to execute arbitrary code on the system by abusing the python/object/new constructor. This flaw is due to an incomplete fix for CVE-2020-1747.",
+     "Fingerprint": "sha256:755471f94d457ae636b282ae01c6c890ee79575fc0087c6770186d51c56ef96d",
+     "FixedVersion": "5.4",
+     "InstalledVersion": "5.3",
+     "LastModifiedDate": "2026-06-17T02:54:34.453Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/pyyaml@5.3",
+      "UID": "71ee91b5efd1f6b1"
+     },
+     "PkgName": "pyyaml",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2020-14343",
+     "PublishedDate": "2021-02-09T21:15:12.707Z",
+     "References": [
+      "https://access.redhat.com/security/cve/CVE-2020-14343",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1860466"
+     ],
+     "Severity": "CRITICAL",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "PyYAML: incomplete fix for CVE-2020-1747",
+     "VendorIDs": [
+      "GHSA-8q59-q68h-6hv4"
+     ],
+     "VendorSeverity": {
+      "alma": 2,
+      "cbl-mariner": 4,
+      "ghsa": 4,
+      "nvd": 4,
+      "oracle-oval": 2,
+      "photon": 4,
+      "redhat": 2,
+      "rocky": 2,
+      "ubuntu": 2
+     },
+     "VulnerabilityID": "CVE-2020-14343"
+    },
+    {
+     "CVSS": {
+      "ghsa": {
+       "V3Score": 7.5,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+      },
+      "nvd": {
+       "V2Score": 5,
+       "V2Vector": "AV:N/AC:L/Au:N/C:P/I:N/A:N",
+       "V3Score": 7.5,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+      },
+      "redhat": {
+       "V3Score": 2.6,
+       "V3Vector": "CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N"
+      }
+     },
+     "CweIDs": [
+      "CWE-522"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "The Requests package before 2.20.0 for Python sends an HTTP Authorization header to an http URI upon receiving a same-hostname https-to-http redirect, which makes it easier for remote attackers to discover credentials by sniffing the network.",
+     "Fingerprint": "sha256:082136e24eac8569c4ee5ff2870444ca3b0af13007f247c373532c1a7aca4cfd",
+     "FixedVersion": "2.20.0",
+     "InstalledVersion": "2.19.0",
+     "LastModifiedDate": "2026-06-17T01:46:44.62Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/requests@2.19.0",
+      "UID": "6d59e745010602d4"
+     },
+     "PkgName": "requests",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2018-18074",
+     "PublishedDate": "2018-10-09T17:29:01.897Z",
+     "References": [
+      "http://docs.python-requests.org/en/master/community/updates/#release-and-version-history",
+      "http://lists.opensuse.org/opensuse-security-announce/2019-07/msg00024.html"
+     ],
+     "Severity": "HIGH",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "python-requests: Redirect from HTTPS to HTTP does not remove Authorization header",
+     "VendorIDs": [
+      "GHSA-x84v-xcm2-53pg"
+     ],
+     "VendorSeverity": {
+      "alma": 2,
+      "amazon": 2,
+      "ghsa": 3,
+      "nvd": 3,
+      "oracle-oval": 2,
+      "photon": 3,
+      "redhat": 1,
+      "rocky": 2,
+      "ubuntu": 2
+     },
+     "VulnerabilityID": "CVE-2018-18074"
+    },
+    {
+     "CVSS": {
+      "ghsa": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+       "V40Score": 9.3,
+       "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      },
+      "nvd": {
        "V2Score": 5,
        "V2Vector": "AV:N/AC:L/Au:N/C:N/I:P/A:N",
        "V3Score": 9.8,
@@ -174,10 +298,6 @@
     },
     {
      "CVSS": {
-      "bitnami": {
-       "V3Score": 9.8,
-       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
-      },
       "ghsa": {
        "V3Score": 9.8,
        "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
@@ -185,8 +305,8 @@
        "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
       },
       "nvd": {
-       "V2Score": 7.5,
-       "V2Vector": "AV:N/AC:L/Au:N/C:P/I:P/A:P",
+       "V2Score": 10,
+       "V2Vector": "AV:N/AC:L/Au:N/C:C/I:C/A:C",
        "V3Score": 9.8,
        "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
       },
@@ -196,224 +316,107 @@
       }
      },
      "CweIDs": [
-      "CWE-89"
+      "CWE-20"
      ],
      "DataSource": {
       "ID": "ghsa",
       "Name": "GitHub Security Advisory pip",
       "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
      },
-     "Description": "Django 1.11 before 1.11.28, 2.2 before 2.2.10, and 3.0 before 3.0.3 allows SQL Injection if untrusted data is used as a StringAgg delimiter (e.g., in Django applications that offer downloads of data as a series of rows with a user-specified column delimiter). By passing a suitably crafted delimiter to a contrib.postgres.aggregates.StringAgg instance, it was possible to break escaping and inject malicious SQL.",
-     "Fingerprint": "sha256:bfc8a946311cb998540fab1a8bea2e000422a13a3492e97614c953e054949ba5",
-     "FixedVersion": "1.11.28, 2.2.10, 3.0.3",
-     "InstalledVersion": "2.2.0",
-     "LastModifiedDate": "2026-06-17T03:24:50.777Z",
+     "Description": "A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor.",
+     "Fingerprint": "sha256:a7e0b43278fa3b09e382bd4f526dd35e87e675788bdbb5327b21e11899e45103",
+     "FixedVersion": "5.3.1",
+     "InstalledVersion": "5.3",
+     "LastModifiedDate": "2026-06-17T03:02:19.383Z",
      "PkgIdentifier": {
-      "PURL": "pkg:pypi/django@2.2.0",
-      "UID": "382b312ce416d7bd"
+      "PURL": "pkg:pypi/pyyaml@5.3",
+      "UID": "71ee91b5efd1f6b1"
      },
-     "PkgName": "django",
-     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2020-7471",
-     "PublishedDate": "2020-02-03T12:15:26.993Z",
+     "PkgName": "pyyaml",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2020-1747",
+     "PublishedDate": "2020-03-24T15:15:12.293Z",
      "References": [
-      "http://www.openwall.com/lists/oss-security/2020/02/03/1",
-      "https://access.redhat.com/security/cve/CVE-2020-7471"
+      "http://lists.opensuse.org/opensuse-security-announce/2020-04/msg00017.html",
+      "http://lists.opensuse.org/opensuse-security-announce/2020-05/msg00017.html"
      ],
      "Severity": "CRITICAL",
      "SeveritySource": "ghsa",
      "Status": "fixed",
-     "Title": "django: potential SQL injection via StringAgg(delimiter)",
+     "Title": "PyYAML: arbitrary command execution through python/object/new when FullLoader is used",
      "VendorIDs": [
-      "GHSA-hmr4-m2h5-33qx"
+      "GHSA-6757-jp84-gxfx"
      ],
      "VendorSeverity": {
-      "bitnami": 4,
+      "alma": 2,
+      "cbl-mariner": 4,
       "ghsa": 4,
       "nvd": 4,
-      "redhat": 3,
+      "oracle-oval": 2,
+      "photon": 4,
+      "redhat": 2,
+      "rocky": 2
+     },
+     "VulnerabilityID": "CVE-2020-1747"
+    },
+    {
+     "CVSS": {
+      "ghsa": {
+       "V3Score": 6.1,
+       "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:N/A:N"
+      },
+      "nvd": {
+       "V3Score": 6.1,
+       "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:N/A:N"
+      },
+      "redhat": {
+       "V3Score": 6.1,
+       "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:N/A:N"
+      }
+     },
+     "CweIDs": [
+      "CWE-200"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "Requests is a HTTP library. Since Requests 2.3.0, Requests has been leaking Proxy-Authorization headers to destination servers when redirected to an HTTPS endpoint. This is a product of how we use `rebuild_proxies` to reattach the `Proxy-Authorization` header to requests. For HTTP connections sent through the tunnel, the proxy will identify the header in the request itself and remove it prior to forwarding to the destination server. However when sent over HTTPS, the `Proxy-Authorization` header must be sent in the CONNECT request as the proxy has no visibility into the tunneled request. This results in Requests forwarding proxy credentials to the destination server unintentionally, allowing a malicious actor to potentially exfiltrate sensitive information. This issue has been patched in version 2.31.0.",
+     "Fingerprint": "sha256:abd8d777009b4f1be6ecf76f2fda7522589627cf9f6d7945015adb45a7fe0b69",
+     "FixedVersion": "2.31.0",
+     "InstalledVersion": "2.19.0",
+     "LastModifiedDate": "2026-06-17T05:59:22.687Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/requests@2.19.0",
+      "UID": "6d59e745010602d4"
+     },
+     "PkgName": "requests",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2023-32681",
+     "PublishedDate": "2023-05-26T18:15:14.147Z",
+     "References": [
+      "https://access.redhat.com/errata/RHSA-2023:4350",
+      "https://access.redhat.com/security/cve/CVE-2023-32681"
+     ],
+     "Severity": "MEDIUM",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "python-requests: Unintended leak of Proxy-Authorization header",
+     "VendorIDs": [
+      "GHSA-j8r2-6x86-q33q"
+     ],
+     "VendorSeverity": {
+      "alma": 2,
+      "amazon": 2,
+      "cbl-mariner": 2,
+      "ghsa": 2,
+      "nvd": 2,
+      "oracle-oval": 2,
+      "photon": 2,
+      "redhat": 2,
+      "rocky": 2,
       "ubuntu": 2
      },
-     "VulnerabilityID": "CVE-2020-7471"
-    },
-    {
-     "CVSS": {
-      "bitnami": {
-       "V3Score": 9.8,
-       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
-      },
-      "ghsa": {
-       "V3Score": 9.8,
-       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
-       "V40Score": 9.3,
-       "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
-      },
-      "nvd": {
-       "V2Score": 7.5,
-       "V2Vector": "AV:N/AC:L/Au:N/C:P/I:P/A:P",
-       "V3Score": 9.8,
-       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
-      },
-      "redhat": {
-       "V3Score": 9.4,
-       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:L"
-      }
-     },
-     "CweIDs": [
-      "CWE-89"
-     ],
-     "DataSource": {
-      "ID": "ghsa",
-      "Name": "GitHub Security Advisory pip",
-      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
-     },
-     "Description": "An issue was discovered in Django 2.2 before 2.2.28, 3.2 before 3.2.13, and 4.0 before 4.0.4. QuerySet.annotate(), aggregate(), and extra() methods are subject to SQL injection in column aliases via a crafted dictionary (with dictionary expansion) as the passed **kwargs.",
-     "Fingerprint": "sha256:77fb593330df8330192be9f4399741a6725a6e18b9149e278b36ef65c8b62049",
-     "FixedVersion": "2.2.28, 3.2.13, 4.0.4",
-     "InstalledVersion": "2.2.0",
-     "LastModifiedDate": "2026-06-17T04:38:24.5Z",
-     "PkgIdentifier": {
-      "PURL": "pkg:pypi/django@2.2.0",
-      "UID": "382b312ce416d7bd"
-     },
-     "PkgName": "django",
-     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2022-28346",
-     "PublishedDate": "2022-04-12T05:15:06.927Z",
-     "References": [
-      "http://www.openwall.com/lists/oss-security/2022/04/11/1",
-      "https://access.redhat.com/security/cve/CVE-2022-28346"
-     ],
-     "Severity": "CRITICAL",
-     "SeveritySource": "ghsa",
-     "Status": "fixed",
-     "Title": "Django: SQL injection in QuerySet.annotate(),aggregate() and extra()",
-     "VendorIDs": [
-      "GHSA-2gwj-7jmv-h26r"
-     ],
-     "VendorSeverity": {
-      "bitnami": 4,
-      "ghsa": 4,
-      "nvd": 4,
-      "redhat": 3,
-      "ubuntu": 3
-     },
-     "VulnerabilityID": "CVE-2022-28346"
-    },
-    {
-     "CVSS": {
-      "bitnami": {
-       "V3Score": 9.8,
-       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
-      },
-      "ghsa": {
-       "V3Score": 9.8,
-       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
-       "V40Score": 9.3,
-       "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
-      },
-      "nvd": {
-       "V2Score": 7.5,
-       "V2Vector": "AV:N/AC:L/Au:N/C:P/I:P/A:P",
-       "V3Score": 9.8,
-       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
-      },
-      "redhat": {
-       "V3Score": 9.4,
-       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:L"
-      }
-     },
-     "CweIDs": [
-      "CWE-89"
-     ],
-     "DataSource": {
-      "ID": "ghsa",
-      "Name": "GitHub Security Advisory pip",
-      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
-     },
-     "Description": "A SQL injection issue was discovered in QuerySet.explain() in Django 2.2 before 2.2.28, 3.2 before 3.2.13, and 4.0 before 4.0.4. This occurs by passing a crafted dictionary (with dictionary expansion) as the **options argument, and placing the injection payload in an option name.",
-     "Fingerprint": "sha256:a551e2d1f952a0b187c9003c5c38a35104dd4c47bc756205fd7fade86280857c",
-     "FixedVersion": "2.2.28, 3.2.13, 4.0.4",
-     "InstalledVersion": "2.2.0",
-     "LastModifiedDate": "2026-06-17T04:38:24.63Z",
-     "PkgIdentifier": {
-      "PURL": "pkg:pypi/django@2.2.0",
-      "UID": "382b312ce416d7bd"
-     },
-     "PkgName": "django",
-     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2022-28347",
-     "PublishedDate": "2022-04-12T05:15:07.357Z",
-     "References": [
-      "http://www.openwall.com/lists/oss-security/2022/04/11/1",
-      "https://access.redhat.com/security/cve/CVE-2022-28347"
-     ],
-     "Severity": "CRITICAL",
-     "SeveritySource": "ghsa",
-     "Status": "fixed",
-     "Title": "Django: SQL injection via QuerySet.explain(options) on PostgreSQL",
-     "VendorIDs": [
-      "GHSA-w24h-v9qh-8gxj"
-     ],
-     "VendorSeverity": {
-      "bitnami": 4,
-      "ghsa": 4,
-      "nvd": 4,
-      "redhat": 3,
-      "ubuntu": 3
-     },
-     "VulnerabilityID": "CVE-2022-28347"
-    },
-    {
-     "CVSS": {
-      "bitnami": {
-       "V3Score": 9.1,
-       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
-      },
-      "ghsa": {
-       "V3Score": 9.1,
-       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
-      },
-      "redhat": {
-       "V3Score": 8.3,
-       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L"
-      }
-     },
-     "CweIDs": [
-      "CWE-89"
-     ],
-     "DataSource": {
-      "ID": "ghsa",
-      "Name": "GitHub Security Advisory pip",
-      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
-     },
-     "Description": "An issue was discovered in 5.1 before 5.1.14, 4.2 before 4.2.26, and 5.2 before 5.2.8.\nThe methods `QuerySet.filter()`, `QuerySet.exclude()`, and `QuerySet.get()`, and the class `Q()`, are subject to SQL injection when using a suitably crafted dictionary, with dictionary expansion, as the `_connector` argument.\nEarlier, unsupported Django series (such as 5.0.x, 4.1.x, and 3.2.x) were not evaluated and may also be affected.\nDjango would like to thank cyberstan for reporting this issue.",
-     "Fingerprint": "sha256:c0b2e7efdf1e25327fe1d05cb11d826c0d3d682789fa5a78fae1da46fba35beb",
-     "FixedVersion": "5.2.8, 5.1.14, 4.2.26",
-     "InstalledVersion": "2.2.0",
-     "LastModifiedDate": "2026-06-17T09:54:24.473Z",
-     "PkgIdentifier": {
-      "PURL": "pkg:pypi/django@2.2.0",
-      "UID": "382b312ce416d7bd"
-     },
-     "PkgName": "django",
-     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2025-64459",
-     "PublishedDate": "2025-11-05T15:15:41.08Z",
-     "References": [
-      "https://access.redhat.com/security/cve/CVE-2025-64459",
-      "https://advisory.echohq.com/cve/CVE-2025-64459"
-     ],
-     "Severity": "CRITICAL",
-     "SeveritySource": "ghsa",
-     "Status": "fixed",
-     "Title": "django: Django SQL injection",
-     "VendorIDs": [
-      "GHSA-frmv-pr5f-9mcr"
-     ],
-     "VendorSeverity": {
-      "bitnami": 4,
-      "ghsa": 4,
-      "redhat": 3,
-      "ubuntu": 2
-     },
-     "VulnerabilityID": "CVE-2025-64459"
+     "VulnerabilityID": "CVE-2023-32681"
     }
    ]
   },

@@ -5,6 +5,7 @@ import { UUID_RE } from "@/lib/format";
 import { NewScanForm } from "@/features/scans/NewScanForm";
 import { ScanList } from "@/features/scans/ScanList";
 import { ScanDetailPage } from "@/features/scans/ScanDetailPage";
+import { RepositoryPage } from "@/features/repositories/RepositoryPage";
 
 function HealthDot() {
   const ready = useQuery({
@@ -38,6 +39,14 @@ function ScanRoute() {
   return <ScanDetailPage scanId={id} />;
 }
 
+function RepositoryRoute() {
+  const { id } = useParams();
+  if (!id || !UUID_RE.test(id)) {
+    return <div className="panel error">That is not a valid repository id.</div>;
+  }
+  return <RepositoryPage repositoryId={id} />;
+}
+
 export function App() {
   return (
     <>
@@ -51,6 +60,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/scans/:id" element={<ScanRoute />} />
+          <Route path="/repositories/:id" element={<RepositoryRoute />} />
           <Route path="*" element={<div className="panel">Page not found. <Link to="/">Home</Link></div>} />
         </Routes>
       </main>

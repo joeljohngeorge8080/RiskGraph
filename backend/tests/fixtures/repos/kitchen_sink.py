@@ -52,6 +52,17 @@ FILES: dict[str, str] = {
         "def ping():\n"
         '    host = request.args.get("host")\n'
         '    return subprocess.check_output("ping -c 1 " + host, shell=True)\n'
+        "\n"
+        "\n"
+        '@app.route("/config", methods=["POST"])\n'
+        "def config():\n"
+        "    import yaml\n"
+        "\n"
+        "    return str(yaml.safe_load(request.data))\n"
+    ),
+    # Never imported by anything an entry point reaches: requests is L1, django L0.
+    "scripts/legacy.py": (
+        "import requests\n\n\ndef fetch(url):\n    return requests.get(url, timeout=5).text\n"
     ),
     "main.tf": (
         'provider "aws" {\n'
@@ -83,6 +94,30 @@ FILES: dict[str, str] = {
     ),
     "deploy/id_rsa": _fake_private_key(),
 }
+
+
+# Deployment context for graph/attack-path tests (blueprint §11.1, ADR-0011/0013).
+MANIFEST = """
+version: 1
+services:
+  - name: app
+    path: ""
+    exposure: internet
+    auth: none
+    runs_as: app-role
+    connects_to: [users-db]
+identities:
+  - name: app-role
+    privilege: elevated
+    can_access: [users-db]
+    credentials: [aws]
+data_stores:
+  - name: users-db
+    kind: sqlite
+    sensitivity: pii
+criticality:
+  app: high
+"""
 
 
 def build(dest: Path) -> Path:

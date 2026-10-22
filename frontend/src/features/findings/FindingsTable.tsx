@@ -1,5 +1,6 @@
 import type { FindingListItem } from "@/api/types";
 import { formatLocation, formatPercent, SOURCE_LABEL } from "@/lib/format";
+import { REACH_LABEL, REACH_TONE, STATUS_LABEL } from "@/lib/level2";
 import { PriorityBadge, ScoreBar, SeverityText } from "./PriorityBadge";
 
 export type SortKey = "risk" | "score" | "severity" | "title" | "file";
@@ -11,6 +12,7 @@ const COLUMNS: { key: SortKey | null; label: string }[] = [
   { key: null, label: "Type" },
   { key: "severity", label: "Severity" },
   { key: "file", label: "Location" },
+  { key: null, label: "Reach" },
   { key: null, label: "Detected by" },
 ];
 
@@ -62,7 +64,19 @@ export function FindingsTable({
                 <ScoreBar score={f.score} priority={f.priority} />
               </td>
               <td>
-                <div>{f.title}</div>
+                <div>
+                  {f.change !== "existing" && (
+                    <span className="badge" style={{ color: "var(--accent)", marginRight: 6 }}>
+                      {f.change}
+                    </span>
+                  )}
+                  {f.status !== "open" && (
+                    <span className="badge" style={{ color: "var(--muted)", marginRight: 6 }}>
+                      {STATUS_LABEL[f.status]}
+                    </span>
+                  )}
+                  {f.title}
+                </div>
                 <div className="muted mono" style={{ fontSize: "0.75rem" }}>
                   {f.rule_id}
                   {f.kev && <span className="badge" style={{ color: "var(--critical)", marginLeft: 6 }}>KEV</span>}
@@ -76,6 +90,19 @@ export function FindingsTable({
               <td className="mono" style={{ wordBreak: "break-all" }}>
                 {formatLocation(f.location)}
                 {f.location.resource && <div className="muted">{f.location.resource}</div>}
+              </td>
+              <td>
+                {f.reachability && f.reachability !== "n_a" ? (
+                  <span
+                    className="badge"
+                    style={{ color: REACH_TONE[f.reachability] }}
+                    title={REACH_LABEL[f.reachability]}
+                  >
+                    {f.reachability}
+                  </span>
+                ) : (
+                  <span className="muted">—</span>
+                )}
               </td>
               <td>
                 {f.detected_by.map((s) => (

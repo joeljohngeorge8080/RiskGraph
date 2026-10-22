@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { apiGet } from "@/api/client";
 import type { Scan } from "@/api/types";
 import { formatDate, isTerminal, PRIORITIES, PRIORITY_COLOR, SOURCE_LABEL, SOURCE_TYPES } from "@/lib/format";
 import { FindingsSection } from "@/features/findings/FindingsSection";
+import { historyLine, REACH_LABEL } from "@/lib/level2";
+import { AttackPathsPanel } from "./AttackPathsPanel";
 import { ContextPanel } from "./ContextPanel";
 import { ScannerStatusCards } from "./ScannerStatusCards";
 import { StatusBadge } from "./StatusBadge";
@@ -10,6 +14,7 @@ import { StatusBadge } from "./StatusBadge";
 const STAGES = ["QUEUED", "CLONING", "SCANNING", "ANALYZING"] as const;
 
 export function ScanDetailPage({ scanId }: { scanId: string }) {
+  const [focus, setFocus] = useState<{ id: string; n: number } | null>(null);
   const scan = useQuery({
     queryKey: ["scan", scanId],
     queryFn: () => apiGet<Scan>(`/scans/${scanId}`),
@@ -41,7 +46,22 @@ export function ScanDetailPage({ scanId }: { scanId: string }) {
               )}{" "}
               · started {formatDate(s.started_at ?? s.created_at)}
               {s.finished_at && <> · finished {formatDate(s.finished_at)}</>}
+              {" "}· <Link to={`/repositories/${s.repository.id}`}>history</Link>
             </div>
+            {s.summary.history && (
+              <div style={{ marginTop: 4 }}>
+                <strong>{historyLine(s.summary.history)}</strong>
+                <span className="muted">
+                  {s.summary.history.previous_scan_id ? (
+                    <>
+                      {" "}vs <Link to={`/scans/${s.summary.history.previous_scan_id}`}>previous scan</Link>
+                    </>
+                  ) : (
+                    " · first scan of this ref"
+                  )}
+                </span>
+              </div>
+            )}
           </div>
           <StatusBadge status={s.status} />
         </div>
@@ -106,7 +126,31 @@ export function ScanDetailPage({ scanId }: { scanId: string }) {
 
       {hasResults && s.summary.context && <ContextPanel context={s.summary.context} />}
 
-      {done && hasResults && <FindingsSection scanId={s.id} />}
+      {hasResults && s.summary.reachability && (
+        <p className="note">
+          Reachability: {s.summary.reachability.status === "ok" ? (
+            <>
+              {s.summary.reachability.files} source files parsed, {s.summary.reachability.entry_points} entry points
+              {" · "}
+              {(["L2", "L1", "L0", "unknown"] as const)
+                .map((t) => `${s.summary.reachability?.tiers[t] ?? 0} ${t} (${REACH_LABEL[t]})`)
+                .join(" · ")}
+            </>
+          ) : (
+            <>{s.summary.reachability.detail ?? s.summary.reachability.status}; R uses the unknown default</>
+          )}
+        </p>
+      )}
+
+      {done && hasResults && (
+        <AttackPathsPanel
+          scanId={s.id}
+          summary={s.summary}
+          onSelectFinding={(id) => setFocus((f) => ({ id, n: (f?.n ?? 0) + 1 }))}
+        />
+      )}
+
+      {done && hasResults && <FindingsSection scanId={s.id} focus={focus} />}
     </>
   );
 }

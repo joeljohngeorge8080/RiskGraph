@@ -1,20 +1,21 @@
 """Factor tables for risk model v1-ctx (blueprint §14.2).
 
-v1-ctx.1 adds deployment context (X, D, P, C) to v1-cf.1. With no context the two
-versions give identical scores; they differ in the KEV rule, which no longer floors a
-finding on an isolated service (§14.5).
+v1-ctx.1 added deployment context (X, D, P, C) to v1-cf.1. v1-ctx.2 adds reachability
+(R from L0/L1/L2), attack-path effective impact (§14.4) and the "L0 with high confidence
+→ ceiling Medium" rule (§14.5). Without context, reachability and paths, all three
+versions give identical scores.
 """
 
 from __future__ import annotations
 
 from riskgraph.shared.vocabulary import Priority, Severity
 
-MODEL_VERSION = "v1-ctx.1"
+MODEL_VERSION = "v1-ctx.2"
 FLOOR = 0.05
 
 # "Unknown" defaults when no context source covers a finding (§14.2, §14.3).
 UNKNOWN_EXPOSURE = 0.5  # X
-UNKNOWN_REACHABILITY = 0.6  # R (reachability is not computed yet: Phase 8)
+UNKNOWN_REACHABILITY = 0.6  # R when reachability is unknown
 UNKNOWN_DATA = 0.5  # D
 UNKNOWN_PRIVILEGE = 0.5  # P
 DEFAULT_CRITICALITY = 0.5  # C
@@ -31,6 +32,7 @@ D_VALUES = {
 }
 P_VALUES = {"admin": 1.0, "elevated": 0.8, "limited": 0.5, "read_only": 0.3}
 C_VALUES = {"high": 0.9, "medium": 0.5, "low": 0.2}
+R_VALUES = {"L3": 1.0, "L2": 0.8, "L1": 0.5, "L0": 0.1}
 
 # Exploitability E when a CVE has neither KEV nor EPSS nor a CVSS vector.
 E_BY_SEVERITY = {

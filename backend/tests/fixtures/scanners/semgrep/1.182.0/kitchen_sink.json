@@ -7,7 +7,8 @@
    "app.py",
    "deploy/id_rsa",
    "main.tf",
-   "requirements.txt"
+   "requirements.txt",
+   "scripts/legacy.py"
   ]
  },
  "profiling_results": [],
@@ -403,23 +404,23 @@
   "fixpoint_timeouts": [],
   "matching_time": {
    "per_file_and_rule_time": {
-    "mean": 0.0008806075368608748,
-    "std_dev": 1.0731459240517146e-06
+    "mean": 0.0005401891210804813,
+    "std_dev": 1.023401149503361e-06
    },
-   "total_time": 0.024657011032104492,
+   "total_time": 0.02484869956970215,
    "very_slow_rules_on_files": [],
    "very_slow_stats": {
     "count_ratio": 0.0,
     "time_ratio": 0.0
    }
   },
-  "max_memory_bytes": 563786816,
+  "max_memory_bytes": 561012608,
   "parsing_time": {
    "per_file_time": {
-    "mean": 0.00048285722732543945,
-    "std_dev": 3.978834243919696e-06
+    "mean": 0.0003795312798541525,
+    "std_dev": 3.0167884752598607e-06
    },
-   "total_time": 0.013520002365112305,
+   "total_time": 0.017458438873291016,
    "very_slow_files": [],
    "very_slow_stats": {
     "count_ratio": 0.0,
@@ -429,25 +430,25 @@
   "prefiltering": {
    "file_level_time": 0.0,
    "project_level_time": 0.0,
-   "rules_matched_ratio": 0.10661764705882353,
-   "rules_selected_ratio": 0.10661764705882353,
-   "rules_with_file_prefilters_ratio": 0.9852941176470589,
+   "rules_matched_ratio": 0.09195402298850575,
+   "rules_selected_ratio": 0.09195402298850575,
+   "rules_with_file_prefilters_ratio": 0.9846743295019157,
    "rules_with_project_prefilters_ratio": 0.0
   },
   "profiling_times": {
-   "config_time": 34.328813791275024,
-   "core_time": 1.1483643054962158,
-   "ignores_time": 0.0017445087432861328,
-   "total_time": 35.488152265548706
+   "config_time": 30.638818979263306,
+   "core_time": 1.0371460914611816,
+   "ignores_time": 0.0020325183868408203,
+   "total_time": 31.68721342086792
   },
   "rules": [],
-  "rules_parse_time": 0.5887660980224609,
+  "rules_parse_time": 0.5195848941802979,
   "scanning_time": {
    "per_file_time": {
-    "mean": 0.004996836185455321,
-    "std_dev": 0.00015263886918740846
+    "mean": 0.004641723632812499,
+    "std_dev": 0.00014238915873799368
    },
-   "total_time": 0.05996203422546387,
+   "total_time": 0.0696258544921875,
    "very_slow_files": [],
    "very_slow_stats": {
     "count_ratio": 0.0,
@@ -456,10 +457,10 @@
   },
   "tainting_time": {
    "per_def_and_rule_time": {
-    "mean": 0.00017244165593927556,
-    "std_dev": 2.2307252780071388e-07
+    "mean": 6.841421127319337e-05,
+    "std_dev": 6.548857195790939e-09
    },
-   "total_time": 0.005690574645996094,
+   "total_time": 0.0041048526763916016,
    "very_slow_rules_on_defs": [],
    "very_slow_stats": {
     "count_ratio": 0.0,

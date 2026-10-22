@@ -47,6 +47,38 @@ def parse(doc: Any) -> list[RawFinding]:
     return out
 
 
+def dependency_graph(doc: Any) -> dict[str, dict[str, Any]]:
+    """Per manifest target: package relationships from ``Results[].Packages``.
+
+    ``{target: {"has_graph": bool, "packages": {id: {"name", "version", "relationship",
+    "depends_on"}}}}``. Lockfiles with a dependency tree (package-lock, poetry, yarn,
+    pnpm, go.mod, uv) carry ``Relationship``/``DependsOn``; requirements.txt does not.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for result in _results(doc):
+        packages: dict[str, dict[str, Any]] = {}
+        has_graph = False
+        for p in _list(result.get("Packages")):
+            name = str(p.get("Name") or "")
+            version = str(p.get("Version") or "")
+            pid = str(p.get("ID") or f"{name}@{version}")
+            relationship = p.get("Relationship") if isinstance(p.get("Relationship"), str) else None
+            depends = [str(d) for d in p.get("DependsOn") or [] if isinstance(d, str)][:500]
+            has_graph = has_graph or relationship is not None or bool(depends)
+            packages[pid] = {
+                "name": name,
+                "version": version,
+                "relationship": relationship,
+                "depends_on": depends,
+            }
+        if packages:
+            out[normalize_path(result.get("Target"))] = {
+                "has_graph": has_graph,
+                "packages": packages,
+            }
+    return out
+
+
 def pick_cvss(cvss: dict[str, Any] | None) -> dict[str, Any] | None:
     if not cvss:
         return None

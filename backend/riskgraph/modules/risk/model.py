@@ -5,10 +5,12 @@
     K = 1 + 0.05 · min(scanners agreeing - 1, 2)
     score = min(100, 100 · L · I · K)
 
-X, D, P and C come from ``ScoreInput.context`` (manifest, repository visibility) and fall
-back to the blueprint's "unknown" values; R is always unknown until Phase 8. With no
-context and K = 1 this is exactly the §14.3 context-free case. Pure function: same input,
-same output, and every factor is returned with its provenance.
+X, D, P and C come from ``ScoreInput.context`` (manifest, repository visibility), R from
+``ScoreInput.reachability`` (L0/L1/L2), and each falls back to the blueprint's "unknown"
+value. When the finding is evidence on an attack path, I is raised to the path's
+effective impact (§14.4, adjustment factor ``I*``). With no context, no reachability and
+K = 1 this is exactly the §14.3 context-free case. Pure function: same input, same
+output, and every factor is returned with its provenance.
 """
 
 from __future__ import annotations
@@ -43,6 +45,18 @@ class ScoreInput:
     iac_family: str | None = None
     # deployment context; None means "nothing known" (all defaults)
     context: FindingContext | None = None
+    # reachability tier (sca/sast) with provenance; None = not analysed
+    reachability: Observed | None = None
+    # §14.4: impact implied by an attack path this finding is evidence on
+    effective_impact: EffectiveImpact | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class EffectiveImpact:
+    value: float  # I(sink) · P(path | this finding's edge = 1)
+    path: str  # attack path label, e.g. "internet → app → app-role → users-db"
+    sink: str
+    probability: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +81,18 @@ class ScoreResult:
     priority: Priority
     overrides: list[dict[str, str]]
     factors: list[Factor]
+    effective_impact: float | None = None
+
+    def factor(self, name: str) -> Factor | None:
+        return next((f for f in self.factors if f.name == name), None)
+
+    @property
+    def exploit_likelihood(self) -> float:
+        """geomean(E, R) of a code finding: its attack-graph edge probability (§13.1)."""
+        e = self.factor("E")
+        r = self.factor("R")
+        values = [f.value for f in (e, r) if f is not None and f.applicable]
+        return math.prod(values) ** (1 / len(values)) if values else 0.0
 
 
 def _clamp(value: float) -> float:
@@ -185,15 +211,7 @@ def score(inp: ScoreInput) -> ScoreResult:
     likelihood_factors = [
         _exploitability(inp),
         exposure,
-        Factor(
-            "likelihood",
-            "R",
-            t.UNKNOWN_REACHABILITY,
-            "default_unknown" if reach_applicable else "not_applicable",
-            "low",
-            "reachability=unknown" if reach_applicable else "n_a",
-            applicable=reach_applicable,
-        ),
+        _reachability_factor(inp, reach_applicable),
     ]
     impact_factors = [
         _technical_impact(inp),
@@ -222,6 +240,22 @@ def score(inp: ScoreInput) -> ScoreResult:
     applicable = [f.value for f in likelihood_factors if f.applicable]
     likelihood = math.prod(applicable) ** (1 / len(applicable))
     impact = sum(f.value for f in impact_factors) / len(impact_factors)
+    used_impact = impact
+    adjustments: list[Factor] = []
+    eff = inp.effective_impact
+    if eff is not None and eff.value > impact:
+        used_impact = min(1.0, eff.value)
+        adjustments.append(
+            Factor(
+                "adjustment",
+                "I*",
+                used_impact,
+                "attack_path",
+                "medium",
+                f"sink={eff.sink}",
+                evidence={"path": eff.path, "path_probability": round(eff.probability, 5)},
+            )
+        )
 
     agreeing = max(1, len(set(inp.detected_by)))
     k = 1 + t.K_PER_EXTRA_SCANNER * min(agreeing - 1, t.K_MAX_EXTRA)
@@ -234,7 +268,7 @@ def score(inp: ScoreInput) -> ScoreResult:
         f"scanners={agreeing}",
         evidence={"detected_by": sorted(set(inp.detected_by))},
     )
-    value = round(min(100.0, 100 * likelihood * impact * k), 2)
+    value = round(min(100.0, 100 * likelihood * used_impact * k), 2)
 
     priority = priority_for(value)
     overrides: list[dict[str, str]] = []
@@ -248,6 +282,22 @@ def score(inp: ScoreInput) -> ScoreResult:
         priority = Priority.HIGH
         overrides.append(
             {"rule": "kev_floor_high", "effect": "priority>=high", "reason": "listed in CISA KEV"}
+        )
+    reach = inp.reachability
+    if (
+        reach is not None
+        and reach.label == "L0"
+        and reach.confidence == "high"
+        and not inp.kev  # a KEV floor wins: exploited in the wild beats "not imported"
+        and priority.rank > Priority.MEDIUM.rank
+    ):
+        priority = Priority.MEDIUM
+        overrides.append(
+            {
+                "rule": "not_imported_ceiling_medium",
+                "effect": "priority<=medium",
+                "reason": "dependency is never imported (L0, high confidence)",
+            }
         )
     if (
         inp.source_type is SourceType.SECRET
@@ -271,5 +321,40 @@ def score(inp: ScoreInput) -> ScoreResult:
         score=value,
         priority=priority,
         overrides=overrides,
-        factors=[*likelihood_factors, *impact_factors, k_factor],
+        factors=[*likelihood_factors, *impact_factors, k_factor, *adjustments],
+        effective_impact=round(used_impact, 4) if adjustments else None,
+    )
+
+
+def _reachability_factor(inp: ScoreInput, applicable: bool) -> Factor:
+    if not applicable:
+        return Factor(
+            "likelihood",
+            "R",
+            t.UNKNOWN_REACHABILITY,
+            "not_applicable",
+            "low",
+            "n_a",
+            applicable=False,
+        )
+    obs = inp.reachability
+    if obs is not None and obs.label in t.R_VALUES:
+        evidence = {k: v for k, v in obs.evidence.items() if v is not None}
+        return Factor(
+            "likelihood",
+            "R",
+            t.R_VALUES[obs.label],
+            obs.source,
+            obs.confidence,
+            obs.label,
+            evidence=evidence,
+        )
+    return Factor(
+        "likelihood",
+        "R",
+        t.UNKNOWN_REACHABILITY,
+        "default_unknown" if obs is None else obs.source,
+        "low",
+        "reachability=unknown",
+        evidence=dict(obs.evidence) if obs is not None else {},
     )
