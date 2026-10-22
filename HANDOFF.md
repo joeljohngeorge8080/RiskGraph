@@ -1,4 +1,33 @@
-# HANDOFF: resume here (updated 2026-10-22, session 5: integration and graphify)
+# HANDOFF: resume here (updated 2026-10-23, session 6: P3, P4, P5, P7, P8)
+
+## Session 6 (2026-10-23, local): containers, SBOM, NVD, L3 — UNCOMMITTED
+- **Nothing from this session is committed or pushed.** Branch `mvp-level2-integration` is still at `8e8c4db` (housekeeping). Review, then commit in logical pieces.
+- **Built and verified here:**
+  - P3: `DockerRunner` with the blueprint §9.3 profile, socket proxy, slot cap, cancel, reaper. ADR-0014. Chapter `docs/phases/PHASE_03.md`.
+  - P4: five pinned, checksum-verified scanner images plus `git-fetcher`; Syft adapter; fixtures re-recorded from the images. Chapter `PHASE_04.md`.
+  - P5: SBOM (`sbom_components`), Trivy→Syft attachment. Chapter `PHASE_05.md`.
+  - P7 (partly): NVD refresh by Beat; Kubernetes and Compose extraction; `GET /repositories/{id}/context`. No Terraform (stretch). Chapter `PHASE_07.md`.
+  - P8 (partly): L3 for Python (call graph, `vulnerable_symbols.yaml`, blind-spot tests). ADR-0015. Chapter `PHASE_08.md`.
+- **Verified:** unit 242+ tests, db 32+ tests, ruff and mypy clean. Live `make dev` NodeGoat scan through all five containers: COMPLETED, 124 findings, zero workspace residue.
+- **Migrations applied to the dev DB:** `5c1e0a9d2f47`, `9a4d2c7e1b30`, `c4f0a7e2d913` (head).
+- **Gotchas found this session (keep these):**
+  - `/tmp` is a 7.8 GB tmpfs. Test temp trees used to fill it; `conftest` now removes them at exit.
+  - Scanner containers write files as uid 65534. Cleanup needs `discard_workspace` (widen, then remove). Tools may tighten their own cache dirs to 0700, so the worker widens its own dirs first.
+  - The egress network `riskgraph_egress` must exist before the stack starts; `make dev` creates it.
+  - The Trivy image needs `ca-certificates` in its runtime stage, or the DB download fails TLS.
+  - The reachability extractor has no scanner image, so it must always use the subprocess runner. Running it through the container runner made every reachability result `unknown` (regression test: `test_reachability_still_runs_when_scanners_are_containers`).
+  - One active scan per repo and ref: a test that leaves a scan `SCANNING` makes later scans dedupe onto it. Close scans in tests.
+- **Open issues, in priority order:**
+  1. Semgrep's `generic.secrets` private-key rule is typed SAST, so its reachability is `unknown`, where secrets should be `n_a`.
+  2. Frontend does not show the L3 tier yet.
+  3. `GET /scans/{id}/sbom` endpoint is not written (data is in `summary.sbom`).
+  4. Semgrep findings are not mapped to enclosing functions (blueprint §10.2).
+  5. A db test for the context endpoint is missing.
+  6. `docker/scanner-versions.env` pins Semgrep and Checkov from PyPI without hashes.
+- **Decisions taken without asking (review):** NVD refreshed by Beat only, never on the scan path (ADR-0015). Fetcher runs as the worker uid (ADR-0014). Semgrep's pinned rule set changed one expected count (`test_merge.py` now expects three rules on one line).
+
+---
+
 
 ## Session 5 (2026-10-22, local): integrate, fix CI, graph — current state
 - **Branch:** `mvp-level2-integration` at `74b40f3`, pushed. It is `cloud-mvp-integration` (`1ccaa41`) plus `mvp-level2-extended` (`392e68f`, a fast-forward), then the fixes and the graphify commit. `main` is still at `8fa3a97`.
