@@ -8,6 +8,7 @@ purpose: a misconfigured security product must not come up half-working.
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
@@ -37,6 +38,28 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
     api_docs_enabled: bool = True
 
+    # --- scanning (MVP, ADR-0009) ----------------------------------------------------
+    data_dir: Path = Field(
+        default=Path("/var/lib/riskgraph"),
+        description="Holds workspaces/<scan_id>/ and scan_output/<scan_id>/",
+    )
+    scanner_bin_dir: Path = Path("/opt/scanners/bin")
+    semgrep_rules_path: Path = Path("/opt/scanners/semgrep-rules")
+    trivy_cache_dir: Path = Path("/var/cache/riskgraph/trivy")
+    timeout_trivy_s: int = 600
+    timeout_semgrep_s: int = 900
+    timeout_checkov_s: int = 600
+    timeout_gitleaks_s: int = 300
+    clone_timeout_s: int = 180
+    clone_max_bytes: int = 500 * 1024 * 1024
+    clone_max_files: int = 100_000
+    raw_report_max_bytes: int = 50 * 1024 * 1024
+    max_active_scans: int = 3
+    keep_workspaces: bool = False
+    enrichment_enabled: bool = True
+    epss_ttl_hours: int = 24
+    kev_ttl_hours: int = 12
+
     @field_validator("database_url")
     @classmethod
     def _postgres_only(cls, value: str) -> str:
@@ -61,6 +84,14 @@ class Settings(BaseSettings):
     @property
     def is_prod(self) -> bool:
         return self.env == "prod"
+
+    @property
+    def workspace_root(self) -> Path:
+        return self.data_dir / "workspaces"
+
+    @property
+    def scan_output_root(self) -> Path:
+        return self.data_dir / "scan_output"
 
 
 @lru_cache(maxsize=1)

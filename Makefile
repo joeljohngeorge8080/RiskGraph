@@ -4,6 +4,20 @@ SHELL := /bin/bash
 
 BACKEND := backend
 UV := uv --directory $(BACKEND)
+SCANNER_PREFIX ?= $(HOME)/.local/share/riskgraph-tools
+# Host-run backend (no Docker): scanners from `make scanner-tools`, data under ./.data
+LOCAL_ENV := set -a && . ./.env && set +a && \
+  export RISKGRAPH_SCANNER_BIN_DIR=$(SCANNER_PREFIX)/bin \
+         RISKGRAPH_SEMGREP_RULES_PATH=$(SCANNER_PREFIX)/semgrep-rules \
+         RISKGRAPH_TRIVY_CACHE_DIR=$(HOME)/.cache/riskgraph/trivy \
+         RISKGRAPH_DATA_DIR=$(CURDIR)/.data &&
+# db-marked tests: reach postgres/redis on the .env ports (dev stack or test-services).
+# Only these keys are read; sourcing .env would also set RISKGRAPH_ENV=dev.
+TEST_DB_ENV := pg=$$(sed -n 's/^POSTGRES_PORT=//p' .env 2>/dev/null || true) && \
+  rp=$$(sed -n 's/^REDIS_PORT=//p' .env 2>/dev/null || true) && \
+  rpw=$$(sed -n 's/^REDIS_PASSWORD=//p' .env 2>/dev/null || true) && \
+  export RISKGRAPH_DATABASE_URL=postgresql+psycopg://riskgraph:riskgraph@localhost:$${pg:-5432}/riskgraph_test \
+         RISKGRAPH_REDIS_URL=redis://:$${rpw:-riskgraph}@localhost:$${rp:-6379}/1 &&
 
 help: ## Show targets
 > @grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -47,11 +61,23 @@ test: ## Unit tests (no services)
 test-services: ## Start postgres+redis for db-marked tests on the host
 > docker compose -f docker-compose.test.yml up -d --wait
 
-test-db: ## Tests that need postgres+redis (run test-services first)
-> $(UV) run pytest -m db
+test-db: ## Tests that need postgres+redis (dev stack or test-services running)
+> @$(TEST_DB_ENV) $(UV) run pytest -m db
 
 test-all: ## Everything except perf
-> $(UV) run pytest -m "not perf"
+> @$(TEST_DB_ENV) $(UV) run pytest -m "not perf"
+
+scanner-tools: ## Install trivy, semgrep, checkov, gitleaks into $(SCANNER_PREFIX) (host runs)
+> infrastructure/scripts/install-scanners.sh $(SCANNER_PREFIX)
+
+api-local: .env ## Run the API on the host (needs RISKGRAPH_DATABASE_URL/REDIS_URL in .env)
+> $(LOCAL_ENV) $(UV) run alembic upgrade head && $(UV) run uvicorn --factory riskgraph.entrypoints.api:create_app --host 127.0.0.1 --port 8000
+
+worker-local: .env ## Run the Celery worker on the host
+> $(LOCAL_ENV) $(UV) run celery -A riskgraph.entrypoints.worker:celery_app worker -Q scan,analysis -c 2 --loglevel INFO
+
+e2e: ## Full pipeline with the real scanners (needs scanner-tools, postgres, redis)
+> @$(TEST_DB_ENV) export RISKGRAPH_SCANNER_BIN_DIR=$(SCANNER_PREFIX)/bin RISKGRAPH_SEMGREP_RULES_PATH=$(SCANNER_PREFIX)/semgrep-rules RISKGRAPH_TRIVY_CACHE_DIR=$(HOME)/.cache/riskgraph/trivy && $(UV) run pytest -m e2e
 
 migrate: ## Apply migrations against the running compose postgres
 > docker compose run --rm migrate
@@ -62,4 +88,4 @@ migration: ## Autogenerate a migration: make migration m="add findings"
 shell-api: ## Shell in the api container
 > docker compose exec api bash
 
-.PHONY: help dev dev-detached down nuke logs install lint fmt test test-services test-db test-all migrate migration shell-api
+.PHONY: help dev dev-detached down nuke logs install lint fmt test test-services test-db test-all scanner-tools api-local worker-local e2e migrate migration shell-api

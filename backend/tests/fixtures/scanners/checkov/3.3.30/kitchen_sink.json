@@ -1,0 +1,623 @@
+[
+ {
+  "check_type": "dockerfile",
+  "results": {
+   "failed_checks": [
+    {
+     "bc_category": null,
+     "bc_check_id": null,
+     "benchmarks": null,
+     "caller_file_line_range": null,
+     "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+     "check_id": "CKV_DOCKER_2",
+     "check_len": null,
+     "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+     "check_result": {
+      "result": "FAILED",
+      "results_configuration": null
+     },
+     "description": null,
+     "details": [],
+     "file_line_range": [
+      1,
+      4
+     ],
+     "file_path": "/Dockerfile",
+     "guideline": null,
+     "repo_file_path": "/Dockerfile",
+     "resource": "/Dockerfile.",
+     "resource_address": null,
+     "severity": null,
+     "short_description": null,
+     "vulnerability_details": null
+    },
+    {
+     "bc_category": null,
+     "bc_check_id": null,
+     "benchmarks": null,
+     "caller_file_line_range": null,
+     "check_class": "checkov.dockerfile.checks.UserExists",
+     "check_id": "CKV_DOCKER_3",
+     "check_len": null,
+     "check_name": "Ensure that a user for the container has been created",
+     "check_result": {
+      "result": "FAILED",
+      "results_configuration": null
+     },
+     "description": null,
+     "details": [],
+     "file_line_range": [
+      1,
+      4
+     ],
+     "file_path": "/Dockerfile",
+     "guideline": null,
+     "repo_file_path": "/Dockerfile",
+     "resource": "/Dockerfile.",
+     "resource_address": null,
+     "severity": null,
+     "short_description": null,
+     "vulnerability_details": null
+    }
+   ]
+  },
+  "summary": {
+   "checkov_version": "3.3.30",
+   "failed": 2,
+   "parsing_errors": 0,
+   "passed": 21,
+   "resource_count": 1,
+   "skipped": 0
+  }
+ },
+ {
+  "check_type": "terraform",
+  "results": {
+   "failed_checks": [
+    {
+     "bc_category": null,
+     "bc_check_id": null,
+     "benchmarks": {},
+     "caller_file_line_range": null,
+     "check_class": "checkov.terraform.checks.provider.aws.credentials",
+     "check_id": "CKV_AWS_41",
+     "check_len": null,
+     "check_name": "Ensure no hard coded AWS access key and secret key exists in provider",
+     "check_result": {
+      "evaluated_keys": [],
+      "result": "FAILED"
+     },
+     "description": null,
+     "details": [],
+     "file_line_range": [
+      1,
+      5
+     ],
+     "file_path": "/main.tf",
+     "guideline": null,
+     "repo_file_path": "/main.tf",
+     "resource": "aws.default",
+     "resource_address": null,
+     "severity": null,
+     "short_description": null,
+     "vulnerability_details": null
+    },
+    {
+     "bc_category": null,
+     "bc_check_id": null,
+     "benchmarks": {},
+     "caller_file_line_range": null,
+     "check_class": "checkov.terraform.checks.resource.aws.SecurityGroupUnrestrictedIngress22",
+     "check_id": "CKV_AWS_24",
+     "check_len": null,
+     "check_name": "Ensure no security groups allow ingress from 0.0.0.0:0 to port 22",
+     "check_result": {
+      "evaluated_keys": [
+       "ingress/[0]/from_port",
+       "ingress/[0]/to_port",
+       "ingress/[0]/cidr_blocks",
+       "ingress/[0]/ipv6_cidr_blocks"
+      ],
+      "result": "FAILED"
+     },
+     "description": null,
+     "details": [],
+     "file_line_range": [
+      12,
+      20
+     ],
+     "file_path": "/main.tf",
+     "guideline": null,
+     "repo_file_path": "/main.tf",
+     "resource": "aws_security_group.ssh",
+     "resource_address": null,
+     "severity": null,
+     "short_description": null,
+     "vulnerability_details": null
+    },
+    {
+     "bc_category": null,
+     "bc_check_id": null,
+     "benchmarks": {},
+     "caller_file_line_range": null,
+     "check_class": "checkov.terraform.checks.resource.aws.SecurityGroupRuleDescription",
+     "check_id": "CKV_AWS_23",
+     "check_len": null,
+     "check_name": "Ensure every security group and rule has a description",
+     "check_result": {
+      "evaluated_keys": [
+       "ingress/[0]"
+      ],
+      "result": "FAILED"
+     },
+     "description": null,
+     "details": [],
+     "file_line_range": [
+      12,
+      20
+     ],
+     "file_path": "/main.tf",
+     "guideline": null,
+     "repo_file_path": "/main.tf",
+     "resource": "aws_security_group.ssh",
+     "resource_address": null,
+     "severity": null,
+     "short_description": null,
+     "vulnerability_details": null
+    },
+    {
+     "bc_category": null,
+     "bc_check_id": null,
+     "benchmarks": {},
+     "caller_file_line_range": null,
+     "check_class": "checkov.common.graph.checks_infra.base_check",
+     "check_id": "CKV2_AWS_6",
+     "check_len": null,
+     "check_name": "Ensure that S3 bucket has a Public Access block",
+     "check_result": {
+      "entity": {
+       "aws_s3_bucket": {
+        "data": {
+         "__address__": "aws_s3_bucket.data",
+         "__end_line__": 10,
+         "__provider_address__": "aws.default",
+         "__start_line__": 7,
+         "acl": [
+          "public-read"
+         ],
+         "bucket": [
+          "kitchen-sink-data"
+         ]
+        }
+       }
+      },
+      "evaluated_keys": [
+       "block_public_policy",
+       "block_public_acls",
+       "resource_type"
+      ],
+      "result": "FAILED"
+     },
+     "description": null,
+     "details": [],
+     "file_line_range": [
+      7,
+      10
+     ],
+     "file_path": "/main.tf",
+     "guideline": null,
+     "repo_file_path": "/main.tf",
+     "resource": "aws_s3_bucket.data",
+     "resource_address": null,
+     "severity": null,
+     "short_description": null,
+     "vulnerability_details": null
+    },
+    {
+     "bc_category": null,
+     "bc_check_id": null,
+     "benchmarks": {},
+     "caller_file_line_range": null,
+     "check_class": "checkov.common.graph.checks_infra.base_check",
+     "check_id": "CKV2_AWS_62",
+     "check_len": null,
+     "check_name": "Ensure S3 buckets should have event notifications enabled",
+     "check_result": {
+      "entity": {
+       "aws_s3_bucket": {
+        "data": {
+         "__address__": "aws_s3_bucket.data",
+         "__end_line__": 10,
+         "__provider_address__": "aws.default",
+         "__start_line__": 7,
+         "acl": [
+          "public-read"
+         ],
+         "bucket": [
+          "kitchen-sink-data"
+         ]
+        }
+       }
+      },
+      "evaluated_keys": [
+       "resource_type"
+      ],
+      "result": "FAILED"
+     },
+     "description": null,
+     "details": [],
+     "file_line_range": [
+      7,
+      10
+     ],
+     "file_path": "/main.tf",
+     "guideline": null,
+     "repo_file_path": "/main.tf",
+     "resource": "aws_s3_bucket.data",
+     "resource_address": null,
+     "severity": null,
+     "short_description": null,
+     "vulnerability_details": null
+    },
+    {
+     "bc_category": null,
+     "bc_check_id": null,
+     "benchmarks": {},
+     "caller_file_line_range": null,
+     "check_class": "checkov.common.graph.checks_infra.base_check",
+     "check_id": "CKV2_AWS_5",
+     "check_len": null,
+     "check_name": "Ensure that Security Groups are attached to another resource",
+     "check_result": {
+      "entity": {
+       "aws_security_group": {
+        "ssh": {
+         "__address__": "aws_security_group.ssh",
+         "__end_line__": 20,
+         "__provider_address__": "aws.default",
+         "__start_line__": 12,
+         "ingress": [
+          {
+           "cidr_blocks": [
+            [
+             "0.0.0.0/0"
+            ]
+           ],
+           "from_port": [
+            22
+           ],
+           "protocol": [
+            "tcp"
+           ],
+           "to_port": [
+            22
+           ]
+          }
+         ],
+         "name": [
+          "open-ssh"
+         ]
+        }
+       }
+      },
+      "evaluated_keys": [
+       "resource_type",
+       "networking"
+      ],
+      "result": "FAILED"
+     },
+     "description": null,
+     "details": [],
+     "file_line_range": [
+      12,
+      20
+     ],
+     "file_path": "/main.tf",
+     "guideline": null,
+     "repo_file_path": "/main.tf",
+     "resource": "aws_security_group.ssh",
+     "resource_address": null,
+     "severity": null,
+     "short_description": null,
+     "vulnerability_details": null
+    },
+    {
+     "bc_category": null,
+     "bc_check_id": null,
+     "benchmarks": {},
+     "caller_file_line_range": null,
+     "check_class": "checkov.common.graph.checks_infra.base_check",
+     "check_id": "CKV_AWS_18",
+     "check_len": null,
+     "check_name": "Ensure the S3 bucket has access logging enabled",
+     "check_result": {
+      "entity": {
+       "aws_s3_bucket": {
+        "data": {
+         "__address__": "aws_s3_bucket.data",
+         "__end_line__": 10,
+         "__provider_address__": "aws.default",
+         "__start_line__": 7,
+         "acl": [
+          "public-read"
+         ],
+         "bucket": [
+          "kitchen-sink-data"
+         ]
+        }
+       }
+      },
+      "evaluated_keys": [
+       "logging",
+       "resource_type"
+      ],
+      "result": "FAILED"
+     },
+     "description": null,
+     "details": [],
+     "file_line_range": [
+      7,
+      10
+     ],
+     "file_path": "/main.tf",
+     "guideline": null,
+     "repo_file_path": "/main.tf",
+     "resource": "aws_s3_bucket.data",
+     "resource_address": null,
+     "severity": null,
+     "short_description": null,
+     "vulnerability_details": null
+    },
+    {
+     "bc_category": null,
+     "bc_check_id": null,
+     "benchmarks": {},
+     "caller_file_line_range": null,
+     "check_class": "checkov.common.graph.checks_infra.base_check",
+     "check_id": "CKV2_AWS_61",
+     "check_len": null,
+     "check_name": "Ensure that an S3 bucket has a lifecycle configuration",
+     "check_result": {
+      "entity": {
+       "aws_s3_bucket": {
+        "data": {
+         "__address__": "aws_s3_bucket.data",
+         "__end_line__": 10,
+         "__provider_address__": "aws.default",
+         "__start_line__": 7,
+         "acl": [
+          "public-read"
+         ],
+         "bucket": [
+          "kitchen-sink-data"
+         ]
+        }
+       }
+      },
+      "evaluated_keys": [
+       "lifecycle_rule",
+       "resource_type"
+      ],
+      "result": "FAILED"
+     },
+     "description": null,
+     "details": [],
+     "file_line_range": [
+      7,
+      10
+     ],
+     "file_path": "/main.tf",
+     "guideline": null,
+     "repo_file_path": "/main.tf",
+     "resource": "aws_s3_bucket.data",
+     "resource_address": null,
+     "severity": null,
+     "short_description": null,
+     "vulnerability_details": null
+    },
+    {
+     "bc_category": null,
+     "bc_check_id": null,
+     "benchmarks": {},
+     "caller_file_line_range": null,
+     "check_class": "checkov.common.graph.checks_infra.base_check",
+     "check_id": "CKV_AWS_144",
+     "check_len": null,
+     "check_name": "Ensure that S3 bucket has cross-region replication enabled",
+     "check_result": {
+      "entity": {
+       "aws_s3_bucket": {
+        "data": {
+         "__address__": "aws_s3_bucket.data",
+         "__end_line__": 10,
+         "__provider_address__": "aws.default",
+         "__start_line__": 7,
+         "acl": [
+          "public-read"
+         ],
+         "bucket": [
+          "kitchen-sink-data"
+         ]
+        }
+       }
+      },
+      "evaluated_keys": [
+       "replication_configuration/rules/*/status",
+       "rule/*/status",
+       "resource_type"
+      ],
+      "result": "FAILED"
+     },
+     "description": null,
+     "details": [],
+     "file_line_range": [
+      7,
+      10
+     ],
+     "file_path": "/main.tf",
+     "guideline": null,
+     "repo_file_path": "/main.tf",
+     "resource": "aws_s3_bucket.data",
+     "resource_address": null,
+     "severity": null,
+     "short_description": null,
+     "vulnerability_details": null
+    },
+    {
+     "bc_category": null,
+     "bc_check_id": null,
+     "benchmarks": {},
+     "caller_file_line_range": null,
+     "check_class": "checkov.common.graph.checks_infra.base_check",
+     "check_id": "CKV_AWS_20",
+     "check_len": null,
+     "check_name": "S3 Bucket has an ACL defined which allows public READ access.",
+     "check_result": {
+      "entity": {
+       "aws_s3_bucket": {
+        "data": {
+         "__address__": "aws_s3_bucket.data",
+         "__end_line__": 10,
+         "__provider_address__": "aws.default",
+         "__start_line__": 7,
+         "acl": [
+          "public-read"
+         ],
+         "bucket": [
+          "kitchen-sink-data"
+         ]
+        }
+       }
+      },
+      "evaluated_keys": [
+       "access_control_policy/grant/*/grantee/uri",
+       "resource_type",
+       "access_control_policy",
+       "acl",
+       "access_control_policy/grant"
+      ],
+      "result": "FAILED"
+     },
+     "description": null,
+     "details": [],
+     "file_line_range": [
+      7,
+      10
+     ],
+     "file_path": "/main.tf",
+     "guideline": null,
+     "repo_file_path": "/main.tf",
+     "resource": "aws_s3_bucket.data",
+     "resource_address": null,
+     "severity": null,
+     "short_description": null,
+     "vulnerability_details": null
+    },
+    {
+     "bc_category": null,
+     "bc_check_id": null,
+     "benchmarks": {},
+     "caller_file_line_range": null,
+     "check_class": "checkov.common.graph.checks_infra.base_check",
+     "check_id": "CKV_AWS_21",
+     "check_len": null,
+     "check_name": "Ensure all data stored in the S3 bucket have versioning enabled",
+     "check_result": {
+      "entity": {
+       "aws_s3_bucket": {
+        "data": {
+         "__address__": "aws_s3_bucket.data",
+         "__end_line__": 10,
+         "__provider_address__": "aws.default",
+         "__start_line__": 7,
+         "acl": [
+          "public-read"
+         ],
+         "bucket": [
+          "kitchen-sink-data"
+         ]
+        }
+       }
+      },
+      "evaluated_keys": [
+       "versioning_configuration/status",
+       "versioning/enabled",
+       "resource_type"
+      ],
+      "result": "FAILED"
+     },
+     "description": null,
+     "details": [],
+     "file_line_range": [
+      7,
+      10
+     ],
+     "file_path": "/main.tf",
+     "guideline": null,
+     "repo_file_path": "/main.tf",
+     "resource": "aws_s3_bucket.data",
+     "resource_address": null,
+     "severity": null,
+     "short_description": null,
+     "vulnerability_details": null
+    },
+    {
+     "bc_category": null,
+     "bc_check_id": null,
+     "benchmarks": {},
+     "caller_file_line_range": null,
+     "check_class": "checkov.common.graph.checks_infra.base_check",
+     "check_id": "CKV_AWS_145",
+     "check_len": null,
+     "check_name": "Ensure that S3 buckets are encrypted with KMS by default",
+     "check_result": {
+      "entity": {
+       "aws_s3_bucket": {
+        "data": {
+         "__address__": "aws_s3_bucket.data",
+         "__end_line__": 10,
+         "__provider_address__": "aws.default",
+         "__start_line__": 7,
+         "acl": [
+          "public-read"
+         ],
+         "bucket": [
+          "kitchen-sink-data"
+         ]
+        }
+       }
+      },
+      "evaluated_keys": [
+       "server_side_encryption_configuration/rule/apply_server_side_encryption_by_default/sse_algorithm",
+       "resource_type",
+       "rule/apply_server_side_encryption_by_default/sse_algorithm"
+      ],
+      "result": "FAILED"
+     },
+     "description": null,
+     "details": [],
+     "file_line_range": [
+      7,
+      10
+     ],
+     "file_path": "/main.tf",
+     "guideline": null,
+     "repo_file_path": "/main.tf",
+     "resource": "aws_s3_bucket.data",
+     "resource_address": null,
+     "severity": null,
+     "short_description": null,
+     "vulnerability_details": null
+    }
+   ]
+  },
+  "summary": {
+   "checkov_version": "3.3.30",
+   "failed": 12,
+   "parsing_errors": 0,
+   "passed": 7,
+   "resource_count": 2,
+   "skipped": 0
+  }
+ }
+]

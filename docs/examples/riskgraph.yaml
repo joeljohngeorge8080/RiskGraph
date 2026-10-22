@@ -1,0 +1,32 @@
+# riskgraph.yaml v1: put this at the root of the repository you scan (blueprint §11.1, ADR-0011).
+# Every name you reference must be declared; unknown keys are rejected. An invalid file is
+# ignored as a whole and reported as a warning on the scan; the scan itself still succeeds.
+version: 1
+services:
+  - name: api
+    path: backend/            # findings in files under this prefix belong to the service ("" = whole repo)
+    language: python
+    entrypoints: [backend/app/main.py]
+    exposure: internet        # internet | internal | isolated
+    auth: none                # none | required (internet without auth declared counts as none)
+    runs_as: api-role
+    connects_to: [customers-db, cache]
+  - name: cache
+    path: cache/
+    exposure: internal
+identities:
+  - name: api-role
+    privilege: elevated       # read_only | limited | elevated | admin
+    can_access: [customers-db, secrets-manager]
+    credentials: [aws]        # leaked secrets of these families authenticate as this identity
+                              # (attack-graph edge, ADR-0013): aws, github, gcp, azure, slack,
+                              # stripe, private_key, generic, ...
+data_stores:
+  - name: customers-db
+    kind: postgres
+    sensitivity: pii          # public | internal | confidential | pii | financial | credentials
+  - name: secrets-manager
+    kind: aws-secrets-manager
+    sensitivity: credentials
+criticality:
+  api: high                   # low | medium | high

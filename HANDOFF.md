@@ -1,4 +1,38 @@
-# HANDOFF — resume here (written 2026-09-19, end of session 1)
+# HANDOFF: resume here (updated 2026-10-22, session 4: MVP level 2 extended)
+
+## Session 4 (2026-10-22, cloud): MVP level 2 extended, done
+- Branch `mvp-level2-extended`, cut from `cloud-mvp-integration`. Chapter: `docs/phases/PHASE_MVP2_EXT.md`. Decisions: ADR-0012 (reachability L0–L2) and ADR-0013 (graph and attack paths, effective impact, triage, history, CI gate).
+- **Added:**
+  - tree-sitter reachability in an isolated subprocess (R factor, L0 ceiling), model `v1-ctx.2`;
+  - per-scan security graph and Yen top-3 attack paths, with I* effective impact;
+  - triage with `audit_logs`; new / existing / reopened / fixed; diff; repository trend;
+  - gate endpoint and CLI;
+  - UI: attack paths panel, Cytoscape graph (lazy), triage panel, repository page.
+  - One migration: `b7dac1b028da`.
+- **Verified here:** 192 unit, 32 db and 2 e2e tests with the real scanners; frontend gates; live scans of NodeGoat and terragoat plus the kitchen sink with a manifest; the CLI gate; Playwright screenshots. **Not verified:** `make dev` with Docker.
+- **Next:** Phase 2 auth (it gates hosted CI and webhooks), Phase 3 DockerRunner, Phase 7 IaC topology (paths without a manifest), Phase 8 L3.
+
+---
+# Session 3 handoff (2026-10-21, session 3: MVP level 2)
+
+## Session 3 (2026-10-21): run, debug, MVP level 2 (context-aware scoring), done
+- Branch `cloud-mvp-integration` (main + the cloud MVP merge `3c44f97` + this work). Chapter: `docs/phases/PHASE_MVP2.md`. Decision: ADR-0011.
+- **Level 2:** `riskgraph.yaml` manifest (strict, hardened) plus repository visibility give X/D/P/C per finding. Model `v1-ctx.1`, identical to `v1-cf.1` without context. Context panel in the UI; the drawer shows the factor origin.
+- **Bugs fixed:** non-trivy scanners crashed on a non-root host because the pipeline created the Trivy cache dir for every scanner; `tsconfig.app.tsbuildinfo` was tracked.
+- **Verified on the dev machine:** 165 unit + 24 db tests, frontend gate, `docker compose build` (incl. worker image with scanners). **Not yet run:** `make dev` with a live scan.
+- **Next:** Phase 2 (auth) is still required before anything but localhost. Then Phase 7 proper (IaC/Compose/K8s extraction under the manifest, conflict flag for T-12) and Phase 8 (reachability, the last unknown factor R).
+
+---
+# Session 2 handoff (2026-10-21)
+
+## Session 2 (2026-10-21): MVP vertical slice, done
+- Branch `claude/great-mendel-b58dhj`. The owner asked for an MVP ahead of the roadmap: a GitHub URL goes in; Trivy, Semgrep, Checkov and Gitleaks run; reports are normalized and merged; findings are scored; a FastAPI + React UI shows the result. Full chapter: `docs/phases/PHASE_MVP.md`. Decisions: ADR-0009 (subprocess runner) and ADR-0010 (scope deviations, including **no auth**).
+- Verified in a cloud container without Docker: 123 unit, 22 db and 1 e2e test (real scanners), plus a live Celery run on terragoat. **Not verified:** `make dev` with the new `worker` image target. Run it on the dev machine first.
+- **Next:** Phase 2 (auth skeleton) on top of migration `fc3b3ff80221`, then Phase 3 (DockerRunner behind `ScannerRunner`, the ADR-0009 trigger).
+- Host runs need scanners: `make scanner-tools` installs them into `~/.local/share/riskgraph-tools`.
+
+---
+# Session 1 handoff (2026-09-19)
 
 ## Where things stand
 - **Blueprint complete** (`docs/blueprint/00–08`), **Phase 0 done** (`docs/PROJECT_SPEC.md`, `docs/THREAT_MODEL.md`, `docs/adr/0001–0008`, `docs/phases/PHASE_00.md`), **Phase 1 done and verified** (`docs/phases/PHASE_01.md`).

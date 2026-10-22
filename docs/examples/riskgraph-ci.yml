@@ -1,0 +1,25 @@
+# Example GitHub Actions workflow: block a push or PR on RiskGraph's gate (ADR-0013).
+#
+# The MVP API has no authentication and listens on localhost only (ADR-0010), so this runs
+# on a SELF-HOSTED runner on the machine where RiskGraph runs (`make dev`). Hosted runners
+# need the auth phase (roadmap Phase 2) first.
+name: riskgraph
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  gate:
+    runs-on: [self-hosted, riskgraph]
+    timeout-minutes: 60
+    steps:
+      - name: Scan and evaluate the gate
+        working-directory: /opt/riskgraph/backend        # your RiskGraph checkout
+        run: |
+          uv run python -m riskgraph.entrypoints.cli scan \
+            --api http://127.0.0.1:8000 \
+            --repo "https://github.com/${{ github.repository }}" \
+            --ref "${{ github.head_ref || github.ref_name }}" \
+            --fail-on critical --fail-on high \
+            --new-only
