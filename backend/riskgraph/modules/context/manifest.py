@@ -22,6 +22,8 @@ from typing import Literal, Protocol
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
+from riskgraph.modules.normalization.families import SECRET_FAMILIES
+
 MANIFEST_NAMES = ("riskgraph.yaml", "riskgraph.yml")
 MAX_MANIFEST_BYTES = 64 * 1024
 MAX_ITEMS = 200
@@ -62,6 +64,18 @@ class IdentityDecl(_Strict):
     name: str = Field(pattern=_NAME)
     privilege: Privilege | None = None
     can_access: tuple[str, ...] = Field(default=(), max_length=MAX_ITEMS)
+    # credential families (aws, github, private_key, ...) that authenticate as this
+    # identity: a leaked secret of that family is an attack-graph edge to it (ADR-0013)
+    credentials: tuple[str, ...] = Field(default=(), max_length=32)
+
+    @field_validator("credentials")
+    @classmethod
+    def _known_families(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        unknown = sorted(set(value) - SECRET_FAMILIES)
+        if unknown:
+            known = ", ".join(sorted(SECRET_FAMILIES))
+            raise ValueError(f"unknown credential family {unknown[0]!r} (known: {known})")
+        return value
 
 
 class DataStoreDecl(_Strict):

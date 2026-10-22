@@ -20,6 +20,7 @@ import resource
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -43,6 +44,9 @@ EGRESS_ENV = (
 )
 STDERR_TAIL_BYTES = 4096
 DEFAULT_FSIZE_LIMIT = 256 * 1024 * 1024
+# argv[0] alias for RiskGraph's own interpreter (helpers such as the reachability
+# extractor). It is the only name that resolves to something outside the search path.
+SELF_PYTHON = "riskgraph-python"
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +59,7 @@ class RunSpec:
     env: Mapping[str, str] = field(default_factory=dict)
     fsize_limit: int = DEFAULT_FSIZE_LIMIT
     log_name: str = "run"
+    memory_limit: int | None = None  # RLIMIT_AS bytes (parsers of untrusted input)
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +80,8 @@ class SubprocessRunner:
         self._search_path = os.pathsep.join([str(bin_dir), *system_path])
 
     def resolve(self, name: str) -> str | None:
+        if name == SELF_PYTHON:
+            return sys.executable
         if os.sep in name:
             return None  # only bare tool names; never a path chosen elsewhere
         return shutil.which(name, path=self._search_path)
@@ -98,7 +105,7 @@ class SubprocessRunner:
         spec.log_dir.mkdir(parents=True, exist_ok=True)
         stdout_path = spec.log_dir / f"{spec.log_name}.stdout.log"
         stderr_path = spec.log_dir / f"{spec.log_name}.stderr.log"
-        limits = _rlimits(spec.timeout_s, spec.fsize_limit)
+        limits = _rlimits(spec.timeout_s, spec.fsize_limit, spec.memory_limit)
         started = time.monotonic()
         timed_out = False
         with stdout_path.open("wb") as out, stderr_path.open("wb") as err:
@@ -123,11 +130,13 @@ class SubprocessRunner:
         return RunResult(exit_code, timed_out, duration_ms, _tail(stderr_path))
 
 
-def _rlimits(timeout_s: int, fsize_limit: int):  # type: ignore[no-untyped-def]
+def _rlimits(timeout_s: int, fsize_limit: int, memory_limit: int | None):  # type: ignore[no-untyped-def]
     cpu = max(60, timeout_s * 2)
 
     def apply() -> None:
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        if memory_limit is not None:
+            resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
         resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu))
         resource.setrlimit(resource.RLIMIT_FSIZE, (fsize_limit, fsize_limit))
 

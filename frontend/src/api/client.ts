@@ -42,6 +42,15 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return handle<T>(res);
 }
 
+export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "PATCH",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return handle<T>(res);
+}
+
 export function reportUrl(scanId: string, scanner: string): string {
   return `${API_BASE}/scans/${encodeURIComponent(scanId)}/reports/${encodeURIComponent(scanner)}`;
 }

@@ -8,8 +8,11 @@ from __future__ import annotations
 from logging.config import fileConfig
 
 from alembic import context
+from riskgraph.modules.audit import models as _audit_models  # noqa: F401
 from riskgraph.modules.context import models as _context_models  # noqa: F401
 from riskgraph.modules.findings import models as _findings_models  # noqa: F401
+from riskgraph.modules.graph import models as _graph_models  # noqa: F401
+from riskgraph.modules.reachability import models as _reachability_models  # noqa: F401
 from riskgraph.modules.repositories import models as _repositories_models  # noqa: F401
 from riskgraph.modules.risk import models as _risk_models  # noqa: F401
 from riskgraph.modules.scans import models as _scans_models  # noqa: F401

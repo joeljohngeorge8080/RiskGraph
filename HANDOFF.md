@@ -1,4 +1,19 @@
-# HANDOFF: resume here (updated 2026-10-21, session 3: MVP level 2)
+# HANDOFF: resume here (updated 2026-10-22, session 4: MVP level 2 extended)
+
+## Session 4 (2026-10-22, cloud): MVP level 2 extended, done
+- Branch `mvp-level2-extended`, cut from `cloud-mvp-integration`. Chapter: `docs/phases/PHASE_MVP2_EXT.md`. Decisions: ADR-0012 (reachability L0–L2) and ADR-0013 (graph and attack paths, effective impact, triage, history, CI gate).
+- **Added:**
+  - tree-sitter reachability in an isolated subprocess (R factor, L0 ceiling), model `v1-ctx.2`;
+  - per-scan security graph and Yen top-3 attack paths, with I* effective impact;
+  - triage with `audit_logs`; new / existing / reopened / fixed; diff; repository trend;
+  - gate endpoint and CLI;
+  - UI: attack paths panel, Cytoscape graph (lazy), triage panel, repository page.
+  - One migration: `b7dac1b028da`.
+- **Verified here:** 192 unit, 32 db and 2 e2e tests with the real scanners; frontend gates; live scans of NodeGoat and terragoat plus the kitchen sink with a manifest; the CLI gate; Playwright screenshots. **Not verified:** `make dev` with Docker.
+- **Next:** Phase 2 auth (it gates hosted CI and webhooks), Phase 3 DockerRunner, Phase 7 IaC topology (paths without a manifest), Phase 8 L3.
+
+---
+# Session 3 handoff (2026-10-21, session 3: MVP level 2)
 
 ## Session 3 (2026-10-21): run, debug, MVP level 2 (context-aware scoring), done
 - Branch `cloud-mvp-integration` (main + the cloud MVP merge `3c44f97` + this work). Chapter: `docs/phases/PHASE_MVP2.md`. Decision: ADR-0011.

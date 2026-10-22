@@ -14,12 +14,21 @@ from sqlalchemy.orm import Session
 from riskgraph.modules.context import Vulnerability
 from riskgraph.modules.findings.models import Finding, FindingOccurrence, ScanFinding
 from riskgraph.modules.normalization import MergedFinding
+from riskgraph.modules.reachability import ReachabilityResult
 from riskgraph.modules.risk import RiskFactor, RiskScore
 from riskgraph.shared.db.uuid7 import uuid7
 from riskgraph.shared.problems import NotFound
-from riskgraph.shared.vocabulary import Priority, Severity, SourceType
+from riskgraph.shared.vocabulary import (
+    FindingChange,
+    FindingStatus,
+    Priority,
+    ReachabilityTier,
+    Severity,
+    SourceType,
+)
 
 MAX_EVIDENCE_KEYS = 12
+FACTOR_ORDER = {name: i for i, name in enumerate(("E", "X", "R", "T", "D", "P", "C", "K", "I*"))}
 
 
 def clear_scan(session: Session, scan_id: uuid.UUID) -> None:
@@ -132,6 +141,12 @@ _SEVERITY_RANK = case(
 )
 
 
+# (finding, detected_by in this scan, score, vulnerability, change vs previous, tier)
+FindingRow = tuple[
+    Finding, list[str], RiskScore, Vulnerability | None, FindingChange, ReachabilityTier | None
+]
+
+
 @dataclass(frozen=True, slots=True)
 class FindingFilters:
     priority: tuple[Priority, ...] = ()
@@ -140,11 +155,21 @@ class FindingFilters:
     severity: tuple[Severity, ...] = ()
     q: str | None = None
     min_score: float | None = None
+    status: tuple[FindingStatus, ...] = ()
+    change: tuple[FindingChange, ...] = ()
+    reachability: tuple[ReachabilityTier, ...] = ()
 
 
 def _base_query(scan_id: uuid.UUID) -> Select[Any]:
     return (
-        select(Finding, ScanFinding.detected_by, RiskScore, Vulnerability)
+        select(
+            Finding,
+            ScanFinding.detected_by,
+            RiskScore,
+            Vulnerability,
+            ScanFinding.change,
+            ReachabilityResult.tier,
+        )
         .join(ScanFinding, ScanFinding.finding_id == Finding.id)
         .join(
             RiskScore,
@@ -152,6 +177,11 @@ def _base_query(scan_id: uuid.UUID) -> Select[Any]:
             & (RiskScore.scan_job_id == ScanFinding.scan_job_id),
         )
         .outerjoin(Vulnerability, Vulnerability.id == Finding.vulnerability_id)
+        .outerjoin(
+            ReachabilityResult,
+            (ReachabilityResult.finding_id == Finding.id)
+            & (ReachabilityResult.scan_job_id == ScanFinding.scan_job_id),
+        )
         .where(ScanFinding.scan_job_id == scan_id)
     )
 
@@ -169,8 +199,14 @@ def list_scan_findings(
     order: str = "desc",
     limit: int = 50,
     offset: int = 0,
-) -> tuple[list[tuple[Finding, list[str], RiskScore, Vulnerability | None]], int]:
+) -> tuple[list[FindingRow], int]:
     query = _base_query(scan_id)
+    if filters.status:
+        query = query.where(Finding.status.in_(filters.status))
+    if filters.change:
+        query = query.where(ScanFinding.change.in_(filters.change))
+    if filters.reachability:
+        query = query.where(ReachabilityResult.tier.in_(filters.reachability))
     if filters.priority:
         query = query.where(RiskScore.priority.in_(filters.priority))
     if filters.source_type:
@@ -209,7 +245,7 @@ def list_scan_findings(
     ordered = [c.desc() if desc else c.asc() for c in columns]
     query = query.order_by(*ordered, Finding.title.asc(), Finding.id.asc())
     rows = session.execute(query.limit(limit).offset(offset)).tuples().all()
-    return [(f, list(d), r, v) for f, d, r, v in rows], int(total)
+    return [(f, list(d), r, v, c, t) for f, d, r, v, c, t in rows], int(total)
 
 
 @dataclass(frozen=True, slots=True)
@@ -221,6 +257,8 @@ class FindingDetail:
     score: RiskScore | None
     factors: list[RiskFactor]
     vulnerability: Vulnerability | None
+    reachability: ReachabilityResult | None = None
+    change: FindingChange | None = None
 
 
 def get_finding_detail(
@@ -252,10 +290,20 @@ def get_finding_detail(
         order = {"likelihood": 0, "impact": 1, "adjustment": 2}
         factors = sorted(
             session.scalars(select(RiskFactor).where(RiskFactor.risk_score_id == score_row.id)),
-            key=lambda f: (order.get(f.group, 9), "EXRTDPCK".find(f.name)),
+            key=lambda f: (order.get(f.group, 9), FACTOR_ORDER.get(f.name, 99)),
         )
     vuln = (
         session.get(Vulnerability, finding.vulnerability_id) if finding.vulnerability_id else None
+    )
+    reach = (
+        session.scalars(
+            select(ReachabilityResult).where(
+                ReachabilityResult.finding_id == finding_id,
+                ReachabilityResult.scan_job_id == scan_id,
+            )
+        ).one_or_none()
+        if scan_id is not None
+        else None
     )
     return FindingDetail(
         finding=finding,
@@ -265,4 +313,6 @@ def get_finding_detail(
         score=score_row,
         factors=factors,
         vulnerability=vuln,
+        reachability=reach,
+        change=link.change if link else None,
     )

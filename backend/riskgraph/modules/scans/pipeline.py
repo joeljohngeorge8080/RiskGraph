@@ -23,11 +23,32 @@ from typing import Any
 import redis
 from sqlalchemy import update
 
-from riskgraph.modules.context import ContextResolver, ManifestResult, load_manifest, refresh_intel
-from riskgraph.modules.findings import clear_scan, persist_merged
-from riskgraph.modules.normalization import RawFinding, fingerprint, merge
+from riskgraph.modules.context import (
+    ContextResolver,
+    FindingContext,
+    ManifestResult,
+    Observed,
+    load_manifest,
+    refresh_intel,
+)
+from riskgraph.modules.findings import apply_history, clear_scan, persist_merged
+from riskgraph.modules.graph import GraphFinding
+from riskgraph.modules.graph import analyze as attack_analysis
+from riskgraph.modules.graph import clear as clear_graph
+from riskgraph.modules.graph import persist as persist_graph
+from riskgraph.modules.normalization import MergedFinding, RawFinding, fingerprint, merge
+from riskgraph.modules.reachability import ReachabilityRun, Verdict, persist_verdict, run_extractor
+from riskgraph.modules.reachability import clear as clear_reachability
 from riskgraph.modules.repositories import Repository
-from riskgraph.modules.risk import MODEL_VERSION, persist_score, score_finding
+from riskgraph.modules.risk import (
+    MODEL_VERSION,
+    ScoreInput,
+    ScoreResult,
+    input_for,
+    persist_score,
+    rescore,
+    score,
+)
 from riskgraph.modules.scanners import (
     REDACTION_ORDER,
     ParseContext,
@@ -39,6 +60,7 @@ from riskgraph.modules.scanners import (
     derive_key,
     get_scanner,
     scrub,
+    trivy_dependency_graph,
 )
 from riskgraph.modules.scans import repo
 from riskgraph.modules.scans.clone import CloneError, Cloner, GitCloner
@@ -56,7 +78,13 @@ from riskgraph.shared.db import session_scope
 from riskgraph.shared.http import OutboundClient
 from riskgraph.shared.logging import get_logger
 from riskgraph.shared.redis import get_redis
-from riskgraph.shared.vocabulary import RunStatus, ScannerName, ScanStatus, SourceType
+from riskgraph.shared.vocabulary import (
+    ReachabilityTier,
+    RunStatus,
+    ScannerName,
+    ScanStatus,
+    SourceType,
+)
 
 log = get_logger(__name__)
 
@@ -374,6 +402,59 @@ def _manifest(deps: PipelineDeps, scan_id: uuid.UUID) -> ManifestResult:
     return result
 
 
+def _trivy_dependencies(
+    deps: PipelineDeps, scan_id: uuid.UUID, succeeded: list[ScannerName]
+) -> dict[str, dict[str, Any]]:
+    if ScannerName.TRIVY not in succeeded:
+        return {}
+    doc = read_report(
+        deps.settings.scan_output_root,
+        scan_id,
+        ScannerName.TRIVY,
+        deps.settings.raw_report_max_bytes,
+    )
+    return trivy_dependency_graph(doc)
+
+
+def _reachability(
+    deps: PipelineDeps,
+    scan_id: uuid.UUID,
+    dependency_graph: dict[str, dict[str, Any]],
+    manifest: ManifestResult,
+) -> ReachabilityRun:
+    ws = _workspace(deps, scan_id)
+    entrypoints = (
+        [e for s in manifest.manifest.services for e in s.entrypoints] if manifest.manifest else []
+    )
+    try:
+        run = run_extractor(
+            deps.runner, ws.src, ws.path / "reachability", dependency_graph, entrypoints
+        )
+    except Exception:
+        log.exception("reachability_crashed", scan_id=str(scan_id))
+        return ReachabilityRun("failed", detail="reachability failed (internal error)")
+    log.info("reachability_done", scan_id=str(scan_id), status=run.status, **run.stats)
+    return run
+
+
+def _graph_label(m: MergedFinding) -> str:
+    """Short node label: credentials read as '<family> credential · file:line'."""
+    if m.source_type is SourceType.SECRET:
+        loc = m.location
+        where = f"{loc.file}:{loc.line_start}" if loc.line_start else loc.file
+        return f"{m.attrs.get('secret_family', 'generic')} credential · {where}"[:120]
+    return m.representative.title[:120]
+
+
+@dataclass
+class _Scored:
+    merged: MergedFinding
+    context: FindingContext
+    verdict: Verdict
+    score_input: ScoreInput
+    result: ScoreResult
+
+
 def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
     with session_scope() as s:
         scan = s.get(ScanJob, scan_id)
@@ -382,7 +463,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
         repository = s.get(Repository, scan.repository_id)
         if repository is None:
             raise LookupError("scan references a missing repository")
-        repo_id, repo_name = repository.id, repository.full_name
+        repo_id, repo_name, ref = repository.id, repository.full_name, scan.requested_ref
         runs = repo.runs_for(s, scan_id)
         run_ids = {r.scanner.value: r.id for r in runs}
         succeeded = [r.scanner for r in runs if r.status is RunStatus.SUCCEEDED and r.output_path]
@@ -390,8 +471,12 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
     try:
         raw = _parse_all(deps, scan_id, succeeded, repo_name)
         merged = merge(raw)
+        manifest = _manifest(deps, scan_id)
         # MVP scans only public github.com repositories (ADR-0010)
-        resolver = ContextResolver(_manifest(deps, scan_id), public_repository=True)
+        resolver = ContextResolver(manifest, public_repository=True)
+        reach = _reachability(
+            deps, scan_id, _trivy_dependencies(deps, scan_id, succeeded), manifest
+        )
 
         cvss_by_id: dict[str, dict[str, Any] | None] = {}
         for m in merged:
@@ -406,29 +491,82 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
             if client is not None:
                 client.close()
 
+        # Pass 1: base scores with context and reachability (pure).
+        scored: list[_Scored] = []
+        for m in merged:
+            context = resolver.for_finding(m.location.file, m.source_type)
+            verdict = reach.classify(m.source_type, m.location.file, m.representative.package)
+            observed = (
+                None
+                if verdict.tier is ReachabilityTier.NOT_APPLICABLE
+                else Observed(
+                    verdict.tier.value, "reachability", verdict.confidence, verdict.evidence
+                )
+            )
+            inp = input_for(
+                m, intel.get(m.representative.vulnerability_id or ""), context, observed
+            )
+            scored.append(_Scored(m, context, verdict, inp, score(inp)))
+
+        # Attack paths, then pass 2: effective impact for findings on paths (§14.4).
+        analysis = attack_analysis(
+            manifest.manifest,
+            [
+                GraphFinding(
+                    index=i,
+                    service=x.context.service,
+                    source_type=x.merged.source_type,
+                    exploit_p=x.result.exploit_likelihood,
+                    tier=x.verdict.tier.value,
+                    secret_family=x.merged.attrs.get("secret_family"),
+                    credential_p=(x.result.factor("E").value if x.result.factor("E") else 0.0),  # type: ignore[union-attr]
+                    public_secret=x.merged.source_type is SourceType.SECRET,
+                    title=_graph_label(x.merged),
+                )
+                for i, x in enumerate(scored)
+            ],
+        )
+        for i, effective in analysis.effective.items():
+            scored[i].result = rescore(scored[i].score_input, effective)
+
         now = _now()
         by_priority: dict[str, int] = {}
         by_source: dict[str, int] = {}
         by_scanner: dict[str, int] = {}
+        tiers: dict[str, int] = {}
         multi = 0
         max_score = 0.0
         with session_scope() as s:
             clear_scan(s, scan_id)
-            for m in merged:
+            clear_graph(s, scan_id)
+            clear_reachability(s, scan_id)
+            finding_ids: dict[int, uuid.UUID] = {}
+            for i, x in enumerate(scored):
+                m, result = x.merged, x.result
                 finding_id = persist_merged(
                     s, repository_id=repo_id, scan_id=scan_id, run_ids=run_ids, merged=m, now=now
                 )
-                context = resolver.for_finding(m.location.file, m.source_type)
-                result = score_finding(
-                    m, intel.get(m.representative.vulnerability_id or ""), context
-                )
+                finding_ids[i] = finding_id
                 persist_score(s, scan_id, finding_id, result)
+                if x.verdict.tier is not ReachabilityTier.NOT_APPLICABLE:
+                    persist_verdict(s, scan_id, finding_id, x.verdict)
+                    tiers[x.verdict.tier.value] = tiers.get(x.verdict.tier.value, 0) + 1
                 by_priority[result.priority.value] = by_priority.get(result.priority.value, 0) + 1
                 by_source[m.source_type.value] = by_source.get(m.source_type.value, 0) + 1
                 for sc in m.detected_by:
                     by_scanner[sc] = by_scanner.get(sc, 0) + 1
                 multi += len(m.detected_by) > 1
                 max_score = max(max_score, result.score)
+            persist_graph(s, scan_id, analysis, finding_ids)
+            s.flush()
+            history = apply_history(
+                s,
+                scan_id=scan_id,
+                repository_id=repo_id,
+                ref=ref,
+                succeeded_scanners={sc.value for sc in succeeded},
+                now=now,
+            )
             intel_status = sorted(
                 {i.epss_status for i in intel.values()} | {i.kev_status for i in intel.values()}
             )
@@ -448,6 +586,9 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                     "statuses": intel_status,
                 },
                 "context": resolver.summary(),
+                "reachability": reach.summary(tiers),
+                "graph": analysis.summary(),
+                "history": history,
             }
             s.execute(
                 update(ScanJob)

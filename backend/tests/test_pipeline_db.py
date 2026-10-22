@@ -6,7 +6,7 @@ import uuid
 import httpx
 import pytest
 from riskgraph.modules.findings import Finding, FindingFilters, list_scan_findings
-from riskgraph.modules.risk import RiskFactor, RiskScore
+from riskgraph.modules.risk import MODEL_VERSION, RiskFactor, RiskScore
 from riskgraph.modules.scanners import RunResult
 from riskgraph.modules.scans import pipeline, repo, service
 from riskgraph.modules.scans.models import ScanJob
@@ -42,7 +42,7 @@ def test_full_pipeline_with_recorded_reports(db: None, settings: Settings) -> No
     status = run_pipeline_inline(sid, ALL_SCANNERS, make_deps(settings))
     assert status is ScanStatus.COMPLETED
     scan = _scan(sid)
-    assert scan.commit_sha == FAKE_SHA and scan.risk_model_version == "v1-ctx.1"
+    assert scan.commit_sha == FAKE_SHA and scan.risk_model_version == MODEL_VERSION
     summary = scan.summary
     assert summary["raw_findings"] == 47 and summary["findings"] == 27
     assert summary["cross_scanner"] >= 10
@@ -57,7 +57,7 @@ def test_full_pipeline_with_recorded_reports(db: None, settings: Settings) -> No
         assert all(r.scanner_version == "1.2.3" for r in runs)
         rows, total = list_scan_findings(s, sid, FindingFilters(), limit=200)
         assert total == 27
-        ranks = [(r.priority_rank, float(r.score)) for _, _, r, _ in rows]
+        ranks = [(row[2].priority_rank, float(row[2].score)) for row in rows]
         assert ranks == sorted(ranks, reverse=True)
         assert rows[0][0].source_type is SourceType.SECRET
         factors = s.execute(select(func.count()).select_from(RiskFactor)).scalar_one()

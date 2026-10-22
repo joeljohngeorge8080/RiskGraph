@@ -10,7 +10,9 @@ contextual risk deterministically — with an AI layer that explains, never deci
 **Status:** MVP vertical slice: scan a public GitHub repo with Trivy, Semgrep, Checkov and
 Gitleaks, normalize and merge their reports, and rank findings by risk in a web UI
 (`docs/phases/PHASE_MVP.md`). Level 2 adds context-aware scoring from a `riskgraph.yaml`
-manifest in the scanned repository (`docs/phases/PHASE_MVP2.md`). The MVP has **no
+manifest in the scanned repository (`docs/phases/PHASE_MVP2.md`), extended with
+reachability (L0/L1/L2 from a tree-sitter import graph), attack paths with effective impact,
+triage, scan history and a CI gate (`docs/phases/PHASE_MVP2_EXT.md`). The MVP has **no
 authentication**: keep it on localhost. Roadmap: `docs/blueprint/06_ROADMAP.md`.
 
 ## Context-aware scoring
@@ -38,6 +40,18 @@ make api-local                  # terminal 1
 make worker-local               # terminal 2
 cd frontend && npm run dev      # terminal 3 → http://localhost:5173
 ```
+
+## Triage, history and the CI gate
+- Mark findings *false positive*, *accepted risk* or *won't fix* in the finding panel (audited);
+  each scan reports what is new, fixed or reopened since the previous scan of the same ref.
+- Gate a pipeline (self-hosted runner next to RiskGraph; see `docs/examples/riskgraph-ci.yml`):
+  ```bash
+  cd backend && uv run python -m riskgraph.entrypoints.cli scan \
+      --repo https://github.com/owner/repo --fail-on critical --fail-on high --new-only
+  ```
+  Exit code 0 = passed, 1 = gate failed, 2 = scan/API error.
+- Attack paths need a `riskgraph.yaml`; `identities[].credentials: [aws, …]` links leaked
+  keys to the identity they authenticate as.
 
 ## Develop
 ```bash

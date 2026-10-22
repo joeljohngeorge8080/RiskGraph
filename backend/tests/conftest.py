@@ -35,6 +35,12 @@ from sqlalchemy import text
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 TABLES = (
+    "audit_logs",
+    "attack_path_findings",
+    "attack_paths",
+    "graph_edges",
+    "graph_nodes",
+    "reachability_results",
     "risk_factors",
     "risk_scores",
     "scan_findings",

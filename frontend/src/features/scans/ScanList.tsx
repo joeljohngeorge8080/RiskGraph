@@ -34,7 +34,10 @@ export function ScanList() {
             {scans.data.items.map((s) => (
               <tr key={s.id}>
                 <td>
-                  <Link to={`/scans/${s.id}`}>{s.repository.full_name}</Link>
+                  <Link to={`/scans/${s.id}`}>{s.repository.full_name}</Link>{" "}
+                  <Link to={`/repositories/${s.repository.id}`} className="muted" style={{ fontSize: "0.8rem" }}>
+                    history
+                  </Link>
                 </td>
                 <td className="mono">
                   {s.requested_ref || "default"}

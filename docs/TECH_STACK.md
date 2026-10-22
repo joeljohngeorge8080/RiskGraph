@@ -14,3 +14,9 @@ Decisions and their runner-ups live in `docs/blueprint/04_TECH_STACK.md`. This f
 | 2026-10-21 | git (Debian) | distro | worker image | Shallow clone of the scanned repository |
 
 Scanner versions have a single source of truth, `docker/scanner-versions.env`. Bumping one means re-recording `backend/tests/fixtures/scanners/<tool>/`.
+| 2026-10-22 | tree-sitter (+ python, javascript, typescript grammars) | 0.26 / 0.25 / 0.25 / 0.23 | backend | Reachability import extraction (ADR-0012; blueprint stack) |
+| 2026-10-22 | networkx | 3.7 | backend | Attack-path search, Yen k-shortest (ADR-0006, ADR-0013) |
+| 2026-10-22 | types-networkx | dev | backend | mypy stubs |
+| 2026-10-22 | cytoscape | 3.34.3 (exact) | frontend | Security graph view (ADR-0002 stack), lazy-loaded |
+| 2026-10-22 | vitest | 5.0.3 (exact) | frontend | Fixes GHSA advisories in @vitest/mocker ≤ 5.0.2 |
+

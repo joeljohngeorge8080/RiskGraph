@@ -13,3 +13,5 @@
 | [0009](0009-subprocess-scanner-runner.md) | MVP runs scanners as subprocesses in the worker (DockerRunner deferred) | accepted |
 | [0010](0010-mvp-scope.md) | MVP vertical slice and its deviations from the blueprint | accepted |
 | [0011](0011-manifest-context-scoring.md) | Context-aware scoring from the repository manifest (MVP level 2) | accepted |
+| [0012](0012-reachability-tiers-mvp.md) | Reachability tiers L0–L2 in the MVP (tree-sitter import graph) | accepted |
+| [0013](0013-graph-paths-triage-history.md) | Attack paths with effective impact; triage, history and the CI gate | accepted |

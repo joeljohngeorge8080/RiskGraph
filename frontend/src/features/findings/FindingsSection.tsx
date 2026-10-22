@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { apiGet } from "@/api/client";
@@ -23,6 +23,9 @@ function fromParams(params: URLSearchParams): ViewState {
     priority: params.getAll("priority"),
     source_type: params.getAll("source_type"),
     scanner: params.getAll("scanner"),
+    status: params.getAll("status"),
+    change: params.getAll("change"),
+    reachability: params.getAll("reachability"),
     q: params.get("q") ?? "",
     sort: (params.get("sort") ?? "risk") as SortKey,
     order: params.get("order") === "asc" ? "asc" : "desc",
@@ -36,6 +39,9 @@ function toParams(v: ViewState): URLSearchParams {
   v.priority.forEach((x) => next.append("priority", x));
   v.source_type.forEach((x) => next.append("source_type", x));
   v.scanner.forEach((x) => next.append("scanner", x));
+  v.status.forEach((x) => next.append("status", x));
+  v.change.forEach((x) => next.append("change", x));
+  v.reachability.forEach((x) => next.append("reachability", x));
   if (v.q) next.set("q", v.q);
   if (v.sort !== "risk") next.set("sort", v.sort);
   if (v.order !== "desc") next.set("order", v.order);
@@ -45,21 +51,38 @@ function toParams(v: ViewState): URLSearchParams {
 }
 
 /** Findings for one scan. View state is local (instant UI) and mirrored into the URL. */
-export function FindingsSection({ scanId }: { scanId: string }) {
+export function FindingsSection({
+  scanId,
+  focus = null,
+}: {
+  scanId: string;
+  focus?: { id: string; n: number } | null; // open this finding (e.g. from an attack path)
+}) {
   const [params, setParams] = useSearchParams();
   const [view, setView] = useState<ViewState>(() => fromParams(params));
+  const [focused, setFocused] = useState(focus);
   const { sort, order, page, finding: selected } = view;
 
-  const update = (patch: Partial<ViewState>) => {
-    const next = { ...view, ...patch };
-    setView(next);
-    setParams(toParams(next), { replace: true });
-  };
+  const update = (patch: Partial<ViewState>) => setView({ ...view, ...patch });
+
+  if (focus !== focused) {
+    // adjust state during render (React docs: "storing information from previous renders")
+    setFocused(focus);
+    if (focus) setView({ ...view, finding: focus.id });
+  }
+
+  // The URL mirrors the view (shareable links); the view stays the source of truth.
+  useEffect(() => {
+    setParams(toParams(view), { replace: true });
+  }, [view, setParams]);
 
   const query = buildQuery({
     priority: view.priority,
     source_type: view.source_type,
     scanner: view.scanner,
+    status: view.status,
+    change: view.change,
+    reachability: view.reachability,
     q: view.q.trim(),
     sort,
     order,

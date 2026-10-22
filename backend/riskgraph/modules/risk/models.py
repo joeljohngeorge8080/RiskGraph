@@ -50,6 +50,8 @@ class RiskScore(UUIDPrimaryKeyMixin, Base):
     likelihood: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)
     impact: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)
     corroboration: Mapped[Decimal] = mapped_column(Numeric(4, 3), nullable=False)
+    # §14.4: impact raised by an attack path this finding is evidence on (else NULL)
+    effective_impact: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
     score: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
     priority: Mapped[Priority] = mapped_column(str_enum(Priority, "priority"), nullable=False)
     priority_rank: Mapped[int] = mapped_column(SmallInteger, nullable=False)
@@ -65,7 +67,7 @@ class RiskFactor(UUIDPrimaryKeyMixin, Base):
         ForeignKey("risk_scores.id", ondelete="CASCADE"), nullable=False
     )
     group: Mapped[str] = mapped_column(String(16), nullable=False)  # likelihood|impact|adjustment
-    name: Mapped[str] = mapped_column(String(8), nullable=False)  # E X R T D P C K
+    name: Mapped[str] = mapped_column(String(8), nullable=False)  # E X R T D P C K I*
     value: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)
     raw_value: Mapped[str | None] = mapped_column(String(200))
     source: Mapped[str] = mapped_column(String(64), nullable=False)

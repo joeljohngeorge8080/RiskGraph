@@ -91,3 +91,73 @@ def test_real_scanners_end_to_end(db: None, real_settings: Settings) -> None:
         stored = (real_settings.scan_output_root / str(sid) / f"{name.value}.json").read_text()
         for raw in RAW_SECRETS:
             assert raw not in stored, f"raw secret leaked into {name.value}.json"
+
+
+def test_real_scanners_with_manifest_reachability_paths_and_history(
+    db: None, real_settings: Settings
+) -> None:
+    """Level 2 extended end to end: tiers, attack paths, effective impact, re-scan."""
+    cloner = LocalDirCloner(extra={"riskgraph.yaml": kitchen_sink.MANIFEST})
+    deps = make_deps(
+        real_settings, runner=SubprocessRunner(real_settings.scanner_bin_dir), cloner=cloner
+    )
+
+    def scan() -> str:
+        with session_scope() as s:
+            sid = service.create_scan(
+                s, "https://github.com/acme/kitchen-sink", None, real_settings
+            ).scan.id
+        assert run_pipeline_inline(sid, ALL_SCANNERS, deps) is ScanStatus.COMPLETED
+        return str(sid)
+
+    first = scan()
+    with session_scope() as s:
+        tiers: dict[str, str] = dict(
+            s.execute(  # type: ignore[arg-type]
+                text(
+                    "SELECT f.package->>'name', min(r.tier) FROM reachability_results r "
+                    "JOIN findings f ON f.id = r.finding_id "
+                    "WHERE r.scan_job_id = :id AND f.source_type = 'sca' GROUP BY 1"
+                ),
+                {"id": first},
+            ).all()
+        )
+        assert tiers == {"django": "L0", "requests": "L1", "pyyaml": "L2"}
+        paths = s.execute(
+            text(
+                "SELECT source, sink, score FROM attack_paths "
+                "WHERE scan_job_id = :id ORDER BY score DESC"
+            ),
+            {"id": first},
+        ).all()
+        assert any(src == "internet" and sink == "data_store:users-db" for src, sink, _ in paths)
+        assert any(
+            src.startswith("credential:") and sink == "data_store:users-db"
+            for src, sink, _ in paths
+        )
+        raised = s.execute(
+            text(
+                "SELECT count(*) FROM risk_scores "
+                "WHERE scan_job_id = :id AND effective_impact IS NOT NULL"
+            ),
+            {"id": first},
+        ).scalar_one()
+        assert raised > 0
+        for table in (
+            "graph_nodes",
+            "graph_edges",
+            "attack_paths",
+            "reachability_results",
+            "audit_logs",
+        ):
+            query = f"SELECT coalesce(string_agg(t::text, ''), '') FROM {table} t"  # noqa: S608
+            dump = s.execute(text(query)).scalar_one()
+            for raw in RAW_SECRETS:
+                assert raw not in dump, f"raw secret leaked into {table}"
+
+    second = scan()
+    with session_scope() as s:
+        summary = s.execute(
+            text("SELECT summary FROM scan_jobs WHERE id = :id"), {"id": second}
+        ).scalar_one()
+    assert summary["history"]["new"] == 0 and summary["history"]["previous_scan_id"] == first

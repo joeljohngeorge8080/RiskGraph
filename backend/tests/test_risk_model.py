@@ -195,3 +195,112 @@ def test_monotone_in_exposure(i: int, j: int, e: float) -> None:
         return score(ScoreInput(S.SCA, V.HIGH, epss=e, cvss_impact=4.0, context=ctx)).score
 
     assert at(lo) <= at(hi)
+
+
+# --- v1-ctx.2: reachability, L0 ceiling, effective impact ---------------------------
+
+from riskgraph.modules.risk import EffectiveImpact  # noqa: E402
+
+
+def _reach(tier: str, confidence: str = "medium") -> Observed:
+    return Observed(tier, "reachability", confidence, {"importers": ["app.py"]})
+
+
+def test_reachability_sets_r() -> None:
+    base = ScoreInput(S.SCA, V.HIGH, epss=0.05, cvss_impact=5.9)
+    plain = score(base)
+    by_tier = {
+        t: score(ScoreInput(S.SCA, V.HIGH, epss=0.05, cvss_impact=5.9, reachability=_reach(t)))
+        for t in ("L2", "L1", "L0")
+    }
+    assert by_tier["L2"].score > plain.score > by_tier["L1"].score > by_tier["L0"].score
+    r = by_tier["L0"].factor("R")
+    assert r is not None and (r.value, r.source, r.raw_value) == (0.1, "reachability", "L0")
+    unknown = score(
+        ScoreInput(S.SCA, V.HIGH, epss=0.05, cvss_impact=5.9, reachability=_reach("unknown", "low"))
+    )
+    assert unknown.score == plain.score  # unknown tier = the old default
+
+
+def test_reachability_ignored_for_secrets_and_iac() -> None:
+    s1 = score(ScoreInput(S.SECRET, V.HIGH))
+    s2 = score(ScoreInput(S.SECRET, V.HIGH, reachability=_reach("L0", "high")))
+    assert s1.score == s2.score
+
+
+def test_l0_high_confidence_caps_priority_unless_kev() -> None:
+    from riskgraph.modules.context import FindingContext
+
+    loud = FindingContext(
+        "app",
+        Observed("internet_noauth", "manifest", "high"),
+        Observed("credentials", "manifest", "high"),
+        Observed("admin", "manifest", "high"),
+        Observed("high", "manifest", "high"),
+    )
+    hot = ScoreInput(
+        S.SAST, V.CRITICAL, category="command_injection", confidence="HIGH", context=loud
+    )
+    assert score(hot).priority is Priority.CRITICAL
+    sca = ScoreInput(
+        S.SCA,
+        V.CRITICAL,
+        epss=0.9,
+        cvss_impact=6.0,
+        context=loud,
+        reachability=_reach("L0", "high"),
+    )
+    capped = score(sca)
+    assert capped.priority is Priority.MEDIUM
+    assert capped.overrides[-1]["rule"] == "not_imported_ceiling_medium"
+    medium_conf = score(
+        ScoreInput(
+            S.SCA,
+            V.CRITICAL,
+            epss=0.9,
+            cvss_impact=6.0,
+            context=loud,
+            reachability=_reach("L0", "medium"),
+        )
+    )
+    assert not any(o["rule"] == "not_imported_ceiling_medium" for o in medium_conf.overrides)
+    kev = score(
+        ScoreInput(
+            S.SCA,
+            V.CRITICAL,
+            kev=True,
+            cvss_impact=6.0,
+            context=loud,
+            reachability=_reach("L0", "high"),
+        )
+    )
+    assert kev.priority.rank >= Priority.HIGH.rank  # exploited in the wild wins
+
+
+def test_effective_impact_raises_never_lowers() -> None:
+    base = ScoreInput(S.SAST, V.MEDIUM, category="sql_injection")
+    plain = score(base)
+    up = score(
+        ScoreInput(
+            S.SAST,
+            V.MEDIUM,
+            category="sql_injection",
+            effective_impact=EffectiveImpact(0.9, "p", "data_store:db", 0.5),
+        )
+    )
+    assert up.score == pytest.approx(plain.score * 0.9 / plain.impact, abs=0.02)
+    assert up.effective_impact == 0.9 and up.factor("I*") is not None
+    low = score(
+        ScoreInput(
+            S.SAST,
+            V.MEDIUM,
+            category="sql_injection",
+            effective_impact=EffectiveImpact(0.1, "p", "x", 0.1),
+        )
+    )
+    assert low.score == plain.score and low.effective_impact is None
+
+
+def test_exploit_likelihood_is_geomean_of_e_and_r() -> None:
+    r = score(ScoreInput(S.SCA, V.HIGH, epss=0.01, cvss_impact=5.9, reachability=_reach("L2")))
+    assert r.exploit_likelihood == pytest.approx(math.sqrt(0.5 * 0.8))

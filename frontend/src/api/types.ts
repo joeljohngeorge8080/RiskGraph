@@ -14,6 +14,9 @@ export type Priority = "critical" | "high" | "medium" | "low";
 export type Severity = "critical" | "high" | "medium" | "low" | "info";
 export type SourceType = "sca" | "sast" | "secret" | "iac";
 export type ScannerName = "trivy" | "semgrep" | "checkov" | "gitleaks";
+export type FindingStatus = "open" | "fixed" | "false_positive" | "accepted_risk" | "wont_fix";
+export type FindingChange = "new" | "existing" | "reopened";
+export type ReachabilityTier = "L0" | "L1" | "L2" | "unknown" | "n_a";
 
 export interface ScannerRun {
   scanner: ScannerName;
@@ -38,6 +41,30 @@ export interface ScanSummary {
   max_score?: number;
   intel?: { vulnerabilities: number; epss_scored: number; kev_listed: number; statuses: string[] };
   context?: ScanContext;
+  reachability?: {
+    status: "ok" | "failed" | "unavailable";
+    detail: string | null;
+    files?: number;
+    entry_points?: number;
+    reachable_files?: number;
+    tiers: Partial<Record<ReachabilityTier, number>>;
+  };
+  graph?: {
+    nodes: number;
+    edges: number;
+    paths: number;
+    sinks_reached: number;
+    max_path_score: number;
+    findings_on_paths: number;
+  };
+  history?: {
+    previous_scan_id: string | null;
+    new: number;
+    existing: number;
+    reopened: number;
+    fixed: number;
+    by_status: Partial<Record<FindingStatus, number>>;
+  };
 }
 
 export type ManifestStatus = "absent" | "valid" | "invalid" | "unavailable";
@@ -112,6 +139,9 @@ export interface FindingListItem {
   package: PackageInfo | null;
   epss: number | null;
   kev: boolean | null;
+  status: FindingStatus;
+  change: FindingChange;
+  reachability: ReachabilityTier | null;
 }
 
 export interface FindingList {
@@ -141,6 +171,7 @@ export interface RiskScore {
   corroboration: number;
   overrides: { rule: string; effect: string; reason: string }[];
   factors: RiskFactor[];
+  effective_impact: number | null;
   computed_at: string;
 }
 
@@ -181,10 +212,74 @@ export interface FindingDetail {
   location: FindingLocation;
   package: PackageInfo | null;
   detected_by: ScannerName[];
-  status: string;
+  status: FindingStatus;
+  status_reason: string | null;
+  status_changed_at: string | null;
+  change: FindingChange | null;
   first_seen_at: string;
   last_seen_at: string;
   occurrences: Occurrence[];
   risk: RiskScore | null;
   vulnerability: Vulnerability | null;
+  reachability: {
+    tier: ReachabilityTier;
+    confidence: string;
+    evidence: { importers?: string[]; chain?: string[]; reason?: string; via?: string; searched?: string[] };
+    analyzer_version: string;
+  } | null;
+  attack_paths: AttackPath[];
+  history: { at: string; actor: string; action: string; before: Record<string, unknown>; after: Record<string, unknown>; reason: string | null }[];
+}
+
+export interface AttackPathEdge {
+  source: string;
+  target: string;
+  kind: string;
+  p: number;
+  findings: string[];
+}
+
+export interface AttackPath {
+  id: string;
+  source: string;
+  sink: string;
+  rank: number;
+  hops: number;
+  nodes: { key: string; label: string }[];
+  edges: AttackPathEdge[];
+  probability: number;
+  sink_impact: number;
+  score: number;
+  finding_ids: string[];
+}
+
+export interface GraphData {
+  nodes: { key: string; kind: string; label: string; properties: Record<string, unknown> }[];
+  edges: { source: string; target: string; kind: string; probability: number | null; finding_ids: string[] }[];
+  truncated: boolean;
+}
+
+export interface TrendPoint {
+  scan_id: string;
+  status: ScanStatus;
+  requested_ref: string;
+  commit_sha: string | null;
+  created_at: string;
+  findings: number | null;
+  by_priority: Partial<Record<Priority, number>>;
+  new: number | null;
+  fixed: number | null;
+  max_score: number | null;
+}
+
+export interface RepositorySummary {
+  id: string;
+  full_name: string;
+  url: string;
+  scans: number;
+  last_scan: TrendPoint | null;
+}
+
+export interface RepositoryDetail extends RepositorySummary {
+  history: TrendPoint[];
 }

@@ -47,12 +47,22 @@ def _version(
 
 
 def _trim_trivy(doc: dict[str, Any]) -> dict[str, Any]:
+    """Keep MAX_TRIVY_VULNS vulnerabilities, round-robin over packages (all tiers covered)."""
     for result in doc.get("Results") or []:
         vulns = result.get("Vulnerabilities")
-        if vulns:
-            result["Vulnerabilities"] = vulns[:MAX_TRIVY_VULNS]
-            for v in result["Vulnerabilities"]:
-                v["References"] = (v.get("References") or [])[:2]
+        if not vulns:
+            continue
+        per_package: dict[str, list[dict[str, Any]]] = {}
+        for v in vulns:
+            per_package.setdefault(v.get("PkgName", ""), []).append(v)
+        kept: list[dict[str, Any]] = []
+        while len(kept) < MAX_TRIVY_VULNS and any(per_package.values()):
+            for name in sorted(per_package):
+                if per_package[name] and len(kept) < MAX_TRIVY_VULNS:
+                    kept.append(per_package[name].pop(0))
+        result["Vulnerabilities"] = kept
+        for v in kept:
+            v["References"] = (v.get("References") or [])[:2]
     return doc
 
 
