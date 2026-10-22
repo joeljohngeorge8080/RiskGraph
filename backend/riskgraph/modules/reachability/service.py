@@ -35,7 +35,11 @@ class ReachabilityRun:
     stats: dict[str, Any] = field(default_factory=dict)
 
     def classify(
-        self, source_type: SourceType, file: str, package: dict[str, Any] | None
+        self,
+        source_type: SourceType,
+        file: str,
+        package: dict[str, Any] | None,
+        vulnerability_id: str | None = None,
     ) -> Verdict:
         if source_type not in (SourceType.SCA, SourceType.SAST):
             from riskgraph.modules.reachability.tiers import NOT_APPLICABLE
@@ -43,7 +47,7 @@ class ReachabilityRun:
             return NOT_APPLICABLE
         if self.classifier is None:
             return UNKNOWN
-        return self.classifier.classify(source_type, file, package)
+        return self.classifier.classify(source_type, file, package, vulnerability_id)
 
     def summary(self, counts: dict[str, int]) -> dict[str, Any]:
         return {

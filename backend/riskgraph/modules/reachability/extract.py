@@ -26,7 +26,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-ANALYZER_VERSION = "ts-imports.1"
+ANALYZER_VERSION = "ts-imports.2"
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_FILES = 50_000
 MAX_IMPORTS_PER_FILE = 2_000
@@ -154,6 +154,107 @@ def _python(tree: Any, rel: str) -> tuple[list[dict[str, Any]], list[str]]:
     return imports, sorted(entry)
 
 
+MAX_CALLS_PER_FUNCTION = 500
+MAX_FUNCTIONS_PER_FILE = 2_000
+MODULE = "<module>"  # the pseudo-function for code that runs when the module is imported
+
+
+def _dotted(node: Any) -> str | None:
+    """``a.b.c`` for an identifier chain; None for anything dynamic (subscripts, calls)."""
+    if node is None:
+        return None
+    if node.type == "identifier":
+        return _text(node)
+    if node.type == "attribute":
+        head = _dotted(node.child_by_field_name("object"))
+        attr = node.child_by_field_name("attribute")
+        if head and attr is not None and attr.type == "identifier":
+            return f"{head}.{_text(attr)}"
+    return None
+
+
+def _python_calls(tree: Any) -> dict[str, Any]:
+    """Aliases, functions and their direct calls, for the L3 call graph (ADR-0015).
+
+    Only names are recorded: ``yaml.load(x)`` as "yaml.load"; ``getattr(m, n)(x)`` and calls
+    on call results record nothing, so dynamic dispatch is an under-claim, never a finding.
+    """
+    aliases: dict[str, str] = {}
+    functions: dict[str, dict[str, Any]] = {}
+    calls_by_owner: dict[str, list[str]] = {MODULE: []}
+    entries: set[str] = set()
+
+    def owner_of(node: Any) -> str:
+        cur = node.parent
+        while cur is not None:
+            if cur.type == "function_definition":
+                return _text(cur.child_by_field_name("name"))
+            cur = cur.parent
+        return MODULE
+
+    for node in _walk(tree.root_node):
+        if node.type == "import_statement":
+            for child in node.named_children:
+                if child.type == "aliased_import":
+                    name, alias = (
+                        child.child_by_field_name("name"),
+                        child.child_by_field_name("alias"),
+                    )
+                    if name is not None and alias is not None:
+                        aliases[_text(alias)] = _text(name)
+                elif child.type == "dotted_name":
+                    head = _text(child).split(".")[0]
+                    aliases.setdefault(head, head)
+        elif node.type == "import_from_statement":
+            mod = node.child_by_field_name("module_name")
+            if mod is None or mod.type != "dotted_name":
+                continue  # relative imports are resolved by the import graph, not here
+            module = _text(mod)
+            for child in node.children_by_field_name("name"):
+                if child.type == "aliased_import":
+                    name, alias = (
+                        child.child_by_field_name("name"),
+                        child.child_by_field_name("alias"),
+                    )
+                    if name is not None and alias is not None:
+                        aliases[_text(alias)] = f"{module}.{_text(name)}"
+                elif child.type == "dotted_name":
+                    aliases[_text(child)] = f"{module}.{_text(child)}"
+        elif node.type == "function_definition":
+            name = _text(node.child_by_field_name("name"))
+            if len(functions) < MAX_FUNCTIONS_PER_FILE:
+                functions.setdefault(name, {"entry": False})
+                calls_by_owner.setdefault(name, [])
+            parent = node.parent
+            if parent is not None and parent.type == "decorated_definition":
+                for dec in parent.named_children:
+                    if dec.type == "decorator" and (
+                        _PY_ROUTE.match(_text(dec).strip()) or _PY_TASK.match(_text(dec).strip())
+                    ):
+                        entries.add(name)
+        elif node.type == "call":
+            owner = owner_of(node)
+            bucket = calls_by_owner.setdefault(owner, [])
+            callee = _dotted(node.child_by_field_name("function"))
+            if callee and len(bucket) < MAX_CALLS_PER_FUNCTION:
+                bucket.append(callee)
+    for name in entries:
+        if name in functions:
+            functions[name]["entry"] = True
+    out_functions = {
+        name: {
+            "entry": info["entry"],
+            "calls": calls_by_owner.get(name, [])[:MAX_CALLS_PER_FUNCTION],
+        }
+        for name, info in functions.items()
+    }
+    return {
+        "aliases": dict(list(aliases.items())[:MAX_IMPORTS_PER_FILE]),
+        "functions": out_functions,
+        "module_calls": calls_by_owner.get(MODULE, [])[:MAX_CALLS_PER_FUNCTION],
+    }
+
+
 def _js(tree: Any, rel: str) -> tuple[list[dict[str, Any]], list[str]]:
     imports: list[dict[str, Any]] = []
     entry: set[str] = set()
@@ -274,6 +375,8 @@ def extract(src: Path) -> dict[str, Any]:
                 "imports": imports,
                 "entry": entry,
             }
+            if lang == "python":
+                files[rel]["calls"] = _python_calls(tree)
         if truncated:
             break
     return {

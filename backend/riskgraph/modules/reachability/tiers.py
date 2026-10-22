@@ -11,6 +11,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
+from riskgraph.modules.reachability.callgraph import SYMBOLS, find_l3
 from riskgraph.modules.reachability.graph import ModuleGraph
 from riskgraph.modules.reachability.package_names import (
     PYTHON_ECOSYSTEMS,
@@ -76,7 +77,14 @@ class TierClassifier:
             f.startswith(scope) and i.get("lang") == lang for f, i in self.graph.files.items()
         )
 
-    def sca(self, ecosystem: str | None, name: str, version: str, target: str) -> Verdict:
+    def sca(
+        self,
+        ecosystem: str | None,
+        name: str,
+        version: str,
+        target: str,
+        vulnerability_id: str | None = None,
+    ) -> Verdict:
         names = import_names(ecosystem, name)
         if names is None:
             return Verdict(
@@ -89,6 +97,17 @@ class TierClassifier:
                 "low",
                 {"reason": "no parsed source files next to the manifest"},
             )
+        if vulnerability_id in SYMBOLS:
+            l3 = find_l3(self.graph, SYMBOLS[vulnerability_id].symbols, scope)
+            if l3 is not None:
+                ev = {
+                    "symbol": l3.symbol,
+                    "function": l3.function,
+                    "file": l3.file,
+                    "chain": [f"{f}:{fn}" for f, fn in l3.chain],
+                    "cve": vulnerability_id,
+                }
+                return Verdict(ReachabilityTier.L3, "medium", ev)
         hit = self._imported(names, scope)
         if hit is not None:
             return hit
@@ -198,7 +217,11 @@ class TierClassifier:
         return Verdict(ReachabilityTier.UNKNOWN, "low", {"reason": "no entry points detected"})
 
     def classify(
-        self, source_type: SourceType, file: str, package: dict[str, Any] | None
+        self,
+        source_type: SourceType,
+        file: str,
+        package: dict[str, Any] | None,
+        vulnerability_id: str | None = None,
     ) -> Verdict:
         if source_type is SourceType.SAST:
             return self.sast(file)
@@ -208,5 +231,6 @@ class TierClassifier:
                 str(package.get("name") or ""),
                 str(package.get("version") or ""),
                 file,
+                vulnerability_id,
             )
         return NOT_APPLICABLE
