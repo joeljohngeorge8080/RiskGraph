@@ -39,5 +39,5 @@ pytest -m perf -s                                          → 2 passed (numbers
 ```
 
 ## Not done
-- The "cheapest edge to fix" and choke-point (betweenness) metrics: stretch, deferred (expansion plan §6).
+- The "cheapest edge to fix" and choke-point (betweenness) metrics: stretch, deferred (expansion plan §5).
 - Path assurance levels (verified, inferred, hypothesis): expansion phase X1/X3.

@@ -183,7 +183,7 @@ class Relationship:
 | Semgrep Pro (interfile) | Cross-function and cross-file | 8 languages listed ([docs](https://semgrep.dev/docs/semgrep-code/semgrep-pro-engine-intro)) | proprietary, paid, separate binary | easy | Rejected: cost, not redistributable, results not reproducible for examiners without a licence |
 | CodeQL | Best-in-class interprocedural taint | many | Permitted for academic research and for open-source codebases. **Prohibited** with a codebase that is not open source; automated/CI database generation only for open-source code hosted on GitHub.com; no sharing or hosting of the software, unless paid GHAS ([CodeQL terms](https://github.com/github/codeql-cli-binaries/blob/main/LICENSE.md)) | heavy: ~1 GB bundle; compiled languages need a build (BELIEVE) | **Rejected as an integrated engine**: a self-hosted platform that scans arbitrary repositories cannot meet those terms. **Allowed as an offline research oracle** in X8 evaluation ("academic research") to estimate Joern's recall on the open-source test apps |
 | **Joern** | Interprocedural, inter-file taint over a code property graph (`reachableByFlows` returns the flow steps) | C/C++, Java, JS, Python, Kotlin, PHP, Go, Ruby, Swift, C# with varying maturity ([docs.joern.io](https://docs.joern.io/)) | **Apache-2.0** ([repo](https://github.com/joernio/joern), VERIFIED) | JVM container; Scala query scripts; no build for Python/JS | **Chosen as tier 2**, gated by a spike (X4.0) |
-| Custom summary-based taint on the existing tree-sitter call graph | Interprocedural for Python; RiskGraph already resolves calls (ADR-0015) | Python first | own code | moderate, fully controllable | **Fallback** if the Joern spike fails its gate, and it stays the L3 engine regardless. As a primary engine it is a research project in itself, and a homemade data-flow engine is the scope trap most likely to eat the timeline |
+| Custom summary-based taint on the existing tree-sitter call graph | Interprocedural for Python; RiskGraph already resolves calls (ADR-0015) | Python first | own code | moderate, fully controllable | **Fallback** if the Joern spike fails its gate, and it stays the L3 engine regardless. As a primary engine it is a research project in itself, and a homemade data-flow engine is the scope trap most likely to swallow the expansion |
 
 **Design.**
 1. **Tier 1 (default profile).** Ship `rules/riskgraph-taint/*.yaml`: RiskGraph-authored taint rules for sources (`request.args`, `request.json`, FastAPI params, `req.query`/`req.body`) and sinks (SQL `execute` with string building, `subprocess`/`os.system`, `open`/`send_file` with joined paths, `pickle.loads`/`yaml.load`, SSRF clients). Semgrep runs them in the same container as today.
@@ -214,7 +214,7 @@ class Relationship:
 | Insecure multi-step workflows (skipping step 2 of checkout, replaying a token) | Needs application state | **no** | manual or app-specific test only |
 | Dynamic confirmation (two-user swap tests, unauthenticated replay) | Optional harness against a *locally deployed* test instance with synthetic users | no (opt-in) | upgrades a hypothesis to verified when the test passes |
 
-Dynamic testing is **deferred** (§6): it needs a running target, credentials and fixtures per application. Running repository code is outside today's isolation model, which never executes it.
+Dynamic testing is **deferred** (§5): it needs a running target, credentials and fixtures per application. Running repository code is outside today's isolation model, which never executes it.
 
 ### C. Runtime, dependency and vulnerability intelligence
 
@@ -271,39 +271,31 @@ Dynamic testing is **deferred** (§6): it needs a running target, credentials an
 
 ## 4. Phased roadmap
 
-Phases are named **X0–X8** so they cannot be confused with the blueprint's P0–P19. Estimates are focused solo-developer weeks.
+Phases are named **X0–X8** so they cannot be confused with the blueprint's P0–P19. Phases run in order; each one's exit criteria must hold before the next starts.
 
 Proposed order compared with yours:
 - **Contracts and D-core move ahead of A.** A's flows and B's guards *are* graph edges. Building A first means inventing an ad-hoc evidence shape and migrating it later.
 - **C stays first among the capabilities.** It is the cheapest, reuses Trivy and Syft, and gives D new nodes.
 - **B comes after A,** because B's best signals ("unguarded route whose handler reaches a taint sink") need A's flows and the function spans.
 
-| Phase | Objective / scope | Engineering tasks | Modules | Deliverables | Depends on | Tests and acceptance | Risks → mitigation | Est. |
+| Phase | Objective / scope | Engineering tasks | Modules | Deliverables | Depends on | Tests and acceptance | Risks → mitigation |
 |---|---|---|---|---|---|---|---|---|
-| **X0 Audit closure and baseline** | Freeze a measured baseline before adding anything | Fix G10 (Semgrep secret typing → `n_a`); close G11 (scenario A–E fixtures, Hypothesis monotonicity, perf test, graph invariants); build `datasets/scenarios/` A–E from the blueprint; record M1, M2 and current RiskGraph metrics | risk, graph, normalization, `datasets/` | `BASELINE.md` with numbers; tests | — | Scenario scores match §14.6 within 0.5; monotonicity holds for 1,000 Hypothesis examples; paths ≤ 2 s at 5k/20k; baseline P@5, P@10, nDCG@10 recorded with CIs | Scenario repos overfit the model → generate them from templates and freeze them *before* any tuning | 1.5 wk |
-| **X1 Contracts** | One evidence and assurance contract for everything | ADR-0016; `modules/evidence`; migration (`evidence`, link tables, `graph_edges.assurance`, `source_type` values); retrofit current edges with assurance (credential-family edges → hypothesis; Kubernetes name map → inferred); builder invariant | evidence, graph, findings | ADR, migration, typed contract, API `evidence[]` on finding detail | X0 | Migration up/down/up clean and `alembic check` no drift; invariant test (an edge without evidence raises); existing paths unchanged except the credential-family ones, now hypothesis; their I\* contribution drops, as a documented, intended score change | Over-design → contract frozen at the fields in §2.4; new fields need an ADR | 1.5 wk |
-| **X2 C: runtime and image intel** | Known-vulnerability coverage for images and runtimes | Collect image refs (Dockerfile/Compose/Kubernetes); Trivy `image` mode plus Syft image SBOM under ADR-0014 with egress, caps and a 5-image limit; runtime declarations; endoflife.date client plus Beat refresh; freshness per scan | runtime (new), scanners/trivy, scanners/syft, context | `container_image` assets, `runtime` findings, freshness on findings and scans | X1 | Fixture repo `FROM python:3.8-slim` + `node:14` → EOL findings with dates; recorded `trivy image` fixture parsed (OS + runtime packages, fixed versions); every C finding has advisory id, range, matched version, `data_as_of`; scan overhead ≤ +90 s per image warm-cache (measured) | Image pulls are slow or huge → per-ref cache, size cap, refs deduplicated across scans by digest; registry rate limits → skip with a warning, never fail the scan | 2.5 wk |
-| **X3 D-core: assured graph** | Paths from all evidenced facts, not only the manifest | New node kinds (endpoint, function, container_image); edge rules from §3.D; Compose/Kubernetes topology into the graph (closes G3); assurance-aware search; hypothesis-path listing; I\* gating | graph, risk | `/attack-paths` grouped by assurance, with `missing_evidence[]` on hypotheses | X1 (X2 for image nodes) | NodeGoat with no manifest gets ≥ 1 inferred path from Compose; property test: a random graph built only from co-located findings with no edge rules yields 0 paths; hypothesis paths never change any score (test); perf ≤ 2 s at 5k/20k | Path explosion with function nodes → functions only on flows; hop limit 8 kept | 2 wk |
-| **X4 A: deep code** | Interprocedural taint with evidence | **X4.0 spike (1 wk, go/no-go):** Joern in a hardened container on a 20-case Python/JS source-to-sink suite plus NodeGoat; measure recall, precision, RAM, time. **Then:** tier-1 Semgrep taint rules from one catalogue; Joern adapter, script, parser; enclosing-function mapping (G8); correlation of tier 1 + tier 2 | scanners/joern (new), scanners/semgrep rules, reachability (spans), normalization | `deep` profile, taint findings with steps, catalogue YAML | X1, X3 | **Gate:** Joern recall ≥ 0.6 on interprocedural cases where Semgrep CE scores ≈ 0 (by construction); precision ≥ 0.7; peak RAM ≤ 6 GB; ≤ 10 min on NodeGoat. If not met, fall back to custom Python summaries (re-estimate +2 wk) and record an ADR | JVM memory on a 15 GB host → deep profile opt-in, one slot; Joern version churn → pin by digest, fixtures re-recorded per bump | 1 + 3 wk |
-| **X5 B: authorization** | Static authz findings with honest assurance | Extractor `ts-imports.3` (guards, params, routers); guard catalogue for 4 frameworks; inventory, inconsistency, unguarded-sensitive, manifest `authz:` policy diff, BOLA heuristic; UNGUARDED/BOLA_SUSPECT edges | reachability (extractor), authz (new), context (manifest), graph | Route inventory endpoint, authz findings, UI-ready "manual verification required" list | X3, X4 (taint sinks) | Labeled suite: each framework with guarded, unguarded, inconsistent and custom-guard cases; inconsistency precision ≥ 0.8; zero BOLA findings above `hypothesis`; route inventory recall ≥ 0.95 on the suite | Custom guards cause false positives → catalogue extensible via manifest `authz.guards:`; framework drift → under-claim and say "unknown framework" | 3 wk |
-| **X6 Risk v2** | Integrate C, A and B into scoring | Factor tables for runtime EOL, container OS packages (R = 0.5 "not assessable"), taint (E by CWE and confidence), authz (E for inferred unguarded; hypotheses not scored above Low); model `v2` with the reduction property kept; scenarios F–H | risk | Model `v2`, ADR | X2–X5 | All v1 tests still pass when the new inputs are absent (reduction test); scenario ordering for the new cases matches the labels; monotonicity holds | Score inflation from more findings → per-finding model unchanged; a repository is never summed | 1.5 wk |
-| **X7 Dashboard and reporting** | Make evidence and assurance visible | Assurance badges; flow-step viewer; route inventory table; image/runtime panel; "paths to verify"; CI gate options (`--assurance-min`); SARIF export with provenance | frontend, findings router, CLI | UI views, SARIF, gate flag | X6 | Playwright: flow steps render as plain text; a hypothesis is never styled as a finding; a gate with `assurance-min=inferred` ignores hypotheses | UI scope creep → fixed view list; stretch views deferred | 2 wk |
-| **X8 Evaluate, optimize, deploy** | Prove improvement, not tool count | Run §7; ablations (−A, −B, −C, −D); overhead profile; CodeQL as a research oracle on open-source apps only; prod compose profile for `deep` | `evaluation/` | `EVALUATION_EXPANSION.md` | X7 | §7 success criteria | Weak results → reported as found; no post-hoc metric changes | 2.5 wk |
+| **X0 Audit closure and baseline** | Freeze a measured baseline before adding anything | G10 and G11 were closed in P8–P11 (session 7). Remaining: build `datasets/scenarios/` A–E from the blueprint; implement baselines M1/M2 and the metrics; record current RiskGraph metrics | risk, graph, normalization, `datasets/` | `BASELINE.md` with numbers; tests | — | Baseline P@5, P@10, nDCG@10 for M1, M2 and v1-ctx.2 recorded with CIs; regenerating the datasets reproduces them exactly | Scenario repos overfit the model → generate them from templates and freeze them *before* any tuning |
+| **X1 Contracts** | One evidence and assurance contract for everything | ADR-0016; `modules/evidence`; migration (`evidence`, link tables, `graph_edges.assurance`, `source_type` values); retrofit current edges with assurance (credential-family edges → hypothesis; Kubernetes name map → inferred); builder invariant | evidence, graph, findings | ADR, migration, typed contract, API `evidence[]` on finding detail | X0 | Migration up/down/up clean and `alembic check` no drift; invariant test (an edge without evidence raises); existing paths unchanged except the credential-family ones, now hypothesis; their I\* contribution drops, as a documented, intended score change | Over-design → contract frozen at the fields in §2.4; new fields need an ADR |
+| **X2 C: runtime and image intel** | Known-vulnerability coverage for images and runtimes | Collect image refs (Dockerfile/Compose/Kubernetes); Trivy `image` mode plus Syft image SBOM under ADR-0014 with egress, caps and a 5-image limit; runtime declarations; endoflife.date client plus Beat refresh; freshness per scan | runtime (new), scanners/trivy, scanners/syft, context | `container_image` assets, `runtime` findings, freshness on findings and scans | X1 | Fixture repo `FROM python:3.8-slim` + `node:14` → EOL findings with dates; recorded `trivy image` fixture parsed (OS + runtime packages, fixed versions); every C finding has advisory id, range, matched version, `data_as_of`; scan overhead ≤ +90 s per image warm-cache (measured) | Image pulls are slow or huge → per-ref cache, size cap, refs deduplicated across scans by digest; registry rate limits → skip with a warning, never fail the scan |
+| **X3 D-core: assured graph** | Paths from all evidenced facts, not only the manifest | New node kinds (endpoint, function, container_image); edge rules from §3.D; Compose/Kubernetes topology into the graph (closes G3); assurance-aware search; hypothesis-path listing; I\* gating | graph, risk | `/attack-paths` grouped by assurance, with `missing_evidence[]` on hypotheses | X1 (X2 for image nodes) | NodeGoat with no manifest gets ≥ 1 inferred path from Compose; property test: a random graph built only from co-located findings with no edge rules yields 0 paths; hypothesis paths never change any score (test); perf ≤ 2 s at 5k/20k | Path explosion with function nodes → functions only on flows; hop limit 8 kept |
+| **X4 A: deep code** | Interprocedural taint with evidence | **X4.0 spike (go/no-go):** Joern in a hardened container on a 20-case Python/JS source-to-sink suite plus NodeGoat; measure recall, precision, RAM, time. **Then:** tier-1 Semgrep taint rules from one catalogue; Joern adapter, script, parser; enclosing-function mapping (G8); correlation of tier 1 + tier 2 | scanners/joern (new), scanners/semgrep rules, reachability (spans), normalization | `deep` profile, taint findings with steps, catalogue YAML | X1, X3 | **Gate:** Joern recall ≥ 0.6 on interprocedural cases where Semgrep CE scores ≈ 0 (by construction); precision ≥ 0.7; peak RAM ≤ 6 GB; ≤ 10 min on NodeGoat. If not met, fall back to custom Python summaries and record an ADR | JVM memory on a 15 GB host → deep profile opt-in, one slot; Joern version churn → pin by digest, fixtures re-recorded per bump |
+| **X5 B: authorization** | Static authz findings with honest assurance | Extractor `ts-imports.4` (guards, params, routers); guard catalogue for 4 frameworks; inventory, inconsistency, unguarded-sensitive, manifest `authz:` policy diff, BOLA heuristic; UNGUARDED/BOLA_SUSPECT edges | reachability (extractor), authz (new), context (manifest), graph | Route inventory endpoint, authz findings, UI-ready "manual verification required" list | X3, X4 (taint sinks) | Labeled suite: each framework with guarded, unguarded, inconsistent and custom-guard cases; inconsistency precision ≥ 0.8; zero BOLA findings above `hypothesis`; route inventory recall ≥ 0.95 on the suite | Custom guards cause false positives → catalogue extensible via manifest `authz.guards:`; framework drift → under-claim and say "unknown framework" |
+| **X6 Risk v2** | Integrate C, A and B into scoring | Factor tables for runtime EOL, container OS packages (R = 0.5 "not assessable"), taint (E by CWE and confidence), authz (E for inferred unguarded; hypotheses not scored above Low); model `v2` with the reduction property kept; scenarios F–H | risk | Model `v2`, ADR | X2–X5 | All v1 tests still pass when the new inputs are absent (reduction test); scenario ordering for the new cases matches the labels; monotonicity holds | Score inflation from more findings → per-finding model unchanged; a repository is never summed |
+| **X7 Dashboard and reporting** | Make evidence and assurance visible | Assurance badges; flow-step viewer; route inventory table; image/runtime panel; "paths to verify"; CI gate options (`--assurance-min`); SARIF export with provenance | frontend, findings router, CLI | UI views, SARIF, gate flag | X6 | Playwright: flow steps render as plain text; a hypothesis is never styled as a finding; a gate with `assurance-min=inferred` ignores hypotheses | UI scope creep → fixed view list; stretch views deferred |
+| **X8 Evaluate, optimize, deploy** | Prove improvement, not tool count | Run §6; ablations (−A, −B, −C, −D); overhead profile; CodeQL as a research oracle on open-source apps only; prod compose profile for `deep` | `evaluation/` | `EVALUATION_EXPANSION.md` | X7 | §6 success criteria | Weak results → reported as found; no post-hoc metric changes |
 
-**Total ≈ 20.5 weeks.**
-
----
-
-## 5. Scope reality check (read this before approving)
-
-- **Calendar.** The blueprint plans for 7–9 months from 2026-09-19, ending around April–June 2027. The original roadmap still has P2 (auth), P12–P19 left, about 18–20 weeks by its own table. Adding 20.5 weeks **does not fit** (CONFIDENT). Either the expansion is trimmed to the minimum viable expansion (MVE) below, or original stretch items are dropped.
-- **Recommendation:** do the MVE (≈ 11 weeks), interleaved before P13 (dashboard). Its outputs then land in the dashboard once, instead of being retrofitted.
 
 ---
 
-## 6. Minimum viable expansion versus deferred
+## 5. Minimum viable expansion versus deferred
 
-| | MVE (≈ 11 wk) | Deferred (advanced) |
+| | MVE | Deferred (advanced) |
 |---|---|---|
 | X0 / X1 | all | — |
 | C | Image refs; `trivy image` and Syft for public images; runtime declarations and EOL; freshness | OSV cross-check; private registries; Terraform AMIs/Lambda runtimes; deployed-cluster live inventory |
@@ -314,7 +306,7 @@ Proposed order compared with yours:
 
 ---
 
-## 7. Testing and evaluation plan
+## 6. Testing and evaluation plan
 
 **Datasets** (all run locally in the sandbox; secrets synthetic, built at test time as `kitchen_sink.py` does):
 
@@ -342,29 +334,29 @@ False positives are analysed per finding class with a written reason ("custom gu
 
 ---
 
-## 8. First phase: X0, exact definition of done
+## 7. First phase: X0, exact definition of done
 
-**Objective:** close the baseline gaps so every later claim is measured against fixed numbers.
+**Objective:** a frozen, measured baseline, so every later claim is compared with fixed numbers.
+
+Already closed in P8–P11 (session 7, verified there):
+- G10, Semgrep secret typing;
+- graph invariants;
+- scenarios A–E as unit fixtures;
+- monotonicity and reduction properties;
+- the perf budgets.
 
 Tasks:
-1. G10: Semgrep findings whose rule id is in the secrets family (`generic.secrets.*`, or category `secret` in the rule metadata) are typed `secret`, so reachability is `n_a`. Remove the scoped exception in `test_level2_ext_db.py`.
-2. Graph invariants (blueprint §12): every service has exactly one RUNS_AS (synthetic `unknown-identity`); internet has no in-edges; every credential node has exactly one CONTAINS_SECRET in-edge. Unit tests.
-3. `tests/test_risk_scenarios.py`: scenarios A–E from §14.6 as fixtures, with scores asserted within ±0.5 and the ordering C > E > B > D > A.
-4. A Hypothesis property test: every factor is monotone non-decreasing in risk; the context-free reduction (§14.3) gives a fixed function of E and T.
-5. `perf`-marked test: 5k nodes, 20k edges, 10 sinks, k=3 ≤ 2 s; the NetworkX load ≤ 1 s.
-6. `datasets/scenarios/A…E` generated by `datasets/build.py`; `make eval-baseline` writes `docs/evaluation/BASELINE.md` with M1, M2 and RiskGraph v1-ctx.2 P@5/P@10/nDCG@10 and bootstrap CIs.
+1. `datasets/build.py` generates `datasets/scenarios/A…E` as small repositories (code, manifest, pinned dependencies) from templates, with labels by construction.
+2. `evaluation/` implements the rankings M1 (CVSS-only) and M2 (CVSS × the EPSS transform), and the metrics P@K, R@K, nDCG@K (K = 5, 10) and MAP, with bootstrap CIs (blueprint §26).
+3. `make eval-baseline` runs the scenarios through the pipeline (recorded scanner fixtures, no network) and writes `docs/evaluation/BASELINE.md`.
 
 Definition of done:
-- `make lint`, `make test`, `make test-db` and `make test -m perf` green, with output pasted in `docs/phases/PHASE_X0.md` (A–S template);
-- `BASELINE.md` committed with numbers and the dataset generator commit;
-- no production behaviour change except G10, whose score change is listed per affected finding in the chapter;
-- graph rebuilt (`graphify update .`), HANDOFF updated.
+- unit tests for every metric against hand-computed values;
+- the generator is deterministic (a second run is byte-identical);
+- `BASELINE.md` is committed with the generator commit and the numbers;
+- lint, unit and db suites green, with output pasted in `docs/phases/PHASE_X0.md`.
 
-Estimate: 1.5 weeks.
-
----
-
-## 9. Main risks, scope traps and decisions to finalize early
+## 8. Main risks, scope traps and decisions to finalize early
 
 **Decide before X1:**
 1. Adopt the three-level `Assurance` and "edge requires evidence", including that today's credential-family edges become hypotheses (a visible score change).
@@ -373,7 +365,7 @@ Estimate: 1.5 weeks.
 4. The `deep` profile is opt-in. Default scans stay within +25 % time.
 5. Image scanning is limited to public refs named in the repository.
 6. RiskGraph-authored rules are licensed Apache-2.0 and kept separate from the `semgrep-rules` content (G12).
-7. MVE now, the rest deferred (§5–6).
+7. MVE first in each phase; the deferred items stay deferred (§5).
 
 **Scope traps:**
 - writing a general data-flow engine;
