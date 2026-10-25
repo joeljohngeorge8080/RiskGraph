@@ -28,6 +28,8 @@ _PREFERENCE: dict[SourceType, tuple[ScannerName, ...]] = {
     SourceType.SAST: (ScannerName.SEMGREP,),
     SourceType.SECRET: (ScannerName.GITLEAKS, ScannerName.TRIVY),
     SourceType.IAC: (ScannerName.CHECKOV, ScannerName.TRIVY, ScannerName.SEMGREP),
+    SourceType.RUNTIME: (ScannerName.TRIVY,),
+    SourceType.AUTHZ: (),
 }
 _CONFIDENCE_RANK = {"LOW": 1, "MEDIUM": 2, "HIGH": 3}
 
@@ -74,6 +76,11 @@ def merge(findings: list[RawFinding]) -> list[MergedFinding]:
                 else:
                     iac_anchor = loc.resource or loc.line_start
                     groups[("iac", f.scanner.value, f.rule_id, loc.file, iac_anchor)].append(f)
+            case SourceType.RUNTIME | SourceType.AUTHZ:
+                # no cross-tool merge keys yet (X2, X5): same tool, rule and place only
+                anchor_x = loc.resource or loc.line_start
+                key = (f.source_type.value, f.scanner.value, f.rule_id, loc.file, anchor_x)
+                groups[key].append(f)
 
     for (file, family), members in secrets.items():
         for cluster in _overlap_clusters(members):

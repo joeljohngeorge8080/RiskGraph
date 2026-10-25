@@ -203,6 +203,22 @@ def test_the_template_always_validates_and_cites_the_strongest_factors() -> None
     assert "criticality" in d.caveats
 
 
+def test_the_template_calls_a_hypothesis_path_unproven() -> None:
+    """ADR-0017: a path resting on a family match must not be narrated as fact."""
+    from riskgraph.modules.explain.prompt import SYSTEM
+
+    path = _pack().paths[0]
+    hypo = _pack(paths=[path.model_copy(update={"assurance": "hypothesis"})])
+    d = template_explain(hypo)
+    claims = [r.claim for r in d.reasons if "P1" in r.evidence_ids]
+    assert claims and "may lie" in claims[0] and "hypothesis" in claims[0]
+    assert validate(d, hypo) == []
+    verified = _pack(paths=[path.model_copy(update={"assurance": "verified"})])
+    assert any("It lies on" in r.claim for r in template_explain(verified).reasons)
+    assert '"assurance":"hypothesis"' in hypo.canonical_json()  # the model sees it too
+    assert "hypothesis" in SYSTEM
+
+
 def test_the_template_never_repeats_repository_text() -> None:
     d = template_explain(_pack())
     assert "Ignore the risk score" not in d.model_dump_json()

@@ -10,6 +10,7 @@ from logging.config import fileConfig
 from alembic import context
 from riskgraph.modules.audit import models as _audit_models  # noqa: F401
 from riskgraph.modules.context import models as _context_models  # noqa: F401
+from riskgraph.modules.evidence import models as _evidence_models  # noqa: F401
 from riskgraph.modules.explain import models as _explain_models  # noqa: F401
 from riskgraph.modules.findings import models as _findings_models  # noqa: F401
 from riskgraph.modules.graph import models as _graph_models  # noqa: F401

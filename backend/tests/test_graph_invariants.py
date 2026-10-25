@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from riskgraph.modules.context import parse_manifest
+from riskgraph.modules.evidence import Assurance, Relationship
 from riskgraph.modules.graph import GraphFinding, analyze
 from riskgraph.modules.graph.attack import (
     INTERNET,
@@ -37,8 +36,8 @@ def test_the_fixture_graph_satisfies_every_invariant() -> None:
 
 def test_a_service_without_runs_as_gets_the_unknown_identity() -> None:
     a = analyze(_manifest(NO_RUNS_AS), [])
-    runs_as = [e for e in a.edges if e["kind"] == "RUNS_AS"]
-    assert {(e["source"], e["target"]) for e in runs_as} == {
+    runs_as = [e for e in a.edges if e.kind == "RUNS_AS"]
+    assert {(e.source, e.target) for e in runs_as} == {
         ("service:web", UNKNOWN_IDENTITY),
         ("service:api", "identity:api-role"),
     }
@@ -47,10 +46,12 @@ def test_a_service_without_runs_as_gets_the_unknown_identity() -> None:
 
 
 def test_a_secret_outside_every_service_hangs_off_the_repository() -> None:
-    secret = GraphFinding(0, None, S.SECRET, secret_family="aws", credential_p=0.9, title="k")
+    secret = GraphFinding(
+        0, None, S.SECRET, secret_family="aws", credential_p=0.9, title="k", evidence=("k",)
+    )
     a = analyze(_manifest(NO_RUNS_AS), [secret])
-    ins = [e for e in a.edges if e["target"] == "credential:0"]
-    assert [(e["source"], e["kind"]) for e in ins] == [(REPOSITORY, "CONTAINS_SECRET")]
+    ins = [e for e in a.edges if e.target == "credential:0"]
+    assert [(e.source, e.kind) for e in ins] == [(REPOSITORY, "CONTAINS_SECRET")]
     assert invariant_violations(a.nodes, a.edges) == []
 
 
@@ -71,28 +72,17 @@ def test_violations_are_reported() -> None:
             "properties": {},
         },
     }
-    edges: list[dict[str, Any]] = [
-        {
-            "source": "service:a",
-            "target": INTERNET,
-            "kind": "CONNECTS_TO",
-            "probability": None,
-            "findings": [],
-        },
-        {
-            "source": "service:a",
-            "target": "ghost",
-            "kind": "EXPLOIT",
-            "probability": 0.5,
-            "findings": [],
-        },
+    v = Assurance.VERIFIED
+    edges = [
+        Relationship("service:a", INTERNET, "CONNECTS_TO", v, ("decl",)),
+        Relationship("service:a", "ghost", "EXPLOIT", v, ("decl",), 0.5),  # no finding
     ]
     found = invariant_violations(nodes, edges)
     assert any("internet has in-edges" in v for v in found)
     assert any("service:a has 0 RUNS_AS" in v for v in found)
     assert any("credential:1 has 0 CONTAINS_SECRET" in v for v in found)
     assert any("unknown node ghost" in v for v in found)
-    assert any("EXPLOIT service:a -> ghost has no evidence" in v for v in found)
+    assert any("EXPLOIT service:a -> ghost has no finding evidence" in v for v in found)
 
 
 def test_the_builder_refuses_a_broken_graph(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -163,6 +153,7 @@ def test_invariants_hold_on_random_manifests(text: str, findings: list[tuple]) -
             credential_p=0.9 if kind is S.SECRET else 0.0,
             public_secret=kind is S.SECRET,
             title=f"f{i}",
+            evidence=(f"e{i}",),
         )
         for i, (svc, kind, p, tier) in enumerate(findings)
     ]

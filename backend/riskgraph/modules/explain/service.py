@@ -62,6 +62,7 @@ def build_pack(session: Session, scan_id: uuid.UUID, finding_id: uuid.UUID) -> E
             score=float(p.score),
             sink=p.sink,
             hops=p.hops,
+            assurance=graph.path_assurance(p.edges),
         )
         for i, p in enumerate(graph.paths_for_finding(session, scan_id, finding_id)[:MAX_PATHS], 1)
     ]

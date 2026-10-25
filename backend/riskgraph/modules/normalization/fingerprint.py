@@ -35,3 +35,6 @@ def fingerprint(f: RawFinding, repository: str) -> str:
         case SourceType.IAC:
             anchor = loc.resource or loc.line_start
             return stable_hash("iac", repository, f.rule_id, loc.file, anchor)
+        case SourceType.RUNTIME | SourceType.AUTHZ:
+            anchor = loc.resource or loc.line_start
+            return stable_hash(f.source_type.value, repository, f.rule_id, loc.file, anchor)

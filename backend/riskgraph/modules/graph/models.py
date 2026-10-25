@@ -10,7 +10,15 @@ import uuid
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import ForeignKey, Index, Numeric, SmallInteger, String, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    Numeric,
+    SmallInteger,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -32,7 +40,12 @@ class GraphNode(UUIDPrimaryKeyMixin, Base):
 
 class GraphEdge(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "graph_edges"
-    __table_args__ = (Index("ix_graph_edges_scan", "scan_job_id"),)
+    __table_args__ = (
+        Index("ix_graph_edges_scan", "scan_job_id"),
+        CheckConstraint(
+            "assurance IN ('verified', 'inferred', 'hypothesis')", name="graph_edge_assurance"
+        ),
+    )
 
     scan_job_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("scan_jobs.id", ondelete="CASCADE"), nullable=False
@@ -41,6 +54,8 @@ class GraphEdge(UUIDPrimaryKeyMixin, Base):
     target: Mapped[str] = mapped_column(String(160), nullable=False)
     kind: Mapped[str] = mapped_column(String(32), nullable=False)
     probability: Mapped[Decimal | None] = mapped_column(Numeric(6, 5))
+    # ADR-0017: how well the edge is supported; its evidence is linked in edge_evidence
+    assurance: Mapped[str] = mapped_column(String(16), nullable=False)
     evidence: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
 
 

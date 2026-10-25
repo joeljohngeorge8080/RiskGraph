@@ -22,10 +22,20 @@ in-edges; every service has exactly one RUNS_AS (a synthetic ``unknown-identity`
 manifest names none); every credential has exactly one CONTAINS_SECRET in-edge (from the
 ``repository`` node when the secret is outside every service); every edge joins known
 nodes; every attack edge carries finding evidence.
+
+Evidence and assurance (ADR-0017): every edge is a ``Relationship`` that names its
+evidence, and the builder refuses one without (``GraphInvariantError``). Manifest edges
+rest on declaration evidence and are verified, except RUNS_AS to the synthetic unknown
+identity (inferred). CONTAINS_SECRET is verified. AUTHENTICATES_AS matches a secret's
+family to an identity's ``credentials`` list, which proves nothing about this key: a
+hypothesis. EXPLOIT takes the reachability tier of the finding that sets its p (L3
+verified, L2 inferred, otherwise hypothesis). A path is as assured as its weakest edge,
+and only paths of at least ``inferred`` raise a finding's effective impact.
 """
 
 from __future__ import annotations
 
+import datetime as dt
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -35,6 +45,14 @@ from typing import Any, Protocol
 import networkx as nx
 
 from riskgraph.modules.context import Manifest
+from riskgraph.modules.evidence import (
+    Assurance,
+    Evidence,
+    Relationship,
+    make_evidence,
+    min_assurance,
+)
+from riskgraph.modules.normalization import Location
 from riskgraph.modules.risk import EffectiveImpact
 from riskgraph.modules.risk.tables import C_VALUES, D_VALUES, P_VALUES
 from riskgraph.shared.vocabulary import SourceType
@@ -48,6 +66,8 @@ REPOSITORY = "repository"
 UNKNOWN_IDENTITY = "identity:unknown-identity"
 _VIRTUAL = "@source"
 ATTACK_EDGES = frozenset({"EXPLOIT", "AUTHENTICATES_AS"})
+FINDING_EDGES = ATTACK_EDGES | {"CONTAINS_SECRET"}  # must rest on a finding's evidence
+MANIFEST_PRODUCER = "riskgraph.manifest@1"
 SINK_SENSITIVITY = frozenset({"confidential", "pii", "financial", "credentials"})
 SINK_PRIVILEGE = frozenset({"elevated", "admin"})
 
@@ -56,14 +76,12 @@ class GraphInvariantError(RuntimeError):
     """The builder produced a graph that breaks a §12 invariant: a bug, never input."""
 
 
-def invariant_violations(
-    nodes: dict[str, dict[str, Any]], edges: list[dict[str, Any]]
-) -> list[str]:
+def invariant_violations(nodes: dict[str, dict[str, Any]], edges: list[Relationship]) -> list[str]:
     out: list[str] = []
     runs_as: dict[str, int] = {}
     contains: dict[str, int] = {}
     for e in edges:
-        src, dst, kind = e["source"], e["target"], e["kind"]
+        src, dst, kind = e.source, e.target, e.kind
         for end in (src, dst):
             if end not in nodes:
                 out.append(f"{kind} {src} -> {dst}: unknown node {end}")
@@ -73,8 +91,8 @@ def invariant_violations(
             runs_as[src] = runs_as.get(src, 0) + 1
         if kind == "CONTAINS_SECRET":
             contains[dst] = contains.get(dst, 0) + 1
-        if kind in ATTACK_EDGES and not e.get("findings"):
-            out.append(f"{kind} {src} -> {dst} has no evidence")
+        if kind in FINDING_EDGES and not e.findings:
+            out.append(f"{kind} {src} -> {dst} has no finding evidence")
     for key, n in nodes.items():
         if n["kind"] == "service" and runs_as.get(key, 0) != 1:
             out.append(f"{key} has {runs_as.get(key, 0)} RUNS_AS edges, expected 1")
@@ -94,6 +112,16 @@ class GraphFinding:
     credential_p: float = 0.0
     public_secret: bool = False
     title: str = ""
+    evidence: tuple[str, ...] = ()  # ids of the finding's own evidence (ADR-0017)
+
+
+def exploit_assurance(tier: str | None) -> Assurance:
+    """How well a finding supports "an attacker can exploit this service" (ADR-0017)."""
+    if tier == "L3":
+        return Assurance.VERIFIED
+    if tier == "L2":
+        return Assurance.INFERRED
+    return Assurance.HYPOTHESIS  # L1 (only unreachable importers) or unknown
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +136,7 @@ class PathResult:
     sink_impact: float
     score: float
     findings: list[int]
+    assurance: Assurance = Assurance.VERIFIED  # the weakest edge's
 
     @property
     def hops(self) -> int:
@@ -121,7 +150,8 @@ class PathResult:
 @dataclass
 class AttackAnalysis:
     nodes: dict[str, dict[str, Any]] = field(default_factory=dict)
-    edges: list[dict[str, Any]] = field(default_factory=list)
+    edges: list[Relationship] = field(default_factory=list)
+    evidence: dict[str, Evidence] = field(default_factory=dict)  # what the builder observed
     paths: list[PathResult] = field(default_factory=list)
     effective: dict[int, EffectiveImpact] = field(default_factory=dict)
     exposed_by_design: int = 0
@@ -135,6 +165,11 @@ class AttackAnalysis:
             "max_path_score": max((p.score for p in self.paths), default=0.0),
             "findings_on_paths": len(self.effective),
             "exposed_by_design": self.exposed_by_design,
+            "paths_by_assurance": {
+                a.value: n
+                for a in Assurance
+                if (n := sum(1 for p in self.paths if p.assurance is a))
+            },
         }
 
 
@@ -150,28 +185,70 @@ def _ds(name: str) -> str:
     return f"data_store:{name}"
 
 
-def analyze(manifest: Manifest | None, findings: list[GraphFinding]) -> AttackAnalysis:
+def analyze(
+    manifest: Manifest | None,
+    findings: list[GraphFinding],
+    *,
+    manifest_file: str = "riskgraph.yaml",
+    observed_at: dt.datetime | None = None,
+) -> AttackAnalysis:
     out = AttackAnalysis()
     g: nx.DiGraph[str] = nx.DiGraph()
+    now = observed_at or dt.datetime.now(dt.UTC)
 
     def node(key: str, kind: str, label: str, **props: Any) -> None:
         out.nodes[key] = {"key": key, "kind": kind, "label": label, "properties": props}
         g.add_node(key)
 
-    def edge(
-        src: str, dst: str, kind: str, p: float | None, evidence: list[int] | None = None
-    ) -> None:
-        out.edges.append(
-            {
-                "source": src,
-                "target": dst,
-                "kind": kind,
-                "probability": p,
-                "findings": evidence or [],
-            }
+    def declared(**facts: Any) -> str:
+        e = make_evidence(
+            producer=MANIFEST_PRODUCER,
+            kind="declaration",
+            assurance=Assurance.VERIFIED,
+            confidence="high",
+            locations=(Location(manifest_file),),
+            facts=facts,
+            observed_at=now,
         )
+        out.evidence[e.id] = e
+        return e.id
+
+    def edge(
+        src: str,
+        dst: str,
+        kind: str,
+        p: float | None,
+        assurance: Assurance,
+        evidence: Iterable[str],
+        from_findings: Iterable[GraphFinding] = (),
+    ) -> None:
+        used = list(from_findings)
+        finding_evidence = [e for f in used for e in f.evidence]
+        if kind in FINDING_EDGES and not finding_evidence:
+            raise GraphInvariantError(f"{kind} {src} -> {dst} has no finding evidence")
+        try:
+            rel = Relationship(
+                src,
+                dst,
+                kind,
+                assurance,
+                tuple(dict.fromkeys([*evidence, *finding_evidence])),
+                p,
+                tuple(f.index for f in used),
+            )
+        except ValueError as exc:  # no evidence at all
+            raise GraphInvariantError(str(exc)) from exc
+        out.edges.append(rel)
         if p is not None and p > 0:
-            g.add_edge(src, dst, kind=kind, p=p, w=-math.log(p), findings=evidence or [])
+            g.add_edge(
+                src,
+                dst,
+                kind=kind,
+                p=p,
+                w=-math.log(p),
+                findings=list(rel.findings),
+                assurance=assurance,
+            )
 
     node(INTERNET, "internet", "Internet")
     by_service: dict[str, list[GraphFinding]] = {}
@@ -210,7 +287,9 @@ def analyze(manifest: Manifest | None, findings: list[GraphFinding]) -> AttackAn
             if manifest.criticality.get(s.name) == "high":
                 sinks[_svc(s.name)] = C_VALUES["high"]
 
-        exploit: dict[str, tuple[float, list[int]]] = {}
+        # p comes from the most exploitable finding, and so does the edge's assurance: the
+        # edge claims "p, because of that finding". The others are kept as evidence.
+        exploit: dict[str, list[GraphFinding]] = {}
         for s in manifest.services:
             code = [
                 f
@@ -221,16 +300,30 @@ def analyze(manifest: Manifest | None, findings: list[GraphFinding]) -> AttackAn
             ]
             if code:
                 code.sort(key=lambda f: (-f.exploit_p, f.index))
-                exploit[s.name] = (code[0].exploit_p, [f.index for f in code[:MAX_EVIDENCE]])
+                exploit[s.name] = code[:MAX_EVIDENCE]
 
+        def exploit_edge(src: str, target: str, reason: str) -> None:
+            top = exploit[target]
+            edge(
+                src,
+                _svc(target),
+                "EXPLOIT",
+                top[0].exploit_p,
+                exploit_assurance(top[0].tier),
+                [reason],
+                top,
+            )
+
+        verified = Assurance.VERIFIED
         for s in manifest.services:
             if s.exposure == "internet":
-                edge(INTERNET, _svc(s.name), "EXPOSES", None)
+                exposed = declared(service=s.name, exposure="internet")
+                edge(INTERNET, _svc(s.name), "EXPOSES", None, verified, [exposed])
                 if s.name in exploit:
-                    p, ev = exploit[s.name]
-                    edge(INTERNET, _svc(s.name), "EXPLOIT", p, ev)
+                    exploit_edge(INTERNET, s.name, exposed)
             if s.runs_as:
-                edge(_svc(s.name), _idn(s.runs_as), "RUNS_AS", 1.0)
+                ev = declared(service=s.name, runs_as=s.runs_as)
+                edge(_svc(s.name), _idn(s.runs_as), "RUNS_AS", 1.0, verified, [ev])
             else:
                 if UNKNOWN_IDENTITY not in out.nodes:
                     # never a sink (no privilege) and never a source: it adds no path
@@ -241,21 +334,24 @@ def analyze(manifest: Manifest | None, findings: list[GraphFinding]) -> AttackAn
                         privilege=None,
                         synthetic=True,
                     )
-                edge(_svc(s.name), UNKNOWN_IDENTITY, "RUNS_AS", 1.0)
+                # the manifest names no identity: a rule fills the gap, so inferred
+                ev = declared(service=s.name, runs_as=None)
+                edge(_svc(s.name), UNKNOWN_IDENTITY, "RUNS_AS", 1.0, Assurance.INFERRED, [ev])
             for target in s.connects_to:
+                ev = declared(service=s.name, connects_to=target)
                 if any(d.name == target for d in manifest.data_stores):
-                    edge(_svc(s.name), _ds(target), "CONNECTS_TO", 1.0)
+                    edge(_svc(s.name), _ds(target), "CONNECTS_TO", 1.0, verified, [ev])
                 elif target in exploit:
-                    edge(_svc(s.name), _svc(target), "CONNECTS_TO", None)
-                    p, ev = exploit[target]
-                    edge(_svc(s.name), _svc(target), "EXPLOIT", p, ev)
+                    edge(_svc(s.name), _svc(target), "CONNECTS_TO", None, verified, [ev])
+                    exploit_edge(_svc(s.name), target, ev)
                 else:
-                    edge(_svc(s.name), _svc(target), "CONNECTS_TO", None)
+                    edge(_svc(s.name), _svc(target), "CONNECTS_TO", None, verified, [ev])
         services = {s.name for s in manifest.services}
         for i in manifest.identities:
             for target in i.can_access:
                 key = _svc(target) if target in services else _ds(target)
-                edge(_idn(i.name), key, "CAN_ACCESS", 1.0)
+                ev = declared(identity=i.name, can_access=target)
+                edge(_idn(i.name), key, "CAN_ACCESS", 1.0, verified, [ev])
 
     family_to_identity: dict[str, list[str]] = {}
     if manifest is not None:
@@ -275,14 +371,26 @@ def analyze(manifest: Manifest | None, findings: list[GraphFinding]) -> AttackAn
             public=f.public_secret,
             finding=f.index,
         )
-        if f.service and _svc(f.service) in out.nodes:
-            edge(_svc(f.service), key, "CONTAINS_SECRET", 1.0, [f.index])
+        if f.service and _svc(f.service) in out.nodes and manifest is not None:
+            path = next((s.path for s in manifest.services if s.name == f.service), "")
+            ev = declared(service=f.service, path=path or "/")
+            edge(_svc(f.service), key, "CONTAINS_SECRET", 1.0, Assurance.VERIFIED, [ev], [f])
         else:
             if REPOSITORY not in out.nodes:
                 node(REPOSITORY, "repository", "repository")  # no in-edges: not on any path
-            edge(REPOSITORY, key, "CONTAINS_SECRET", 1.0, [f.index])
+            edge(REPOSITORY, key, "CONTAINS_SECRET", 1.0, Assurance.VERIFIED, [], [f])
         for ident in family_to_identity.get(f.secret_family or "", []):
-            edge(key, _idn(ident), "AUTHENTICATES_AS", f.credential_p, [f.index])
+            # a family match: nothing links this key to the identity (ADR-0017)
+            ev = declared(identity=ident, credentials=f.secret_family)
+            edge(
+                key,
+                _idn(ident),
+                "AUTHENTICATES_AS",
+                f.credential_p,
+                Assurance.HYPOTHESIS,
+                [ev],
+                [f],
+            )
         if f.public_secret:
             sources.append(key)
 
@@ -364,6 +472,8 @@ def _search(g: nx.DiGraph[str], out: AttackAnalysis, sinks: dict[str, float]) ->
             continue
     out.paths.sort(key=lambda p: (-p.score, p.sink, p.rank))
     for path in out.paths:
+        if path.assurance is Assurance.HYPOTHESIS:
+            continue  # a path to verify: listed, but it never raises a score (ADR-0017)
         for e in path.edges:
             if e["kind"] not in ATTACK_EDGES or not e["p"]:
                 continue
@@ -399,6 +509,7 @@ def _path(
                 "kind": data["kind"],
                 "p": round(data["p"], 5),
                 "findings": list(data["findings"]),
+                "assurance": data["assurance"].value,
             }
         )
         if data["kind"] in ATTACK_EDGES:
@@ -415,4 +526,5 @@ def _path(
         sink_impact=impact,
         score=round(100 * probability * impact, 2),
         findings=sorted(set(findings)),
+        assurance=min_assurance(g.edges[a, b]["assurance"] for a, b in hops),
     )

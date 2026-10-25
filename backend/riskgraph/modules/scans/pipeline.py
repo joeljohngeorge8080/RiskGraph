@@ -35,6 +35,8 @@ from riskgraph.modules.context import (
     persist_assets,
     refresh_intel,
 )
+from riskgraph.modules.evidence import Evidence, link_finding, persist_evidence
+from riskgraph.modules.evidence import clear as clear_evidence
 from riskgraph.modules.findings import apply_history, clear_scan, persist_merged
 from riskgraph.modules.graph import GraphFinding
 from riskgraph.modules.graph import analyze as attack_analysis
@@ -75,6 +77,7 @@ from riskgraph.modules.scanners.syft.parser import Component
 from riskgraph.modules.scanners.syft.parser import components as syft_components
 from riskgraph.modules.scans import repo
 from riskgraph.modules.scans.clone import CloneError, Cloner, GitCloner
+from riskgraph.modules.scans.finding_evidence import finding_evidence
 from riskgraph.modules.scans.models import ScanJob, ScannerRun
 from riskgraph.modules.scans.state import final_status
 from riskgraph.modules.scans.storage import (
@@ -597,6 +600,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
         repo_id, repo_name, ref = repository.id, repository.full_name, scan.requested_ref
         runs = repo.runs_for(s, scan_id)
         run_ids = {r.scanner.value: r.id for r in runs}
+        versions = {r.scanner.value: r.scanner_version for r in runs}
         succeeded = [r.scanner for r in runs if r.status is RunStatus.SUCCEEDED and r.output_path]
 
     try:
@@ -647,6 +651,12 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
             )
             scored.append(_Scored(m, context, verdict, inp, score(inp)))
 
+        # Each finding's own evidence (ADR-0017): edges built from a finding rest on it.
+        now = _now()
+        evidence: list[list[Evidence]] = [
+            finding_evidence(x.merged, x.verdict, run_ids, versions, now) for x in scored
+        ]
+
         # Attack paths, then pass 2: effective impact for findings on paths (§14.4).
         analysis = attack_analysis(
             manifest.manifest,
@@ -661,14 +671,16 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                     credential_p=(x.result.factor("E").value if x.result.factor("E") else 0.0),  # type: ignore[union-attr]
                     public_secret=x.merged.source_type is SourceType.SECRET,
                     title=_graph_label(x.merged),
+                    evidence=tuple(e.id for e in evidence[i]),
                 )
                 for i, x in enumerate(scored)
             ],
+            manifest_file=manifest.file or "riskgraph.yaml",
+            observed_at=now,
         )
         for i, effective in analysis.effective.items():
             scored[i].result = rescore(scored[i].score_input, effective)
 
-        now = _now()
         by_priority: dict[str, int] = {}
         by_source: dict[str, int] = {}
         by_scanner: dict[str, int] = {}
@@ -678,6 +690,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
         with session_scope() as s:
             clear_scan(s, scan_id)
             clear_graph(s, scan_id)
+            clear_evidence(s, scan_id)
             clear_reachability(s, scan_id)
             finding_ids: dict[int, uuid.UUID] = {}
             for i, x in enumerate(scored):
@@ -686,6 +699,8 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                     s, repository_id=repo_id, scan_id=scan_id, run_ids=run_ids, merged=m, now=now
                 )
                 finding_ids[i] = finding_id
+                persist_evidence(s, scan_id, evidence[i])
+                link_finding(s, scan_id, finding_id, [e.id for e in evidence[i]])
                 persist_score(s, scan_id, finding_id, result)
                 if x.verdict.tier is not ReachabilityTier.NOT_APPLICABLE:
                     persist_verdict(s, scan_id, finding_id, x.verdict)

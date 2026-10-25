@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from riskgraph.modules.evidence import evidence_for_edges
 from riskgraph.modules.findings.router import path_out, require_scan
 from riskgraph.modules.findings.schemas import AttackPathOut
 from riskgraph.modules.graph import service
@@ -32,6 +33,8 @@ class GraphEdgeOut(BaseModel):
     kind: str
     probability: float | None
     finding_ids: list[str]
+    assurance: str  # ADR-0017: verified | inferred | hypothesis
+    evidence_ids: list[str]  # empty only for edges stored before X1
 
 
 class ReachNodeOut(GraphNodeOut):
@@ -60,14 +63,20 @@ def attack_paths(scan_id: uuid.UUID, session: SessionDep) -> list[AttackPathOut]
     return [path_out(p, findings.get(p.id, [])) for p in paths]
 
 
-def _edge_out(e: Any) -> GraphEdgeOut:
-    return GraphEdgeOut(
-        source=e.source,
-        target=e.target,
-        kind=e.kind,
-        probability=float(e.probability) if e.probability is not None else None,
-        finding_ids=list(e.evidence.get("findings", [])),
-    )
+def _edges_out(session: Session, edges: list[Any]) -> list[GraphEdgeOut]:
+    evidence = evidence_for_edges(session, [e.id for e in edges])
+    return [
+        GraphEdgeOut(
+            source=e.source,
+            target=e.target,
+            kind=e.kind,
+            probability=float(e.probability) if e.probability is not None else None,
+            finding_ids=list(e.evidence.get("findings", [])),
+            assurance=e.assurance,
+            evidence_ids=evidence.get(e.id, []),
+        )
+        for e in edges
+    ]
 
 
 @router.get("/scans/{scan_id}/graph/reach", response_model=ReachOut)
@@ -98,7 +107,7 @@ def graph_reach(
             )
             for n in found["nodes"]
         ],
-        edges=[_edge_out(e) for e in found["edges"]],
+        edges=_edges_out(session, list(found["edges"])),
     )
 
 
@@ -111,6 +120,6 @@ def scan_graph(scan_id: uuid.UUID, session: SessionDep) -> GraphOut:
             GraphNodeOut(key=n.key, kind=n.kind, label=n.label, properties=n.properties)
             for n in g["nodes"]
         ],
-        edges=[_edge_out(e) for e in g["edges"]],
+        edges=_edges_out(session, list(g["edges"])),
         truncated=g["truncated"],
     )

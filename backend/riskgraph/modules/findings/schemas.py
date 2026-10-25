@@ -119,6 +119,7 @@ class FindingDetailOut(BaseModel):
     reachability: ReachabilityOut | None
     attack_paths: list[AttackPathOut]
     history: list[AuditOut]
+    evidence: list[EvidenceOut] = []
 
 
 class ReachabilityOut(BaseModel):
@@ -140,6 +141,26 @@ class AttackPathOut(BaseModel):
     sink_impact: float
     score: float
     finding_ids: list[uuid.UUID]
+    # ADR-0017: the weakest edge's assurance; None for paths stored before X1. Only paths
+    # of at least "inferred" raise a finding's effective impact.
+    assurance: str | None = None
+
+
+class EvidenceOut(BaseModel):
+    """One piece of evidence (ADR-0017). ``facts`` are small and display-safe."""
+
+    id: str
+    producer: str
+    kind: str
+    assurance: str
+    confidence: str
+    locations: list[dict[str, Any]]
+    facts: dict[str, Any]
+    steps: list[dict[str, Any]]
+    raw_run_id: uuid.UUID | None  # the scanner run whose stored report holds it
+    raw_pointer: str | None  # RFC 6901 pointer into that report; "" is the whole report
+    observed_at: dt.datetime
+    data_as_of: dt.datetime | None
 
 
 class AuditOut(BaseModel):
