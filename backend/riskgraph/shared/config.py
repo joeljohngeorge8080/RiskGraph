@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     nvd_refresh_limit: int = 200
     timeout_syft_s: int = 300
     timeout_trivy_db_s: int = 900
+    # Images the repository names (X2, ADR-0018): public registries only, never fatal.
+    image_scan_max_refs: int = 5
+    image_scan_max_bytes: int = 2 * 1024 * 1024 * 1024
+    timeout_trivy_image_s: int = 300
 
     # --- scanner containers (P3, ADR-0014) --------------------------------------------
     # "subprocess" is the MVP runner (host tools, dev only); "docker" runs every scanner
