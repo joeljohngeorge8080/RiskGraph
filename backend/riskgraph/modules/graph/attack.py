@@ -331,18 +331,28 @@ def to_networkx(nodes: Iterable[_NodeRow], edges: Iterable[_EdgeRow]) -> nx.DiGr
 
 
 def _search(g: nx.DiGraph[str], out: AttackAnalysis, sinks: dict[str, float]) -> None:
+    # Hop pre-filter (blueprint §13.2: BFS kept as the reachable-set computation). A path
+    # of at most MAX_HOPS edges (plus the virtual edge) only visits nodes whose hop
+    # distance from the source plus to the sink fits the budget, so pruning the others is
+    # exact. Without it, Yen enumerates long candidates only to drop them afterwards.
+    budget = MAX_HOPS + 1
+    from_source = nx.single_source_shortest_path_length(g, _VIRTUAL, cutoff=budget)
+    reverse = g.reverse(copy=False)
     for sink, impact in sorted(sinks.items()):
-        if sink not in g or not nx.has_path(g, _VIRTUAL, sink):
-            continue
+        if sink not in from_source:
+            continue  # no path within the hop limit
+        to_sink = nx.single_source_shortest_path_length(reverse, sink, cutoff=budget)
+        keep = [n for n, d in to_sink.items() if n in from_source and from_source[n] + d <= budget]
+        bounded = g.subgraph(keep)
         rank = 0
         try:
-            candidates = nx.shortest_simple_paths(g, _VIRTUAL, sink, weight="w")
+            candidates = nx.shortest_simple_paths(bounded, _VIRTUAL, sink, weight="w")
             for raw in islice(candidates, MAX_CANDIDATES):
                 nodes = raw[1:]
                 if len(nodes) - 1 > MAX_HOPS or len(nodes) < 2:
                     continue
                 hops = list(pairwise(nodes))
-                kinds = [g.edges[a, b]["kind"] for a, b in hops]
+                kinds = [bounded.edges[a, b]["kind"] for a, b in hops]
                 if not ATTACK_EDGES & set(kinds):
                     out.exposed_by_design += 1
                     continue
