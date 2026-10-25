@@ -130,8 +130,9 @@ X0 evaluation re-run     → same 59 findings; only C's AWS key differs from BAS
 ```
 
 ## Part 2 (next): image scanning
-- A new stage after the scanner chord: for each allowed reference (at most 5), run `trivy image` and `syft` in the egress container profile, with the size cap and per-reference caching. Warnings on failure.
-- Parse into `sca` findings marked with the image; reachability not assessable; image SBOM components.
+- Input recorded 2026-10-25 (`backend/tests/fixtures/images/`, `record.py`): `trivy image --list-all-pkgs` for `python:3.8-slim` and `node:14` in the hardened egress profile. Syft is not used for images (ADR-0018 amendment).
+- A new stage after the scanner chord: for each allowed reference (at most 5), run `trivy image` in the egress container profile, with the size cap and per-reference caching. Warnings on failure.
+- Parse into `sca` findings marked with the image; reachability not assessable; image packages into the SBOM; `EOSL` base OS becomes an EOL finding.
 - Exit criteria 2–4: a recorded `trivy image` fixture, and overhead measured with a warm cache.
 
 ## Q. Known limits (part 1)
