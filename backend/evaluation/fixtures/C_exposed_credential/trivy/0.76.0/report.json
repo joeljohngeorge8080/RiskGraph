@@ -1,0 +1,27 @@
+{
+ "ArtifactName": ".",
+ "ArtifactType": "filesystem",
+ "CreatedAt": "2026-10-25T05:20:03.001356369Z",
+ "ReportID": "01a17180-67b9-7565-8c92-a0ff6636dafd",
+ "Results": [
+  {
+   "Class": "secret",
+   "Secrets": [
+    {
+     "Category": "AWS",
+     "EndLine": 2,
+     "Offset": 54,
+     "RuleID": "aws-access-key-id",
+     "Severity": "CRITICAL",
+     "StartLine": 2,
+     "Title": "AWS Access Key ID"
+    }
+   ],
+   "Target": "web/dist/bundle.js"
+  }
+ ],
+ "SchemaVersion": 2,
+ "Trivy": {
+  "Version": "0.76.0"
+ }
+}

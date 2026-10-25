@@ -1,4 +1,4 @@
-# HANDOFF: resume here (updated 2026-10-25, session 7: P7-P12 done; expansion X0 next)
+# HANDOFF: resume here (updated 2026-10-25, session 7: P7-P12 done; X0 in progress, see todo1150.md)
 
 ## Session 7 (2026-10-25, local)
 - **Branch** `mvp-level2-integration`, all committed locally. **Not pushed** (owner approved local commits per phase only). PR #2 untouched.
@@ -16,6 +16,9 @@
   - Containers reach the host's Ollama only if it listens on a reachable address (`OLLAMA_HOST=172.17.0.1`).
   - P2 auth is still missing.
 - **New commands:** `make test-llm` (real local model). `make test-db` now excludes `llm`.
+- **In progress: expansion X0, part 1 committed** (baseline dataset and metrics). Exact state and next steps: **`todo1150.md`**.
+  - Files so far: `backend/evaluation/{__init__,scenarios,record}.py` and a refactor of `backend/tests/fixtures/scanners/record.py` (`record_repo`, `clean_tmp`).
+  - All five scenarios recorded (fixtures and intel snapshot committed). Next: label check, `run.py`, metrics, baselines.
 
 ---
 ## Session 6 (2026-10-23, local): containers, SBOM, NVD, L3 — UNCOMMITTED

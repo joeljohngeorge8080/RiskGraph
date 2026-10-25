@@ -61,6 +61,7 @@ ignore = ["S104"]  # binding 0.0.0.0 is intentional inside containers
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106"]
 "alembic/**" = ["E501"]
+"evaluation/scenarios.py" = ["E501"]  # manifest templates are YAML text
 
 [tool.mypy]
 python_version = "3.12"

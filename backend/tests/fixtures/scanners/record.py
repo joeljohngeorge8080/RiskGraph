@@ -14,6 +14,7 @@ import json
 import os
 import shutil
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -111,12 +112,25 @@ def _make_removable_later(settings: Settings, tmp: Path) -> None:
     make_removable(runner, str(tmp), scanner_image("checkov", "3.3.30"), tmp / "fixup-logs")
 
 
-def _record(settings: Settings, tmp: Path) -> None:
+def record_repo(
+    settings: Settings,
+    tmp: Path,
+    build: Callable[[Path], Path],
+    secrets: set[str],
+    target: Callable[[ScannerName, str], Path],
+    *,
+    trim_trivy: bool,
+) -> dict[ScannerName, Path]:
+    """Scan the repository ``build`` writes with every scanner; store redacted reports.
+
+    ``secrets`` are the repository's fake credentials, scrubbed on top of the production
+    redaction; ``target(scanner, version)`` names each report file.
+    """
     runner = _recording_runner(settings, tmp)
     if isinstance(runner, DockerRunner):
         refresh = refresh_trivy_db(runner, settings, tmp / "logs" / "db")
         assert refresh.exit_code == 0, refresh
-    src = kitchen_sink.build(tmp / "src")
+    src = build(tmp / "src")
     docs: dict[ScannerName, Any] = {}
     versions: dict[ScannerName, str] = {}
     for name, scanner in SCANNERS.items():
@@ -141,22 +155,44 @@ def _record(settings: Settings, tmp: Path) -> None:
         docs[name] = json.loads((paths.out / scanner.output_name).read_text())
         versions[name] = _version(runner, scanner, tmp, dict(cmd.env), fields)
 
+    found_secrets = set(secrets)
+    for name in REDACTION_ORDER:
+        docs[name], found = SCANNERS[name].redact(docs[name], TEST_KEY)
+        found_secrets |= found
+    written: dict[ScannerName, Path] = {}
+    for name, doc in docs.items():
+        doc = scrub(doc, found_secrets)
+        if name is ScannerName.TRIVY and trim_trivy:
+            doc = _trim_trivy(doc)
+        path = target(name, versions[name])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(doc, indent=1, sort_keys=True) + "\n")
+        written[name] = path
+    return written
+
+
+def _record(settings: Settings, tmp: Path) -> None:
     secrets: set[str] = {
         kitchen_sink.FAKE_AWS_KEY_ID,
         kitchen_sink.FAKE_AWS_SECRET,
         *kitchen_sink.FILES["deploy/id_rsa"].splitlines()[1:-1],
     }
-    for name in REDACTION_ORDER:
-        docs[name], found = SCANNERS[name].redact(docs[name], TEST_KEY)
-        secrets |= found
-    for name, doc in docs.items():
-        doc = scrub(doc, secrets)
-        if name is ScannerName.TRIVY:
-            doc = _trim_trivy(doc)
-        target = HERE / name.value / versions[name] / "kitchen_sink.json"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps(doc, indent=1, sort_keys=True) + "\n")
-        print(f"wrote {target.relative_to(HERE)}")  # noqa: T201 - CLI script output
+    written = record_repo(
+        settings,
+        tmp,
+        kitchen_sink.build,
+        secrets,
+        lambda name, version: HERE / name.value / version / "kitchen_sink.json",
+        trim_trivy=True,
+    )
+    for path in written.values():
+        print(f"wrote {path.relative_to(HERE)}")  # noqa: T201 - CLI script output
+
+
+def clean_tmp(settings: Settings, tmp: Path) -> None:
+    # Scanner containers wrote files as nobody: widen them before deleting the tree.
+    _make_removable_later(settings, tmp)
+    shutil.rmtree(tmp, ignore_errors=True)
 
 
 def main() -> None:
@@ -166,9 +202,7 @@ def main() -> None:
     try:
         _record(settings, tmp)
     finally:
-        # Scanner containers wrote files as nobody: widen them before deleting the tree.
-        _make_removable_later(settings, tmp)
-        shutil.rmtree(tmp, ignore_errors=True)
+        clean_tmp(settings, tmp)
 
 
 if __name__ == "__main__":
