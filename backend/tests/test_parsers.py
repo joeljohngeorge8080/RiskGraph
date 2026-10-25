@@ -5,7 +5,7 @@ import copy
 from riskgraph.modules.normalization.paths import INVALID_PATH, normalize_path
 from riskgraph.modules.scanners import SCANNERS, ParseContext
 from riskgraph.modules.scanners.checkov import parser as checkov_parser
-from riskgraph.modules.scanners.semgrep.parser import clean_rule_id
+from riskgraph.modules.scanners.semgrep.parser import clean_rule_id, semgrep_secret_family
 from riskgraph.shared.vocabulary import ScannerName, Severity, SourceType
 
 from tests.scanner_fixtures import REPO, load
@@ -45,6 +45,22 @@ def test_semgrep_rule_ids_and_categories() -> None:
     assert docker and docker[0].attrs["iac_topic"] == "dockerfile-root-user"
     assert clean_rule_id("root..opt.scanners.semgrep-rules.python.x.y") == "python.x.y"
     assert clean_rule_id("python.x.y") == "python.x.y"
+
+
+def test_semgrep_secret_rules_are_secrets_not_sast() -> None:
+    found = SCANNERS[ScannerName.SEMGREP].parse(load(ScannerName.SEMGREP), CTX)
+    keys = [f for f in found if f.rule_id.startswith("generic.secrets.")]
+    families = {f.rule_id.rsplit(".", 1)[-1]: f.attrs["secret_family"] for f in keys}
+    assert families == {
+        "detected-private-key": "private_key",
+        "detected-aws-access-key-id-value": "aws",
+    }
+    for f in keys:
+        assert f.source_type is SourceType.SECRET
+        assert f.category == "secrets_exposure"
+        # a regex match is not format validation: never claimed live from Semgrep alone
+        assert f.attrs["live_credential"] is False
+    assert semgrep_secret_family("generic.secrets.security.detected-generic-api-key") == "generic"
 
 
 def test_checkov_shapes_and_resources() -> None:

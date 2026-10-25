@@ -60,13 +60,17 @@ class Path3:
     chain: tuple[tuple[str, str], ...]  # (file, function) from entry to the call
 
 
-def find_l3(graph: ModuleGraph, symbols: frozenset[str], scope: str) -> Path3 | None:
-    """Breadth-first from every entry point to the first call of a symbol under ``scope``."""
+Node = tuple[str, str]  # (file, function name or MODULE)
+
+
+def _resolve(
+    graph: ModuleGraph, symbols: frozenset[str], scope: str
+) -> tuple[dict[Node, str], dict[Node, set[Node]], list[Node]]:
+    """Sink calls, resolved call edges and entry nodes of the Python call graph."""
     py = {f: info for f, info in graph.files.items() if info.get("lang") == "python"}
     index = _python_module_index(set(py))  # module name -> file
-    # every function node, with its resolved call edges and direct sink calls
-    sinks: dict[tuple[str, str], str] = {}
-    edges: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    sinks: dict[Node, str] = {}
+    edges: dict[Node, set[Node]] = {}
     for f, info in py.items():
         calls = info.get("calls") or {}
         aliases = calls.get("aliases") or {}
@@ -99,21 +103,64 @@ def find_l3(graph: ModuleGraph, symbols: frozenset[str], scope: str) -> Path3 | 
         for name, data in ((py[f].get("calls") or {}).get("functions") or {}).items()
         if (data or {}).get("entry")
     ]
-    seen: dict[tuple[str, str], tuple[str, str] | None] = {}
-    queue: deque[tuple[str, str]] = deque()
+    return sinks, edges, starts
+
+
+def _bfs(
+    edges: dict[Node, set[Node]], starts: list[Node], stop: dict[Node, str] | None = None
+) -> tuple[dict[Node, Node | None], Node | None]:
+    """Breadth-first parents from the entry nodes; stops at the first node in ``stop``."""
+    seen: dict[Node, Node | None] = {}
+    queue: deque[Node] = deque()
     for s in starts:
         if s not in seen:
             seen[s] = None
             queue.append(s)
     while queue and len(seen) < MAX_NODES:
         node = queue.popleft()
-        if node in sinks:
-            chain = [node]
-            while seen[chain[-1]] is not None:
-                chain.append(seen[chain[-1]])  # type: ignore[arg-type]
-            return Path3(sinks[node], node[0], node[1], tuple(reversed(chain)))
+        if stop is not None and node in stop:
+            return seen, node
         for nxt in sorted(edges.get(node, ())):
             if nxt not in seen:
                 seen[nxt] = node
                 queue.append(nxt)
-    return None
+    return seen, None
+
+
+def chain_to(parents: dict[Node, Node | None], node: Node) -> tuple[Node, ...]:
+    chain = [node]
+    while (parent := parents[chain[-1]]) is not None:
+        chain.append(parent)
+    return tuple(reversed(chain))
+
+
+def find_l3(graph: ModuleGraph, symbols: frozenset[str], scope: str) -> Path3 | None:
+    """Breadth-first from every entry point to the first call of a symbol under ``scope``."""
+    sinks, edges, starts = _resolve(graph, symbols, scope)
+    seen, hit = _bfs(edges, starts, sinks)
+    if hit is None:
+        return None
+    return Path3(sinks[hit], hit[0], hit[1], chain_to(seen, hit))
+
+
+def reachable_functions(graph: ModuleGraph) -> dict[Node, Node | None]:
+    """Every (file, function) a resolved call path from an entry point reaches, with parents."""
+    _, edges, starts = _resolve(graph, frozenset(), "")
+    seen, _ = _bfs(edges, starts)
+    return seen
+
+
+def enclosing_function(graph: ModuleGraph, file: str, line: int) -> str | None:
+    """The innermost Python function whose span holds ``line``; MODULE outside every function.
+
+    ``None`` when the file has no call data (not Python, or not parsed): no claim is made.
+    """
+    calls = (graph.files.get(file) or {}).get("calls")
+    if not isinstance(calls, dict):
+        return None
+    best: tuple[int, str] | None = None
+    for name, data in (calls.get("functions") or {}).items():
+        for start, end in (data or {}).get("spans") or []:
+            if start <= line <= end and (best is None or end - start < best[0]):
+                best = (end - start, name)
+    return best[1] if best else MODULE

@@ -26,8 +26,9 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-ANALYZER_VERSION = "ts-imports.2"
+ANALYZER_VERSION = "ts-imports.3"
 MAX_FILE_BYTES = 2 * 1024 * 1024
+MAX_SPANS_PER_NAME = 8  # a name defined in several classes keeps a few spans
 MAX_FILES = 50_000
 MAX_IMPORTS_PER_FILE = 2_000
 SKIP_DIRS = frozenset(
@@ -223,8 +224,11 @@ def _python_calls(tree: Any) -> dict[str, Any]:
         elif node.type == "function_definition":
             name = _text(node.child_by_field_name("name"))
             if len(functions) < MAX_FUNCTIONS_PER_FILE:
-                functions.setdefault(name, {"entry": False})
+                info = functions.setdefault(name, {"entry": False, "spans": []})
                 calls_by_owner.setdefault(name, [])
+                if len(info["spans"]) < MAX_SPANS_PER_NAME:
+                    # 1-based lines, so a scanner's line number maps to its enclosing function
+                    info["spans"].append([node.start_point[0] + 1, node.end_point[0] + 1])
             parent = node.parent
             if parent is not None and parent.type == "decorated_definition":
                 for dec in parent.named_children:
@@ -245,6 +249,7 @@ def _python_calls(tree: Any) -> dict[str, Any]:
         name: {
             "entry": info["entry"],
             "calls": calls_by_owner.get(name, [])[:MAX_CALLS_PER_FUNCTION],
+            "spans": info["spans"],
         }
         for name, info in functions.items()
     }

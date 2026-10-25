@@ -137,6 +137,15 @@ function DrawerBody({ d }: { d: FindingDetail }) {
                 <dd className="mono">{d.reachability.evidence.importers.join(", ")}</dd>
               </>
             )}
+            {d.reachability.evidence.function && (
+              <>
+                <dt>{d.reachability.evidence.symbol ? "Called in" : "In function"}</dt>
+                <dd className="mono">
+                  {d.reachability.evidence.function}
+                  {d.reachability.evidence.symbol && <> → {d.reachability.evidence.symbol}</>}
+                </dd>
+              </>
+            )}
             {d.reachability.evidence.chain && (
               <>
                 <dt>From entry point</dt>

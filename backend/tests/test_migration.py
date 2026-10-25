@@ -9,7 +9,9 @@ from tests.conftest import _alembic
 pytestmark = pytest.mark.db
 
 
-def test_migration_round_trip(migrated_db: None) -> None:
+def test_migration_round_trip(db: None) -> None:
+    # Empty tables: the round trip checks the schema. Downgrades that would lose data
+    # (L3 rows, c4f0a7e2d913) refuse on purpose; that is not what this test is about.
     _alembic("downgrade", "base")
     assert "findings" not in inspect(get_engine()).get_table_names()
     _alembic("upgrade", "head")

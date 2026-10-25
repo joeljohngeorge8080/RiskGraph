@@ -33,8 +33,9 @@ def test_kitchen_sink_merges_across_scanners() -> None:
     secrets = {
         m.attrs.get("secret_family"): m for m in merged if m.source_type is SourceType.SECRET
     }
-    assert secrets["aws"].detected_by == ("gitleaks", "trivy")
-    assert secrets["private_key"].detected_by == ("gitleaks", "trivy")  # ranges 1-15 vs 2-14
+    # Semgrep's generic.secrets rules are secrets too, so all three scanners corroborate
+    assert secrets["aws"].detected_by == ("gitleaks", "semgrep", "trivy")
+    assert secrets["private_key"].detected_by == ("gitleaks", "semgrep", "trivy")  # 1-15 vs 2-14
     assert secrets["aws"].representative.scanner is ScannerName.GITLEAKS
     assert secrets["aws"].attrs["live_credential"] is True
     # the pinned semgrep image flags this line with three CWE-78 rules: one finding.

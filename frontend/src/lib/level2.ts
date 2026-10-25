@@ -12,6 +12,7 @@ export const STATUS_LABEL: Record<FindingStatus, string> = {
 export const TRIAGE_OPTIONS: FindingStatus[] = ["open", "false_positive", "accepted_risk", "wont_fix"];
 
 export const REACH_LABEL: Record<ReachabilityTier, string> = {
+  L3: "called from an entry point",
   L2: "reachable",
   L1: "imported, unreachable",
   L0: "not imported",
@@ -20,6 +21,7 @@ export const REACH_LABEL: Record<ReachabilityTier, string> = {
 };
 
 export const REACH_TONE: Record<ReachabilityTier, string> = {
+  L3: "var(--critical)",
   L2: "var(--high)",
   L1: "var(--medium)",
   L0: "var(--low)",

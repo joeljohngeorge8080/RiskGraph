@@ -8,9 +8,16 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from riskgraph.modules.reachability.callgraph import find_l3, load_symbols
+from riskgraph.modules.reachability.callgraph import (
+    MODULE,
+    enclosing_function,
+    find_l3,
+    load_symbols,
+)
 from riskgraph.modules.reachability.extract import extract
 from riskgraph.modules.reachability.graph import build
+from riskgraph.modules.reachability.tiers import TierClassifier
+from riskgraph.shared.vocabulary import ReachabilityTier, SourceType
 
 YAML_SYMBOLS = frozenset({"yaml.load", "yaml.full_load", "yaml.unsafe_load"})
 
@@ -143,3 +150,65 @@ def test_malformed_symbols_are_refused(tmp_path: Path) -> None:
     bad.write_text("version: 1\nentries:\n  - cve: CVE-1\n    package: x\n    symbols: []\n")
     with pytest.raises(ValueError, match="no symbols"):
         load_symbols(bad)
+
+
+# --- Semgrep findings and their enclosing function (blueprint §10.2, §11.3) -----------
+
+SAST_APP = (
+    ROUTE
+    + "import subprocess\n"  # line 3
+    + "\n"
+    + "@app.route('/run')\n"  # 5
+    + "def run(cmd):\n"  # 6
+    + "    return helper(cmd)\n"  # 7
+    + "\n"
+    + "def helper(cmd):\n"  # 9
+    + "    return subprocess.call(cmd, shell=True)\n"  # 10
+    + "\n"
+    + "def orphan(cmd):\n"  # 12
+    + "    def inner():\n"  # 13
+    + "        return subprocess.call(cmd, shell=True)\n"  # 14
+    + "    return inner\n"  # 15
+)
+
+
+def _classifier(tmp_path: Path, files: dict[str, str]) -> TierClassifier:
+    return TierClassifier(build(extract(_project(tmp_path, files))), {})
+
+
+def test_enclosing_function_is_the_innermost_span(tmp_path: Path) -> None:
+    graph = build(extract(_project(tmp_path, {"app.py": SAST_APP})))
+    assert enclosing_function(graph, "app.py", 10) == "helper"
+    assert enclosing_function(graph, "app.py", 14) == "inner"  # nested beats outer
+    assert enclosing_function(graph, "app.py", 3) == MODULE  # module-level code
+    assert enclosing_function(graph, "missing.py", 3) is None
+
+
+def test_sast_in_a_function_called_from_a_route_is_l3(tmp_path: Path) -> None:
+    v = _classifier(tmp_path, {"app.py": SAST_APP}).classify(
+        SourceType.SAST, "app.py", None, line=10
+    )
+    assert v.tier is ReachabilityTier.L3
+    assert v.evidence["function"] == "helper"
+    assert v.evidence["chain"] == ["app.py:run", "app.py:helper"]
+
+
+def test_sast_in_a_function_nothing_calls_stays_l2(tmp_path: Path) -> None:
+    # the file is reachable, but no resolved call reaches orphan/inner: under-claim
+    v = _classifier(tmp_path, {"app.py": SAST_APP}).classify(
+        SourceType.SAST, "app.py", None, line=14
+    )
+    assert v.tier is ReachabilityTier.L2 and v.evidence["function"] == "inner"
+
+
+def test_sast_without_a_line_keeps_file_level_reachability(tmp_path: Path) -> None:
+    v = _classifier(tmp_path, {"app.py": SAST_APP}).classify(SourceType.SAST, "app.py", None)
+    assert v.tier is ReachabilityTier.L2 and "function" not in v.evidence
+
+
+def test_sast_in_javascript_is_never_l3(tmp_path: Path) -> None:
+    js = "const express = require('express');\nconst app = express();\napp.get('/', h);\n"
+    v = _classifier(tmp_path, {"server.js": js}).classify(
+        SourceType.SAST, "server.js", None, line=3
+    )
+    assert v.tier is not ReachabilityTier.L3  # the call graph is Python only (ADR-0015)
