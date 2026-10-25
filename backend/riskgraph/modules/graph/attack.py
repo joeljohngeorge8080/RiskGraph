@@ -16,14 +16,21 @@ virtual source attached to ``internet`` and to every public credential, per sink
 data stores with sensitivity ≥ confidential, identities with privilege ≥ elevated, and
 services declared critical. Paths have at most MAX_HOPS edges and contain at least one
 EXPLOIT or AUTHENTICATES_AS edge (pure control paths are architecture, not attacks).
+
+Invariants (blueprint §12), checked before anything is returned: ``internet`` has no
+in-edges; every service has exactly one RUNS_AS (a synthetic ``unknown-identity`` when the
+manifest names none); every credential has exactly one CONTAINS_SECRET in-edge (from the
+``repository`` node when the secret is outside every service); every edge joins known
+nodes; every attack edge carries finding evidence.
 """
 
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from itertools import islice, pairwise
-from typing import Any
+from typing import Any, Protocol
 
 import networkx as nx
 
@@ -37,10 +44,43 @@ MAX_HOPS = 8
 MAX_CANDIDATES = 50
 MAX_EVIDENCE = 10
 INTERNET = "internet"
+REPOSITORY = "repository"
+UNKNOWN_IDENTITY = "identity:unknown-identity"
 _VIRTUAL = "@source"
 ATTACK_EDGES = frozenset({"EXPLOIT", "AUTHENTICATES_AS"})
 SINK_SENSITIVITY = frozenset({"confidential", "pii", "financial", "credentials"})
 SINK_PRIVILEGE = frozenset({"elevated", "admin"})
+
+
+class GraphInvariantError(RuntimeError):
+    """The builder produced a graph that breaks a §12 invariant: a bug, never input."""
+
+
+def invariant_violations(
+    nodes: dict[str, dict[str, Any]], edges: list[dict[str, Any]]
+) -> list[str]:
+    out: list[str] = []
+    runs_as: dict[str, int] = {}
+    contains: dict[str, int] = {}
+    for e in edges:
+        src, dst, kind = e["source"], e["target"], e["kind"]
+        for end in (src, dst):
+            if end not in nodes:
+                out.append(f"{kind} {src} -> {dst}: unknown node {end}")
+        if dst == INTERNET:
+            out.append(f"internet has in-edges ({kind} from {src})")
+        if kind == "RUNS_AS":
+            runs_as[src] = runs_as.get(src, 0) + 1
+        if kind == "CONTAINS_SECRET":
+            contains[dst] = contains.get(dst, 0) + 1
+        if kind in ATTACK_EDGES and not e.get("findings"):
+            out.append(f"{kind} {src} -> {dst} has no evidence")
+    for key, n in nodes.items():
+        if n["kind"] == "service" and runs_as.get(key, 0) != 1:
+            out.append(f"{key} has {runs_as.get(key, 0)} RUNS_AS edges, expected 1")
+        if n["kind"] == "credential" and contains.get(key, 0) != 1:
+            out.append(f"{key} has {contains.get(key, 0)} CONTAINS_SECRET in-edges, expected 1")
+    return out
 
 
 @dataclass(frozen=True, slots=True)
@@ -191,6 +231,17 @@ def analyze(manifest: Manifest | None, findings: list[GraphFinding]) -> AttackAn
                     edge(INTERNET, _svc(s.name), "EXPLOIT", p, ev)
             if s.runs_as:
                 edge(_svc(s.name), _idn(s.runs_as), "RUNS_AS", 1.0)
+            else:
+                if UNKNOWN_IDENTITY not in out.nodes:
+                    # never a sink (no privilege) and never a source: it adds no path
+                    node(
+                        UNKNOWN_IDENTITY,
+                        "identity",
+                        "unknown identity",
+                        privilege=None,
+                        synthetic=True,
+                    )
+                edge(_svc(s.name), UNKNOWN_IDENTITY, "RUNS_AS", 1.0)
             for target in s.connects_to:
                 if any(d.name == target for d in manifest.data_stores):
                     edge(_svc(s.name), _ds(target), "CONNECTS_TO", 1.0)
@@ -224,17 +275,59 @@ def analyze(manifest: Manifest | None, findings: list[GraphFinding]) -> AttackAn
             public=f.public_secret,
             finding=f.index,
         )
-        if f.service:
+        if f.service and _svc(f.service) in out.nodes:
             edge(_svc(f.service), key, "CONTAINS_SECRET", 1.0, [f.index])
+        else:
+            if REPOSITORY not in out.nodes:
+                node(REPOSITORY, "repository", "repository")  # no in-edges: not on any path
+            edge(REPOSITORY, key, "CONTAINS_SECRET", 1.0, [f.index])
         for ident in family_to_identity.get(f.secret_family or "", []):
             edge(key, _idn(ident), "AUTHENTICATES_AS", f.credential_p, [f.index])
         if f.public_secret:
             sources.append(key)
 
+    broken = invariant_violations(out.nodes, out.edges)
+    if broken:
+        raise GraphInvariantError("; ".join(broken[:5]))
     for src in sources:
         g.add_edge(_VIRTUAL, src, kind="VIRTUAL", p=1.0, w=0.0, findings=[])
     _search(g, out, sinks)
     return out
+
+
+class _NodeRow(Protocol):
+    @property
+    def key(self) -> str: ...
+    @property
+    def kind(self) -> str: ...
+
+
+class _EdgeRow(Protocol):
+    @property
+    def source(self) -> str: ...
+    @property
+    def target(self) -> str: ...
+    @property
+    def kind(self) -> str: ...
+    @property
+    def probability(self) -> Any: ...  # Decimal | float | None
+
+
+def to_networkx(nodes: Iterable[_NodeRow], edges: Iterable[_EdgeRow]) -> nx.DiGraph[str]:
+    """Stored graph rows into a weighted DiGraph (the analysis shape: w = -ln p).
+
+    Edges without a probability (EXPOSES, CONNECTS_TO between services) are kept for
+    neighbourhood questions, with ``w`` = inf so no shortest path ever uses them.
+    """
+    g: nx.DiGraph[str] = nx.DiGraph()
+    for n in nodes:
+        g.add_node(n.key, kind=n.kind)
+    for e in edges:
+        p = float(e.probability) if e.probability is not None else 0.0
+        if g.has_edge(e.source, e.target) and g.edges[e.source, e.target]["p"] >= p:
+            continue  # parallel edges: keep the most probable one, as the analysis does
+        g.add_edge(e.source, e.target, kind=e.kind, p=p, w=-math.log(p) if p > 0 else math.inf)
+    return g
 
 
 def _search(g: nx.DiGraph[str], out: AttackAnalysis, sinks: dict[str, float]) -> None:

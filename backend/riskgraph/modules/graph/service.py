@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import uuid
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, literal, select
 from sqlalchemy.orm import Session
 
 from riskgraph.modules.graph.attack import AttackAnalysis
 from riskgraph.modules.graph.models import AttackPath, AttackPathFinding, GraphEdge, GraphNode
 
 MAX_GRAPH_NODES = 2000
+MAX_REACH_DEPTH = 8  # the attack-path hop limit
 
 
 def clear(session: Session, scan_id: uuid.UUID) -> None:
@@ -135,3 +136,60 @@ def load_graph(session: Session, scan_id: uuid.UUID) -> dict[str, Any]:
         if e.source in keys and e.target in keys
     ]
     return {"nodes": nodes, "edges": edges, "truncated": int(total) > len(nodes)}
+
+
+def reach(
+    session: Session,
+    scan_id: uuid.UUID,
+    key: str,
+    direction: Literal["upstream", "downstream"],
+    depth: int,
+) -> dict[str, Any] | None:
+    """Nodes within ``depth`` edges of ``key`` (blueprint §12: "what can reach X").
+
+    One recursive CTE over ``graph_edges``: upstream follows edges backwards (what can
+    reach the node), downstream forwards (what it can reach). UNION removes repeated
+    (key, depth) rows and the depth bound ends cycles. ``None`` when the node is unknown.
+    """
+    origin = session.scalars(
+        select(GraphNode).where(GraphNode.scan_job_id == scan_id, GraphNode.key == key)
+    ).first()
+    if origin is None:
+        return None
+    depth = max(1, min(depth, MAX_REACH_DEPTH))
+    e = GraphEdge
+    walk = select(literal(key).label("key"), literal(0).label("depth")).cte("walk", recursive=True)
+    near, far = (e.target, e.source) if direction == "upstream" else (e.source, e.target)
+    walk = walk.union(
+        select(far, walk.c.depth + 1)
+        .join(walk, near == walk.c.key)
+        .where(e.scan_job_id == scan_id, walk.c.depth < depth)
+    )
+    distances = dict(
+        session.execute(
+            select(walk.c.key, func.min(walk.c.depth))
+            .group_by(walk.c.key)
+            .order_by(func.min(walk.c.depth), walk.c.key)
+            .limit(MAX_GRAPH_NODES)
+        )
+        .tuples()
+        .all()  # a Result has .keys(), so dict() would treat it as a mapping
+    )
+    nodes = list(
+        session.scalars(
+            select(GraphNode)
+            .where(GraphNode.scan_job_id == scan_id, GraphNode.key.in_(distances))
+            .order_by(GraphNode.key)
+        )
+    )
+    # the induced subgraph: every edge between two returned nodes
+    edges = list(
+        session.scalars(
+            select(GraphEdge).where(
+                GraphEdge.scan_job_id == scan_id,
+                GraphEdge.source.in_(distances),
+                GraphEdge.target.in_(distances),
+            )
+        )
+    )
+    return {"origin": origin, "nodes": nodes, "edges": edges, "distances": distances}
