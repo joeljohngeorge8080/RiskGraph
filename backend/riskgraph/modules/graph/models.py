@@ -55,7 +55,7 @@ class AttackPath(UUIDPrimaryKeyMixin, Base):
     sink: Mapped[str] = mapped_column(String(160), nullable=False)
     rank: Mapped[int] = mapped_column(SmallInteger, nullable=False)  # 1..k per sink
     hops: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    nodes: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    nodes: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)  # {key, label}
     edges: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
     probability: Mapped[Decimal] = mapped_column(Numeric(6, 5), nullable=False)
     sink_impact: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)

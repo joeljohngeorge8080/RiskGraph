@@ -303,3 +303,20 @@ export interface RepositorySummary {
 export interface RepositoryDetail extends RepositorySummary {
   history: TrendPoint[];
 }
+
+/** P12: an evidence-grounded explanation. Plain text only; never rendered as HTML. */
+export interface Explanation {
+  finding_id: string;
+  scan_id: string;
+  status: "validated" | "fallback";
+  generator: string;
+  summary: string;
+  reasons: { claim: string; evidence: { id: string; label: string }[] }[];
+  impact: string;
+  remediation_steps: string[];
+  caveats: string;
+  evidence_hash: string;
+  attempts: number;
+  latency_ms: number;
+  created_at: string;
+}

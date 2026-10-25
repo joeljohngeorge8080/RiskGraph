@@ -4,6 +4,7 @@ import type { FindingDetail, RiskFactor } from "@/api/types";
 import { formatDate, formatLocation, formatPercent, SOURCE_LABEL } from "@/lib/format";
 import { pathLabel, REACH_LABEL, REACH_TONE, STATUS_LABEL } from "@/lib/level2";
 import { PriorityBadge, ScoreBar, SeverityText } from "./PriorityBadge";
+import { ExplanationPanel } from "./ExplanationPanel";
 import { TriagePanel } from "./TriagePanel";
 
 const FACTOR_NAME: Record<string, string> = {
@@ -69,12 +70,12 @@ export function FindingDrawer({
       </div>
       {detail.isLoading && <p className="muted">Loading…</p>}
       {detail.isError && <p className="error">{detail.error.message}</p>}
-      {detail.data && <DrawerBody d={detail.data} />}
+      {detail.data && <DrawerBody d={detail.data} scanId={scanId} />}
     </aside>
   );
 }
 
-function DrawerBody({ d }: { d: FindingDetail }) {
+function DrawerBody({ d, scanId }: { d: FindingDetail; scanId: string }) {
   const risk = d.risk;
   const groups: [string, RiskFactor[]][] = risk
     ? [
@@ -94,6 +95,7 @@ function DrawerBody({ d }: { d: FindingDetail }) {
         {d.change && d.change !== "existing" && <span className="badge" style={{ color: "var(--accent)" }}>{d.change}</span>}
       </div>
       <TriagePanel key={`${d.id}-${d.status}`} d={d} />
+      {d.risk && <ExplanationPanel findingId={d.id} scanId={scanId} />}
       {risk && (
         <>
           <ScoreBar score={risk.score} priority={risk.priority} />

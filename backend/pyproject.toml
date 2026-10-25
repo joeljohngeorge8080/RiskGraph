@@ -82,6 +82,7 @@ markers = [
   "security: security regression tests",
   "e2e: full pipeline tests",
   "perf: performance measurements",
+  "llm: calls a real local model (Ollama); skipped when it is unreachable",
 ]
 filterwarnings = ["error::DeprecationWarning:riskgraph.*"]
 
