@@ -18,9 +18,9 @@
     "semantic_hash": "4f44d2f867a63ed33e944d7632dbbc9f"
   },
   "backend/pyproject.toml": {
-    "mtime": 1792905022.3484554,
-    "seen": 1792905213.1780994,
-    "ast_hash": "57ad3f0eb0a7d53dba451feb141fb1be",
+    "mtime": 1792911717.1081662,
+    "seen": 1792912018.7571309,
+    "ast_hash": "8fa49349db251fd88fd42dc9ffe61ff3",
     "semantic_hash": ""
   },
   "backend/riskgraph/__init__.py": {
@@ -306,10 +306,10 @@
     "semantic_hash": "00bbed60009da32cee1de03b0e5ec539"
   },
   "backend/riskgraph/modules/risk/__init__.py": {
-    "mtime": 1792658527.3409107,
-    "seen": 1792660894.3191404,
-    "ast_hash": "35912ffb672a7e00c403151cf39dc339",
-    "semantic_hash": "35912ffb672a7e00c403151cf39dc339"
+    "mtime": 1792911611.8402014,
+    "seen": 1792912018.7571983,
+    "ast_hash": "0801c90db118f9b6a9ec0459bd003e9b",
+    "semantic_hash": ""
   },
   "backend/riskgraph/modules/risk/model.py": {
     "mtime": 1792658527.3409107,
@@ -528,9 +528,9 @@
     "semantic_hash": ""
   },
   "backend/riskgraph/shared/config.py": {
-    "mtime": 1792904639.9358687,
-    "seen": 1792904936.9648502,
-    "ast_hash": "be22234307a80416091a7c8020ce6497",
+    "mtime": 1792912835.3781176,
+    "seen": 1792914020.7589335,
+    "ast_hash": "9aa33b48e0ae2e044a63bda6ffb797cb",
     "semantic_hash": ""
   },
   "backend/riskgraph/shared/db/__init__.py": {
@@ -660,9 +660,9 @@
     "semantic_hash": ""
   },
   "backend/tests/fixtures/scanners/record.py": {
-    "mtime": 1792699274.3516295,
-    "seen": 1792700945.685544,
-    "ast_hash": "545fb06273e28f5e7362f57edb49b022",
+    "mtime": 1792905396.0886517,
+    "seen": 1792905776.7923157,
+    "ast_hash": "e2e19a65afed178cc1b2917b48ce57d1",
     "semantic_hash": ""
   },
   "backend/tests/fixtures/scanners/semgrep/1.182.0/kitchen_sink.json": {
@@ -678,10 +678,10 @@
     "semantic_hash": ""
   },
   "backend/tests/pipeline_support.py": {
-    "mtime": 1792658527.3419108,
-    "seen": 1792660894.3192296,
-    "ast_hash": "e3b7295318caea6fcb2a6e71606a3e04",
-    "semantic_hash": "e3b7295318caea6fcb2a6e71606a3e04"
+    "mtime": 1792911514.5086634,
+    "seen": 1792912018.757275,
+    "ast_hash": "656f271c9949197c5990b0b46e5ab556",
+    "semantic_hash": ""
   },
   "backend/tests/scanner_fixtures.py": {
     "mtime": 1792559081.7916281,
@@ -1038,9 +1038,9 @@
     "semantic_hash": ""
   },
   "HANDOFF.md": {
-    "mtime": 1792902043.2559395,
-    "seen": 1792902045.9211223,
-    "ast_hash": "0136e97666ffc92f33d71232e09ee270",
+    "mtime": 1792913605.67558,
+    "seen": 1792914020.75905,
+    "ast_hash": "f780dd9fd58959b997b2180ef0b2e042",
     "semantic_hash": ""
   },
   "README.md": {
@@ -1056,9 +1056,9 @@
     "semantic_hash": "27642a5bee51b767ec0c0f1aea2a7812"
   },
   "docker-compose.yml": {
-    "mtime": 1792905074.6211545,
-    "seen": 1792905213.1783345,
-    "ast_hash": "96c280b055abe99267c583661f84028e",
+    "mtime": 1792912861.9784157,
+    "seen": 1792914020.7590544,
+    "ast_hash": "94c4bfeddf0b85e5ff6c8c9695e25e12",
     "semantic_hash": ""
   },
   "docs/PROJECT_SPEC.md": {
@@ -1500,9 +1500,9 @@
     "semantic_hash": ""
   },
   "handoff.md": {
-    "mtime": 1792701029.0105925,
-    "seen": 1792901692.660404,
-    "ast_hash": "30150ef66a34ebeaca32f87500b9c526",
+    "mtime": 1792905773.1896727,
+    "seen": 1792905776.7924652,
+    "ast_hash": "dd79785f2cb83ca730ab28b70bba5a3a",
     "semantic_hash": ""
   },
   "docs/proposals/EXPANSION_A-D.md": {
@@ -1584,9 +1584,9 @@
     "semantic_hash": ""
   },
   "backend/riskgraph/modules/explain/adapters.py": {
-    "mtime": 1792904811.0112638,
-    "seen": 1792904936.9647574,
-    "ast_hash": "c38bf90b1d937751dad32eec143c5db3",
+    "mtime": 1792912918.1183867,
+    "seen": 1792914020.758807,
+    "ast_hash": "977d14b8d22ee21b96f93535f35dea30",
     "semantic_hash": ""
   },
   "backend/riskgraph/modules/explain/draft.py": {
@@ -1626,9 +1626,9 @@
     "semantic_hash": ""
   },
   "backend/riskgraph/modules/explain/service.py": {
-    "mtime": 1792904811.0113618,
-    "seen": 1792904936.9647646,
-    "ast_hash": "fbc5ca04b6a6fd9b017d38368eb67d17",
+    "mtime": 1792912835.377942,
+    "seen": 1792914020.7588196,
+    "ast_hash": "a9c8d2bd0c1ab6a13d72109031679917",
     "semantic_hash": ""
   },
   "backend/riskgraph/modules/explain/tasks.py": {
@@ -1650,9 +1650,9 @@
     "semantic_hash": ""
   },
   "backend/tests/test_explain.py": {
-    "mtime": 1792904874.3904192,
-    "seen": 1792904936.9648874,
-    "ast_hash": "6b9a5c021942f605bfca0faf027495bd",
+    "mtime": 1792912916.56509,
+    "seen": 1792914020.7589808,
+    "ast_hash": "317566777d99b2ee37f0bbf84824a836",
     "semantic_hash": ""
   },
   "backend/tests/test_explain_db.py": {
@@ -1674,15 +1674,249 @@
     "semantic_hash": ""
   },
   "docs/adr/0016-ai-explanation.md": {
-    "mtime": 1792905103.2291298,
-    "seen": 1792905213.1783533,
-    "ast_hash": "6359a3bb9cc1202a7ac8cc80a3c49c46",
+    "mtime": 1792913107.008044,
+    "seen": 1792914020.7590733,
+    "ast_hash": "fa6ab1ca8942ca9e4d2d7f0baff23c21",
     "semantic_hash": ""
   },
   "docs/phases/PHASE_12.md": {
-    "mtime": 1792905200.9006379,
-    "seen": 1792905213.1783764,
-    "ast_hash": "3d0de1ed0de6b8f856580103e25e9f7c",
+    "mtime": 1792913107.0078995,
+    "seen": 1792914020.7590973,
+    "ast_hash": "15b45636f191d0b057bfa961a2398261",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/__init__.py": {
+    "mtime": 1792905364.68335,
+    "seen": 1792905776.792125,
+    "ast_hash": "9e5cbdca1f6ebacf0c5e2e3995cdfab2",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/A_high_cvss_unreachable/checkov/3.3.30/report.json": {
+    "mtime": 1792905552.218697,
+    "seen": 1792905776.7921262,
+    "ast_hash": "7a4a1fdfac573a174d9b6c8ec71ab89b",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/A_high_cvss_unreachable/gitleaks/8.30.1/report.json": {
+    "mtime": 1792905552.2188325,
+    "seen": 1792905776.7921271,
+    "ast_hash": "58e0494c51d30eb3494f7c9198986bb9",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/A_high_cvss_unreachable/semgrep/1.182.0/report.json": {
+    "mtime": 1792905552.218516,
+    "seen": 1792905776.7921283,
+    "ast_hash": "d586e185097d4b5f25eacc19bb00cf10",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/A_high_cvss_unreachable/syft/1.54.1/report.json": {
+    "mtime": 1792905552.2191515,
+    "seen": 1792905776.7921293,
+    "ast_hash": "66cb18ea1aaf7a651592d226eefb6e45",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/A_high_cvss_unreachable/trivy/0.76.0/report.json": {
+    "mtime": 1792905552.2181215,
+    "seen": 1792905776.7921302,
+    "ast_hash": "514156c1035cd368949690433a7819c3",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/B_moderate_reachable_exposed/checkov/3.3.30/report.json": {
+    "mtime": 1792905596.4219282,
+    "seen": 1792905776.7921312,
+    "ast_hash": "b4ce12ba13c352a27f4a45f60cde994f",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/B_moderate_reachable_exposed/gitleaks/8.30.1/report.json": {
+    "mtime": 1792905596.4220257,
+    "seen": 1792905776.7921324,
+    "ast_hash": "58e0494c51d30eb3494f7c9198986bb9",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/B_moderate_reachable_exposed/semgrep/1.182.0/report.json": {
+    "mtime": 1792905596.4218035,
+    "seen": 1792905776.792133,
+    "ast_hash": "b5196ea36db2e8a2755ea882ed949a2a",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/B_moderate_reachable_exposed/syft/1.54.1/report.json": {
+    "mtime": 1792905596.4222364,
+    "seen": 1792905776.792134,
+    "ast_hash": "c8bed4891bef7b8d4c2d0ec3e6675ea1",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/B_moderate_reachable_exposed/trivy/0.76.0/report.json": {
+    "mtime": 1792905596.4215553,
+    "seen": 1792905776.7921352,
+    "ast_hash": "1d335852eed876397be818d1532176d0",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/C_exposed_credential/checkov/3.3.30/report.json": {
+    "mtime": 1792905637.6525037,
+    "seen": 1792905776.792136,
+    "ast_hash": "7a4a1fdfac573a174d9b6c8ec71ab89b",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/C_exposed_credential/gitleaks/8.30.1/report.json": {
+    "mtime": 1792905637.652608,
+    "seen": 1792905776.7921371,
+    "ast_hash": "52ec2db4696ff1156a1ba56bf1eda890",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/C_exposed_credential/semgrep/1.182.0/report.json": {
+    "mtime": 1792905637.6524222,
+    "seen": 1792905776.792139,
+    "ast_hash": "3057947b238426c17fe3c43f4310f99c",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/C_exposed_credential/syft/1.54.1/report.json": {
+    "mtime": 1792905637.6527014,
+    "seen": 1792905776.79214,
+    "ast_hash": "53fe3eaaa7b31cdd6e729c816618e126",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/C_exposed_credential/trivy/0.76.0/report.json": {
+    "mtime": 1792905637.652239,
+    "seen": 1792905776.792141,
+    "ast_hash": "c0d93e2d3cd0879590e8bc677945b84f",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/D_internal_limited/checkov/3.3.30/report.json": {
+    "mtime": 1792905674.7358115,
+    "seen": 1792905776.7921422,
+    "ast_hash": "7a4a1fdfac573a174d9b6c8ec71ab89b",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/D_internal_limited/gitleaks/8.30.1/report.json": {
+    "mtime": 1792905674.7359192,
+    "seen": 1792905776.7921429,
+    "ast_hash": "58e0494c51d30eb3494f7c9198986bb9",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/D_internal_limited/semgrep/1.182.0/report.json": {
+    "mtime": 1792905674.7357054,
+    "seen": 1792905776.7921438,
+    "ast_hash": "a53c3732e810e858948dd7a5a07712d6",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/D_internal_limited/syft/1.54.1/report.json": {
+    "mtime": 1792905674.7360458,
+    "seen": 1792905776.792145,
+    "ast_hash": "33b02b5d0f46159f0aae181e78fe375e",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/D_internal_limited/trivy/0.76.0/report.json": {
+    "mtime": 1792905674.7354515,
+    "seen": 1792905776.792146,
+    "ast_hash": "bbb8f93423540353455f88ff4a5dcf24",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/E_attack_path/checkov/3.3.30/report.json": {
+    "mtime": 1792905708.6779232,
+    "seen": 1792905776.7921467,
+    "ast_hash": "7a4a1fdfac573a174d9b6c8ec71ab89b",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/E_attack_path/gitleaks/8.30.1/report.json": {
+    "mtime": 1792905708.6779985,
+    "seen": 1792905776.7921474,
+    "ast_hash": "58e0494c51d30eb3494f7c9198986bb9",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/E_attack_path/semgrep/1.182.0/report.json": {
+    "mtime": 1792905708.6778214,
+    "seen": 1792905776.7921486,
+    "ast_hash": "93ddf1d27d0c39f711633151f3860ab8",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/E_attack_path/syft/1.54.1/report.json": {
+    "mtime": 1792905708.678163,
+    "seen": 1792905776.7921495,
+    "ast_hash": "38f07255494721e6675e839f530383d8",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/E_attack_path/trivy/0.76.0/report.json": {
+    "mtime": 1792905708.677548,
+    "seen": 1792905776.7921505,
+    "ast_hash": "62bd32d56133bf095bb02f0810053177",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/fixtures/intel.json": {
+    "mtime": 1792905710.4498467,
+    "seen": 1792905776.7921512,
+    "ast_hash": "837bcf8bf57b0788989fb3dc9d5bb664",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/record.py": {
+    "mtime": 1792905756.915223,
+    "seen": 1792905776.7921524,
+    "ast_hash": "55c3c143b78cf8f0c58e4edc921b3ef7",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/scenarios.py": {
+    "mtime": 1792905734.9698842,
+    "seen": 1792905776.7921534,
+    "ast_hash": "99cd41a31db6648c421b8d4170e64edc",
+    "semantic_hash": ""
+  },
+  "todo1150.md": {
+    "mtime": 1792913605.6808462,
+    "seen": 1792914020.7591064,
+    "ast_hash": "ab78c92a4d5427f10e4c6eb4e7d58cd2",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/baselines.py": {
+    "mtime": 1792911656.5302923,
+    "seen": 1792912018.7570946,
+    "ast_hash": "1ff8f63c9fa669b1cc0373ad655e8b32",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/metrics.py": {
+    "mtime": 1792911656.5593152,
+    "seen": 1792912018.7571251,
+    "ast_hash": "0dc76857995b4b7c1f1560251fec74ce",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/report.py": {
+    "mtime": 1792911856.99941,
+    "seen": 1792912018.7571278,
+    "ast_hash": "ee15cc9d1f8f6b0db638ae967bd51535",
+    "semantic_hash": ""
+  },
+  "backend/evaluation/run.py": {
+    "mtime": 1792911757.2111568,
+    "seen": 1792912018.7571287,
+    "ast_hash": "40c309cc7594992a26c65735534ec34f",
+    "semantic_hash": ""
+  },
+  "backend/tests/test_evaluation.py": {
+    "mtime": 1792911784.1242847,
+    "seen": 1792912018.7572873,
+    "ast_hash": "74c18ad5a2105c3303432baf5c3fc1a1",
+    "semantic_hash": ""
+  },
+  "backend/tests/test_evaluation_db.py": {
+    "mtime": 1792911784.6242924,
+    "seen": 1792912018.7572882,
+    "ast_hash": "40a1fa6190fd759d96cbb367ce6675c1",
+    "semantic_hash": ""
+  },
+  "docs/evaluation/BASELINE.md": {
+    "mtime": 1792911868.4528224,
+    "seen": 1792912018.7573833,
+    "ast_hash": "4a4a6fcbe87eaf20313a01fcabe4068d",
+    "semantic_hash": ""
+  },
+  "docs/phases/PHASE_X0.md": {
+    "mtime": 1792911992.1054962,
+    "seen": 1792912018.7573998,
+    "ast_hash": "c780e52ee21c1f07e5dac736317d502a",
+    "semantic_hash": ""
+  },
+  "infrastructure/scripts/llm.sh": {
+    "mtime": 1792913052.040114,
+    "seen": 1792914020.7590454,
+    "ast_hash": "da8880fec6d6261d782fee83a32a4ab6",
     "semantic_hash": ""
   }
 }
