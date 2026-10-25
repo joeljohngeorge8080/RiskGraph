@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from riskgraph.modules.context import ContextResolver, extract_iac
-from riskgraph.modules.context.iac import MAX_FILE_BYTES
-from riskgraph.modules.context.manifest import ManifestResult
+from riskgraph.modules.context.iac import MAX_FILE_BYTES, kubernetes_context
+from riskgraph.modules.context.manifest import ManifestResult, parse_manifest
 from riskgraph.shared.vocabulary import SourceType
 
 K8S = """
@@ -135,3 +135,141 @@ def test_compose_exposure_reaches_findings_under_its_build_context(tmp_path: Pat
     assert ctx.exposure.label == "internet_noauth" and ctx.exposure.confidence == "low"
     other = resolver.for_finding("backend/app.py", SourceType.SAST)
     assert other.exposure is None  # under-claim: no mapping, no exposure
+
+
+K8S_TOPOLOGY = """
+apiVersion: v1
+kind: Service
+metadata: {name: api-lb}
+spec:
+  type: LoadBalancer
+  selector: {app: api}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: worker-svc}
+spec:
+  selector: {app: worker}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: front-svc}
+spec:
+  selector: {app: front}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: {name: edge}
+spec:
+  rules:
+    - http:
+        paths:
+          - backend: {service: {name: front-svc, port: {number: 80}}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: api-admin}
+roleRef: {kind: ClusterRole, name: cluster-admin}
+subjects: [{kind: ServiceAccount, name: api-sa}]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: worker-read}
+roleRef: {kind: ClusterRole, name: view}
+subjects: [{kind: ServiceAccount, name: worker-sa}, {kind: User, name: api}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: api}
+spec:
+  template:
+    metadata: {labels: {app: api, tier: backend}}
+    spec:
+      serviceAccountName: api-sa
+      containers: [{name: app}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: worker}
+spec:
+  template:
+    metadata: {labels: {app: worker}}
+    spec:
+      serviceAccountName: worker-sa
+      containers: [{name: app}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: front}
+spec:
+  template:
+    metadata: {labels: {app: front}}
+    spec: {containers: [{name: web}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: lonely}
+spec:
+  template:
+    metadata: {labels: {app: lonely}}
+    spec: {containers: [{name: x}]}
+"""
+
+
+def test_kubernetes_topology_joins_services_ingress_and_rbac(tmp_path: Path) -> None:
+    root = _repo(tmp_path, {"k8s/all.yaml": K8S_TOPOLOGY})
+    kube = kubernetes_context(extract_iac(root).assets)
+    assert kube["api"].exposure == "internet"  # LoadBalancer selects app=api
+    assert kube["api"].privilege == "admin"  # api-sa bound to cluster-admin
+    assert kube["api"].evidence["exposed_by"] == ["api-lb"]
+    assert kube["worker"].exposure == "internal"  # only a ClusterIP Service
+    assert kube["worker"].privilege == "elevated"  # a ClusterRoleBinding, not cluster-admin
+    assert kube["front"].exposure == "internet"  # Ingress -> front-svc -> app=front
+    assert kube["front"].privilege is None  # default SA, no binding: unknown, not limited
+    assert kube["lonely"].exposure is None  # nothing selects it: under-claim
+
+
+def test_kubernetes_user_subjects_do_not_grant_a_service_account(tmp_path: Path) -> None:
+    root = _repo(tmp_path, {"k8s/all.yaml": K8S_TOPOLOGY})
+    kube = kubernetes_context(extract_iac(root).assets)
+    # worker-read binds a *User* named "api"; it must not reach the api-sa account
+    assert kube["api"].evidence["bindings"] == ["api-admin"]
+
+
+def test_empty_selector_selects_nothing(tmp_path: Path) -> None:
+    text = (
+        "apiVersion: v1\nkind: Service\nmetadata: {name: s}\nspec: {type: NodePort}\n---\n"
+        "apiVersion: apps/v1\nkind: Deployment\nmetadata: {name: d}\n"
+        "spec: {template: {metadata: {labels: {a: b}}, spec: {containers: []}}}\n"
+    )
+    kube = kubernetes_context(extract_iac(_repo(tmp_path, {"x.yaml": text})).assets)
+    assert kube["d"].exposure is None
+
+
+def test_kubernetes_context_reaches_findings_by_compose_service_name(tmp_path: Path) -> None:
+    compose = "services:\n  api:\n    build: ./api\n  worker:\n    build: ./worker\n"
+    root = _repo(tmp_path, {"k8s/all.yaml": K8S_TOPOLOGY, "docker-compose.yml": compose})
+    resolver = ContextResolver(ManifestResult("absent"), iac=extract_iac(root).assets)
+    api = resolver.for_finding("api/app.py", SourceType.SCA)
+    assert api.exposure is not None and api.exposure.source == "kubernetes"
+    assert api.exposure.label == "internet_noauth" and api.exposure.confidence == "low"
+    assert api.privilege is not None and api.privilege.label == "admin"
+    assert api.privilege.source == "kubernetes"
+    worker = resolver.for_finding("worker/job.py", SourceType.SCA)
+    # Kubernetes outranks Compose: compose says internal (no ports) and so does k8s
+    assert worker.exposure is not None and worker.exposure.source == "kubernetes"
+    assert worker.exposure.label == "internal"
+    assert worker.privilege is not None and worker.privilege.label == "elevated"
+
+
+def test_manifest_outranks_kubernetes(tmp_path: Path) -> None:
+    manifest = parse_manifest(
+        "version: 1\nservices:\n  - name: api\n    path: api/\n    exposure: internal\n"
+    )
+    root = _repo(tmp_path, {"k8s/all.yaml": K8S_TOPOLOGY})
+    resolver = ContextResolver(manifest, iac=extract_iac(root).assets)
+    ctx = resolver.for_finding("api/app.py", SourceType.SCA)
+    assert ctx.exposure is not None and ctx.exposure.source == "manifest"
+    # the manifest says nothing about privilege, so Kubernetes fills it in
+    assert ctx.privilege is not None and ctx.privilege.source == "kubernetes"
+    assert resolver.summary()["kubernetes_workloads"][0]["name"] == "api"

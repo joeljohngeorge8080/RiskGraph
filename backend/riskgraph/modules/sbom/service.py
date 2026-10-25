@@ -10,7 +10,7 @@ import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from riskgraph.modules.findings.models import ScanFinding
@@ -117,3 +117,38 @@ def list_components(session: Session, scan_id: uuid.UUID) -> list[SbomComponent]
             .order_by(SbomComponent.ecosystem, SbomComponent.name, SbomComponent.version)
         )
     )
+
+
+def page_components(
+    session: Session,
+    scan_id: uuid.UUID,
+    *,
+    ecosystem: str | None,
+    name: str | None,
+    limit: int,
+    offset: int,
+) -> tuple[list[tuple[SbomComponent, int]], int]:
+    """One page of the scan's SBOM, each component with its number of attached findings."""
+    where = [SbomComponent.scan_job_id == scan_id]
+    if ecosystem:
+        where.append(SbomComponent.ecosystem == ecosystem)
+    if name:
+        # a prefix match on the indexed column; the value is bound, never interpolated
+        escaped = name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        where.append(SbomComponent.name.like(f"{escaped}%", escape="\\"))
+    total = session.scalar(select(func.count()).select_from(SbomComponent).where(*where)) or 0
+    counts = (
+        select(ScanFinding.component_id, func.count().label("n"))
+        .where(ScanFinding.scan_job_id == scan_id, ScanFinding.component_id.is_not(None))
+        .group_by(ScanFinding.component_id)
+        .subquery()
+    )
+    rows = session.execute(
+        select(SbomComponent, func.coalesce(counts.c.n, 0))
+        .outerjoin(counts, counts.c.component_id == SbomComponent.id)
+        .where(*where)
+        .order_by(SbomComponent.ecosystem, SbomComponent.name, SbomComponent.version)
+        .limit(limit)
+        .offset(offset)
+    ).all()
+    return [(c, int(n)) for c, n in rows], int(total)

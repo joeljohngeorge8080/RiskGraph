@@ -6,6 +6,7 @@ from riskgraph.modules.sbom.service import (
     canonical_purl,
     clear,
     list_components,
+    page_components,
     persist_components,
 )
 
@@ -15,5 +16,6 @@ __all__ = [
     "canonical_purl",
     "clear",
     "list_components",
+    "page_components",
     "persist_components",
 ]
