@@ -1,14 +1,21 @@
-# HANDOFF: resume here (updated 2026-10-25, session 7: P7 finished; expansion A–D proposed)
+# HANDOFF: resume here (updated 2026-10-25, session 7: P7-P12 done; expansion X0 next)
 
 ## Session 7 (2026-10-25, local)
-- **Committed locally (not pushed):** `08d5181`.
-  - P7 finished: Kubernetes Service/Ingress/RBAC joined per workload (`kubernetes_context`); RBAC privilege now scored; precedence manifest > Kubernetes > Compose.
-  - Also: `GET /scans/{id}/sbom`, the db test for the context endpoint, and `test_containers.py` retyped so mypy is clean (it had 23 pre-existing errors under mypy 2.3.1).
-- **Verified:** 247 unit and 42 db tests passed (2 e2e skipped); ruff and mypy clean; frontend lint, typecheck and 8 tests passed.
-- **Paused:** the owner asked for an architecture plan for four new capabilities (A deep code, B authz, C runtime intel, D evidence-backed chaining) before more implementation.
-  - The plan is in `docs/proposals/EXPANSION_A-D.md`, **awaiting approval**.
-  - Its first phase, X0, absorbs the remaining P9–P11 definition-of-done tests and the Semgrep-secret typing bug.
-- **Not started:** P8 UI for L3, P12 AI explanation.
+- **Branch** `mvp-level2-integration`, all committed locally. **Not pushed** (owner approved local commits per phase only). PR #2 untouched.
+- **Phases done, one chapter each (`docs/phases/PHASE_07.md` … `PHASE_12.md`):**
+  - P7 (`08d5181`): Kubernetes Service/Ingress/RBAC per workload; RBAC privilege scored; `GET /scans/{id}/sbom`.
+  - P8 (`bc34f75`): Semgrep findings mapped to the enclosing function (SAST L3 via the call graph). Semgrep `generic.secrets` are now secrets, so the old "secrets show unknown" bug is fixed. L3 in the UI.
+  - P9 (`43c03e3`): graph invariants enforced (unknown-identity, repository node); `GET /scans/{id}/graph/reach` (recursive CTE); `to_networkx`.
+  - P10 (`91d5219`): hop pre-filter. Yen was 11 s with 0 paths at 5k/20k; it is now 0.06 s. Scenario E; a brute-force property test.
+  - P11 (`e9fa0f6`): `GET /risks`, `GET /risks/{id}`; scenarios A–E pinned; monotonicity and reduction properties.
+  - P12 (`943be49`): AI explanations (ADR-0016, migration `e1b7d3a9c2f4`). Live with `qwen3:4b`: validated in 17.7 s; template fallback when the model is unreachable.
+- **Verified at `943be49`:** ruff and mypy clean; 306 unit and 56 db passed (2 e2e skipped: no host scanners); `make test-llm` 2 passed; `alembic check` no drift; frontend lint, typecheck, 10 Vitest tests and build passed.
+- **Expansion plan** `docs/proposals/EXPANSION_A-D.md`: approved by the owner. **Phases only, no timings** (owner's rule). Build X0 → X8 in order; items marked "deferred" stay deferred.
+- **Not done / for the owner:**
+  - Dev DB not migrated to `e1b7d3a9c2f4` (stack not running; `make dev` migrates).
+  - Containers reach the host's Ollama only if it listens on a reachable address (`OLLAMA_HOST=172.17.0.1`).
+  - P2 auth is still missing.
+- **New commands:** `make test-llm` (real local model). `make test-db` now excludes `llm`.
 
 ---
 ## Session 6 (2026-10-23, local): containers, SBOM, NVD, L3 — UNCOMMITTED
