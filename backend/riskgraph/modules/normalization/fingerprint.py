@@ -25,7 +25,10 @@ def fingerprint(f: RawFinding, repository: str) -> str:
             purl = (
                 pkg.get("purl") or f"{pkg.get('ecosystem')}:{pkg.get('name')}@{pkg.get('version')}"
             )
-            return stable_hash("sca", repository, f.vulnerability_id, purl, loc.file)
+            # an image package (X2) is scoped by its image; repository packages keep the key
+            image = pkg.get("image")
+            scope = (image,) if image else ()
+            return stable_hash("sca", repository, f.vulnerability_id, purl, loc.file, *scope)
         case SourceType.SAST:
             anchor = f.attrs.get("snippet_sha256") or loc.line_start
             return stable_hash("sast", repository, f.rule_id, loc.file, anchor)

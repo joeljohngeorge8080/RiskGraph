@@ -56,6 +56,49 @@ class TrivyScanner:
         }
         return Command(argv, env)
 
+    def image_command(self, paths: ScanPaths, settings: Settings, ref: str, output: str) -> Command:
+        """``trivy image`` for one allowed public reference (X2, ADR-0018).
+
+        The flags are the ones the fixtures were recorded with (``tests/fixtures/images``):
+        a registry pull with no Docker daemon, vulnerabilities only, and every package
+        listed, so the report is also the image's inventory. The layer cache stays in
+        memory; only the shared vulnerability DB is read from ``paths.cache``. Needs the
+        egress network (the pull); the size cap is also checked on the report afterwards.
+        """
+        if not ref or ref.startswith("-"):
+            raise ValueError("an image reference must not look like an option")
+        argv = (
+            "trivy",
+            "image",
+            "--image-src",
+            "remote",
+            "--format",
+            "json",
+            "--output",
+            output,
+            "--cache-dir",
+            str(paths.cache),
+            "--cache-backend",
+            "memory",
+            "--scanners",
+            "vuln",
+            "--list-all-pkgs",
+            "--max-image-size",
+            f"{settings.image_scan_max_bytes // 1_000_000}MB",  # Trivy: human-readable, decimal
+            "--timeout",
+            f"{max(60, settings.timeout_trivy_image_s - 30)}s",
+            "--exit-code",
+            "0",
+            "--quiet",
+            "--skip-version-check",
+            "--skip-db-update",
+            "--skip-java-db-update",
+            "--disable-telemetry",
+            ref,
+        )
+        env = {"HOME": str(paths.home), "TMPDIR": str(paths.home / "tmp")}
+        return Command(argv, env)
+
     def version_argv(self) -> tuple[str, ...]:
         return ("trivy", "--version")
 

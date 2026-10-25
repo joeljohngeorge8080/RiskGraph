@@ -1,7 +1,8 @@
-"""Parse ``trivy fs --format json`` (schema version 2) into canonical findings."""
+"""Parse ``trivy fs`` and ``trivy image`` JSON (schema version 2) into canonical findings."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from riskgraph.modules.normalization import Location, RawFinding, families, normalize_path
@@ -18,6 +19,10 @@ def _results(doc: Any) -> list[dict[str, Any]]:
         return []
     results = doc.get("Results")
     return [r for r in results if isinstance(r, dict)] if isinstance(results, list) else []
+
+
+def _dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
 
 
 def _list(value: Any) -> list[dict[str, Any]]:
@@ -168,4 +173,88 @@ def _misconfig(m: dict[str, Any], target: str) -> RawFinding:
         remediation=clip(m.get("Resolution")),
         evidence={"message": clip(m.get("Message"), 500), "primary_url": m.get("PrimaryURL")},
         attrs={"iac_topic": topic, "iac_family": families.iac_family(topic, title).value},
+    )
+
+
+MAX_IMAGE_PACKAGES = 5000
+
+
+@dataclass(frozen=True, slots=True)
+class ImagePackage:
+    """One package installed in an image (``--list-all-pkgs``), for the SBOM."""
+
+    purl: str
+    name: str
+    version: str
+    location: str | None  # the file Trivy read it from (language packages)
+
+
+@dataclass(frozen=True, slots=True)
+class ImageReport:
+    """What one ``trivy image`` report says (X2, ADR-0018)."""
+
+    ref: str
+    findings: list[RawFinding]
+    packages: list[ImagePackage]
+    os_family: str | None
+    os_name: str | None
+    eosl: bool  # Trivy's own end-of-support flag for the base OS
+    created_at: str | None  # when Trivy wrote the report
+    size: int | None  # uncompressed image size in bytes, as Trivy reports it
+
+
+def parse_image(doc: Any, ref: str, declared_in: str, line: int | None = None) -> ImageReport:
+    """Image package vulnerabilities as ``sca`` findings marked with the image.
+
+    The location is the repository file that names the image (it is what the repository
+    can change), with the image as the resource. Package coordinates carry the image, so
+    the same CVE in two images stays two findings (fingerprint and merge key).
+    """
+    top = _dict(doc)
+    meta = _dict(top.get("Metadata"))
+    os_info = _dict(meta.get("OS"))
+    family = os_info.get("Family") if isinstance(os_info.get("Family"), str) else None
+    os_name = os_info.get("Name") if isinstance(os_info.get("Name"), str) else None
+    os_label = " ".join(p for p in (family, os_name) if p) or None
+    findings: list[RawFinding] = []
+    packages: list[ImagePackage] = []
+    for result in _results(doc):
+        ecosystem = result.get("Type")
+        target = clip(str(result.get("Target") or ""), 200)
+        for v in _list(result.get("Vulnerabilities")):
+            f = _vulnerability(v, declared_in, ecosystem)
+            f.location = Location(declared_in, line, line, ref)
+            pkg = dict(f.package or {})
+            pkg["image"] = ref
+            if isinstance(v.get("PkgPath"), str):
+                pkg["path"] = clip(v["PkgPath"], 300)
+            f.package = pkg
+            f.attrs["image"] = {"ref": ref, "os": os_label, "target": target}
+            findings.append(f)
+        for p in _list(result.get("Packages")):
+            purl = _dict(p.get("Identifier")).get("PURL")
+            if not isinstance(purl, str) or not purl.startswith("pkg:"):
+                continue
+            if len(packages) >= MAX_IMAGE_PACKAGES:
+                break
+            path = p.get("FilePath")
+            packages.append(
+                ImagePackage(
+                    purl=purl,
+                    name=str(p.get("Name") or "")[:256],
+                    version=str(p.get("Version") or "")[:128],
+                    location=clip(path, 512) if isinstance(path, str) else None,
+                )
+            )
+    size = meta.get("Size")
+    created = top.get("CreatedAt")
+    return ImageReport(
+        ref=ref,
+        findings=findings,
+        packages=packages,
+        os_family=family,
+        os_name=os_name,
+        eosl=os_info.get("EOSL") is True,
+        created_at=created if isinstance(created, str) else None,
+        size=size if isinstance(size, int) and not isinstance(size, bool) else None,
     )

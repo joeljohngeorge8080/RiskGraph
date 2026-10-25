@@ -11,6 +11,7 @@ from riskgraph.modules.runtime.eol import (
     EolCycle,
     EolStatus,
     eol_status,
+    os_eol_finding,
     parse_cycles,
     runtime_findings,
 )
@@ -38,6 +39,7 @@ __all__ = [
     "eol_status",
     "image_refs",
     "load_feeds",
+    "os_eol_finding",
     "parse_cycles",
     "parse_ref",
     "refresh_eol",

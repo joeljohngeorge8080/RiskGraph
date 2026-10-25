@@ -9,7 +9,8 @@ unknown and n/a make no claim and get no record.
 Runtime end-of-life findings (X2) get an ``eol`` record: the declaration is in the file
 and the end date in the endoflife.date feed, so it is verified; ``data_as_of`` is the
 feed's fetch time. Scanner matches carry their advisory data date when it is known
-(Trivy's DB build time).
+(Trivy's DB build time). Packages found in an image (X2 part 2) are ``image_package``
+records with the image named; their report is stored apart from the run's report.
 
 Facts are small and display-safe: rule, severity, package coordinates, secret family.
 Never a snippet, a secret or the scanner's free-form evidence.
@@ -71,6 +72,7 @@ def _match(
     scanner = f.scanner.value
     facts: dict[str, Any] = {"rule_id": f.rule_id, "severity": f.severity.value}
     confidence = "medium"
+    image = (f.package or {}).get("image")
     if f.source_type is SourceType.SCA:
         pkg = f.package or {}
         facts |= {
@@ -79,6 +81,7 @@ def _match(
             "version": pkg.get("version"),
             "fixed_version": pkg.get("fixed_version"),
             "ecosystem": pkg.get("ecosystem"),
+            "image": image,
         }
         confidence = "high"  # an exact installed version inside an advisory range
     elif f.source_type is SourceType.SECRET:
@@ -96,21 +99,25 @@ def _match(
             "fixed_version": pkg.get("fixed_version"),
             "eol_date": f.attrs.get("eol_date"),
             "declared_by": f.attrs.get("declared_by"),
+            "image": image,
         }
         confidence = "high"
         as_of = _parse_time(f.attrs.get("data_as_of")) or as_of
     elif f.location.resource:
         facts["resource"] = f.location.resource
     run_id = run_ids.get(scanner)
+    # an image's report is stored on its own, not as the run's report: no raw pointer
+    own_report = run_id and f.source_type is not SourceType.RUNTIME and not image
+    kind = "image_package" if image and f.source_type is SourceType.SCA else _KIND[f.source_type]
     return make_evidence(
         producer=f"{scanner}@{versions.get(scanner) or 'unknown'}",
-        kind=_KIND[f.source_type],
+        kind=kind,
         assurance=Assurance.VERIFIED,
         confidence=confidence,  # type: ignore[arg-type]
         observed_at=now,
         locations=(f.location,),
         facts={k: v for k, v in facts.items() if v is not None},
-        raw=RawRef(run_id, "") if run_id and f.source_type is not SourceType.RUNTIME else None,
+        raw=RawRef(run_id, "") if own_report and run_id else None,
         data_as_of=as_of,
     )
 

@@ -152,3 +152,48 @@ def runtime_findings(
             )
         )
     return out
+
+
+def os_eol_finding(
+    ref: str,
+    family: str,
+    name: str,
+    declared_in: str,
+    line: int | None,
+    as_of: str | None,
+) -> RawFinding:
+    """An image whose base OS Trivy marks end-of-support (``Metadata.OS.EOSL``).
+
+    The flag comes from the image report, not from endoflife.date, so ``data_as_of`` is
+    the report's creation time. Same producer, severity and interim score as the other
+    end-of-life findings (ADR-0018).
+    """
+    os_label = f"{family} {name}"[:80]
+    return RawFinding(
+        scanner=ScannerName.RISKGRAPH,
+        source_type=SourceType.RUNTIME,
+        rule_id=f"runtime-eol:os:{family}:{name}"[:300],
+        title=f"Base OS {os_label} of {ref} is end-of-life"[:300],
+        severity=Severity.HIGH,  # no security fixes any more
+        location=Location(declared_in, line, line, ref),
+        category="runtime_eol",
+        description=(
+            f"The image {ref} is built on {os_label}, which no longer receives security "
+            "updates (Trivy's end-of-support flag for the OS)."
+        ),
+        package={
+            "name": family,
+            "version": name,
+            "fixed_version": None,
+            "ecosystem": "os",
+            "image": ref,
+        },
+        remediation="Rebuild on a base image whose OS release is still supported.",
+        attrs={
+            "advisory": f"trivy/eosl/{family}/{name}"[:200],
+            "eol_date": None,
+            "declared_by": f"image {ref}"[:200],
+            "data_as_of": as_of,
+            "image": {"ref": ref, "os": os_label},
+        },
+    )

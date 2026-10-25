@@ -1,7 +1,7 @@
 """Merge canonical findings from all scanners into one deduplicated list (ADR-0010).
 
 Merge keys:
-- sca:    vulnerability id + package + manifest file
+- sca:    vulnerability id + package + manifest file (+ the image, for image packages)
 - sast:   file + line + primary CWE (several rules flagging the same line for the same
           weakness are one problem)
 - secret: file + credential family + overlapping line range (Gitleaks and Trivy report
@@ -63,7 +63,9 @@ def merge(findings: list[RawFinding]) -> list[MergedFinding]:
             case SourceType.SCA:
                 pkg = f.package or {}
                 ident = pkg.get("purl") or f"{pkg.get('name')}@{pkg.get('version')}"
-                groups[("sca", f.vulnerability_id, ident, loc.file)].append(f)
+                image = pkg.get("image")  # X2: image packages never merge across images
+                scope = (image,) if image else ()
+                groups[("sca", f.vulnerability_id, ident, loc.file, *scope)].append(f)
             case SourceType.SAST:
                 anchor = f.cwe_ids[0] if f.cwe_ids else f.rule_id
                 groups[("sast", loc.file, loc.line_start, anchor)].append(f)
