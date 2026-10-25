@@ -27,6 +27,10 @@ help: ## Show targets
 > @echo "Created .env from .env.example — set RISKGRAPH_SECRET_KEY before prod use."
 
 # The worker hands Docker host paths to the daemon (ADR-0014): the volumes' host mountpoints.
+# The explanation model's lifecycle follows the stack (infrastructure/scripts/llm.sh).
+LLM := infrastructure/scripts/llm.sh
+# Compose insists on the host paths even to stop the stack; stopping never uses them.
+STOP_ENV := RISKGRAPH_HOST_DATA_DIR=unused RISKGRAPH_HOST_TRIVY_CACHE_DIR=unused
 HOST_PATHS = export RISKGRAPH_HOST_DATA_DIR=$$(docker volume create riskgraph-data >/dev/null && docker volume inspect -f '{{.Mountpoint}}' riskgraph-data) \
   RISKGRAPH_HOST_TRIVY_CACHE_DIR=$$(docker volume create riskgraph-trivy-cache >/dev/null && docker volume inspect -f '{{.Mountpoint}}' riskgraph-trivy-cache) && \
   (docker network inspect riskgraph_egress >/dev/null 2>&1 || docker network create riskgraph_egress >/dev/null) && \
@@ -35,17 +39,21 @@ HOST_PATHS = export RISKGRAPH_HOST_DATA_DIR=$$(docker volume create riskgraph-da
 scanner-images: ## Build the pinned scanner images (docker/scanner-versions.env, ADR-0014)
 > infrastructure/scripts/build-scanner-images.sh
 
-dev: .env ## Start the full local stack (postgres, redis, migrate, api, worker, beat, frontend)
-> $(HOST_PATHS) docker compose up --build
+dev: .env ## Start the full local stack and the explanation model; both stop with Ctrl-C
+> @$(LLM) up; trap '$(LLM) down' EXIT; $(HOST_PATHS) docker compose up --build
 
-dev-detached: .env ## Same, in the background
+dev-detached: .env ## Same, in the background (make down stops it and unloads the model)
+> @$(LLM) up
 > $(HOST_PATHS) docker compose up --build -d
 
-down: ## Stop the stack (keeps volumes)
-> docker compose down
+down: ## Stop the stack and unload the explanation model (keeps volumes)
+> $(STOP_ENV) docker compose down; rc=$$?; $(LLM) down; exit $$rc
 
 nuke: ## Stop the stack and delete volumes (destroys local data)
-> docker compose down -v
+> $(STOP_ENV) docker compose down -v; rc=$$?; $(LLM) down; exit $$rc
+
+llm-status: ## Is the explanation model loaded, on which processor, reachable from containers
+> @$(LLM) status
 
 logs: ## Tail all logs
 > docker compose logs -f --tail=100
@@ -103,4 +111,4 @@ migration: ## Autogenerate a migration: make migration m="add findings"
 shell-api: ## Shell in the api container
 > docker compose exec api bash
 
-.PHONY: help dev dev-detached down nuke logs install lint fmt test test-services test-db test-llm test-all scanner-tools api-local worker-local e2e eval-baseline migrate migration shell-api
+.PHONY: help dev dev-detached down nuke logs install lint fmt test test-services test-db test-llm test-all scanner-tools api-local worker-local e2e eval-baseline llm-status migrate migration shell-api

@@ -41,3 +41,4 @@ This ADR records the choices the blueprint left open and the places where the im
 - (+) The score is computed before the model runs and is never read back from it. A model that misbehaves can only lose its own explanation to the template.
 - (−) The validator checks ids, numbers and URLs, not meaning. A fluent but loose sentence ("the key can decrypt sensitive data") passes if it cites real evidence and invents no number. The UI shows each claim's evidence chips so a reader can check it.
 - (−) Containers reach the host's Ollama only if it listens on a reachable address (for example `OLLAMA_HOST=172.17.0.1`). Otherwise the stack works with template explanations.
+  - *Addendum 2026-10-25 (implementation, not a new decision):* `make dev` now publishes Ollama to the containers as a socket file and loads and unloads the model with the stack; see `PHASE_12.md` §L. No change to the decision above.

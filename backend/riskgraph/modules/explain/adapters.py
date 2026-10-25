@@ -31,7 +31,16 @@ class LlmAdapter(Protocol):
 
 
 class OllamaAdapter:
-    """``POST /api/chat`` with structured output, temperature 0 and thinking off."""
+    """``POST /api/chat`` with structured output, temperature 0 and thinking off.
+
+    ``keep_alive`` is sent on every call: a call without it resets Ollama's unload timer to
+    its 5-minute default, which would undo a model the stack preloaded to stay resident.
+
+    With ``socket`` set, HTTP goes over that unix socket file and ``base_url`` is ignored:
+    the request goes to ``localhost``, the only kind of Host header Ollama accepts. That is
+    how containers reach the host's Ollama: a host firewall may drop container-to-host TCP,
+    and a mounted socket file does not touch the network at all.
+    """
 
     def __init__(
         self,
@@ -39,13 +48,20 @@ class OllamaAdapter:
         model: str,
         *,
         timeout_s: float = 60.0,
+        keep_alive: str = "10m",
+        socket: str = "",
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         parts = urlsplit(base_url)
         if parts.scheme not in ("http", "https") or not parts.hostname:
             raise ValueError("ollama_url must be an http(s) URL")
-        self._url = base_url.rstrip("/") + "/api/chat"
+        self._url = ("http://localhost" if socket else base_url.rstrip("/")) + "/api/chat"
         self._model = model
+        text = keep_alive.strip()
+        # Ollama takes a duration string ("10m") or a number of seconds (negative = forever)
+        self._keep_alive: str | int = int(text) if text.lstrip("-").isdigit() else text
+        if socket and transport is None:
+            transport = httpx.HTTPTransport(uds=socket)
         self._client = httpx.Client(transport=transport, timeout=timeout_s, follow_redirects=False)
 
     @property
@@ -57,6 +73,7 @@ class OllamaAdapter:
             "model": self._model,
             "stream": False,
             "think": False,
+            "keep_alive": self._keep_alive,
             "format": schema,
             "options": {"temperature": 0, "num_predict": MAX_OUTPUT_TOKENS},
             "messages": [

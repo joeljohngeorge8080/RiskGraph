@@ -88,6 +88,11 @@ class Settings(BaseSettings):
     ollama_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen3:4b"
     ollama_timeout_s: float = 60.0
+    # How long Ollama keeps the model loaded after a call: "10m", or "-1" for "until
+    # unloaded". `make dev` sets -1 and unloads the model in `make down`.
+    ollama_keep_alive: str = "10m"
+    # A unix socket that forwards to Ollama (the stack mounts one); empty = use ollama_url.
+    ollama_socket: str = ""
     explain_top_n: int = Field(default=10, ge=0, le=100)  # Critical findings per scan; 0 = off
 
     @field_validator("database_url")

@@ -123,7 +123,11 @@ def adapter_from_settings(settings: Settings) -> LlmAdapter | None:
     if settings.llm_provider != "ollama":
         return None
     return OllamaAdapter(
-        settings.ollama_url, settings.ollama_model, timeout_s=settings.ollama_timeout_s
+        settings.ollama_url,
+        settings.ollama_model,
+        timeout_s=settings.ollama_timeout_s,
+        keep_alive=settings.ollama_keep_alive,
+        socket=settings.ollama_socket,
     )
 
 

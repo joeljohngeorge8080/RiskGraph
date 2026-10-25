@@ -5,6 +5,10 @@
 - Pooled baseline, 59 findings and 7 important: nDCG@10 M1 0.293, M2 0.162, M4 0.991 (CIs in the report). Construct bias and a low positive rate are written up as limits.
 - `make eval-baseline` needs `make test-services` and empties `riskgraph_test` (it refuses any DB not named `*_test`).
 - Verified: `make lint` clean; 322 unit tests; 57 db tests, 2 skipped. Committed locally, not pushed.
+- **Explanation model lifecycle** (`infrastructure/scripts/llm.sh`, `PHASE_12.md` §L): `make dev` loads `qwen3:4b` (GPU+CPU, resident); `make down`/Ctrl-C unload it. Containers reach Ollama through `.data/ollama/ollama.sock` (needs `socat`), because `ufw` blocks container-to-host TCP. `make llm-status` shows it.
+  - Verified: load/unload, the up-then-down race, `make test-llm`, and the **full stack** (`make dev-detached`): readyz ok, dev DB migrated to `e1b7d3a9c2f4`, the `api` container reaches the model through the socket (0.8 s), the `worker` sees the socket. Not yet done: a real scan and the Explanation panel in the UI.
+  - **Gotcha (cost a failed first run):** the test stack (`make test-services`) and the dev stack both bind 15432/16379. If both are started, the dev `postgres`/`redis` containers come up *without a network*, and `migrate` fails with `failed to resolve host 'postgres'`. Fix: `docker compose -f docker-compose.test.yml down`, `make down`, `make dev-detached`. Run `make test-services` only while the dev stack is down.
+  - `make down` and `make nuke` were broken from a fresh shell (Compose demanded `RISKGRAPH_HOST_DATA_DIR` even to stop); fixed with dummy values, and they now always unload the model.
 - **Next: X1 contracts** (ADR-0017, `modules/evidence`, migration). Owner items unchanged (push, PR #2, dev DB migrate, P2 auth).
 
 
@@ -21,7 +25,7 @@
 - **Expansion plan** `docs/proposals/EXPANSION_A-D.md`: approved by the owner. **Phases only, no timings** (owner's rule). Build X0 → X8 in order; items marked "deferred" stay deferred.
 - **Not done / for the owner:**
   - Dev DB not migrated to `e1b7d3a9c2f4` (stack not running; `make dev` migrates).
-  - Containers reach the host's Ollama only if it listens on a reachable address (`OLLAMA_HOST=172.17.0.1`).
+  - ~~Containers reach the host's Ollama only if it listens on `172.17.0.1`~~: solved in session 8 with a socket (see Session 8).
   - P2 auth is still missing.
 - **New commands:** `make test-llm` (real local model). `make test-db` now excludes `llm`.
 - **In progress: expansion X0, part 1 committed** (baseline dataset and metrics). Exact state and next steps: **`todo1150.md`**.
