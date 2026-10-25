@@ -22,6 +22,7 @@ from tests.fixtures.repos import kitchen_sink
 from tests.scanner_fixtures import fixture_path
 
 FAKE_SHA = "0123456789abcdef0123456789abcdef01234567"
+TRIVY_DB = "2026-10-25 01:20:33.190884269 +0000 UTC"
 
 
 @dataclass
@@ -43,7 +44,10 @@ class FixtureRunner:
         name = spec.log_dir.name
         spec.log_dir.mkdir(parents=True, exist_ok=True)
         if spec.log_name == "version":
-            (spec.log_dir / "version.stdout.log").write_text("1.2.3\n")
+            text = "1.2.3\n"
+            if name == "trivy":  # the real output shape, so advisory freshness is read
+                text = f"Version: 1.2.3\nVulnerability DB:\n  Version: 2\n  UpdatedAt: {TRIVY_DB}\n"
+            (spec.log_dir / "version.stdout.log").write_text(text)
             return RunResult(0, False, 1, "")
         if name in self.fail:
             return self.fail[name]

@@ -6,6 +6,11 @@ report. Plus one ``reachability`` record when the analyzer made a claim: L3 is v
 (a call chain in parsed code); L0-L2 are inferred (import-level rules with known gaps);
 unknown and n/a make no claim and get no record.
 
+Runtime end-of-life findings (X2) get an ``eol`` record: the declaration is in the file
+and the end date in the endoflife.date feed, so it is verified; ``data_as_of`` is the
+feed's fetch time. Scanner matches carry their advisory data date when it is known
+(Trivy's DB build time).
+
 Facts are small and display-safe: rule, severity, package coordinates, secret family.
 Never a snippet, a secret or the scanner's free-form evidence.
 """
@@ -27,6 +32,7 @@ _KIND = {
     SourceType.SAST: "code_match",
     SourceType.SECRET: "secret_match",
     SourceType.IAC: "misconfig",
+    SourceType.RUNTIME: "eol",
 }
 _REACH_ASSURANCE = {
     ReachabilityTier.L3: Assurance.VERIFIED,
@@ -42,9 +48,11 @@ def finding_evidence(
     run_ids: Mapping[str, uuid.UUID],
     versions: Mapping[str, str | None],
     now: dt.datetime,
+    data_as_of: Mapping[str, dt.datetime | None] | None = None,
 ) -> list[Evidence]:
+    """``data_as_of`` maps a scanner to the build time of the advisory data it used."""
     out = [
-        _match(member, run_ids, versions, now)
+        _match(member, run_ids, versions, now, (data_as_of or {}).get(member.scanner.value))
         for member in merged.members
         if member.source_type in _KIND
     ]
@@ -58,6 +66,7 @@ def _match(
     run_ids: Mapping[str, uuid.UUID],
     versions: Mapping[str, str | None],
     now: dt.datetime,
+    as_of: dt.datetime | None = None,
 ) -> Evidence:
     scanner = f.scanner.value
     facts: dict[str, Any] = {"rule_id": f.rule_id, "severity": f.severity.value}
@@ -78,6 +87,18 @@ def _match(
     elif f.source_type is SourceType.SAST:
         own = str(f.attrs.get("confidence") or "").lower()
         confidence = own if own in ("high", "medium", "low") else "medium"
+    elif f.source_type is SourceType.RUNTIME:
+        pkg = f.package or {}
+        facts |= {
+            "advisory": f.attrs.get("advisory"),
+            "product": pkg.get("name"),
+            "cycle": pkg.get("version"),
+            "fixed_version": pkg.get("fixed_version"),
+            "eol_date": f.attrs.get("eol_date"),
+            "declared_by": f.attrs.get("declared_by"),
+        }
+        confidence = "high"
+        as_of = _parse_time(f.attrs.get("data_as_of")) or as_of
     elif f.location.resource:
         facts["resource"] = f.location.resource
     run_id = run_ids.get(scanner)
@@ -89,8 +110,18 @@ def _match(
         observed_at=now,
         locations=(f.location,),
         facts={k: v for k, v in facts.items() if v is not None},
-        raw=RawRef(run_id, "") if run_id else None,
+        raw=RawRef(run_id, "") if run_id and f.source_type is not SourceType.RUNTIME else None,
+        data_as_of=as_of,
     )
+
+
+def _parse_time(value: object) -> dt.datetime | None:
+    if isinstance(value, str):
+        try:
+            return dt.datetime.fromisoformat(value)
+        except ValueError:
+            return None
+    return None
 
 
 def _reachability(merged: MergedFinding, verdict: Verdict, now: dt.datetime) -> Evidence:

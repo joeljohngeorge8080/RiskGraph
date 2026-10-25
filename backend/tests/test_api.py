@@ -112,7 +112,11 @@ def test_get_and_list_scans(api: TestClient, enqueued: list[uuid.UUID], settings
     sid = _completed_scan(api, settings, enqueued)
     one = api.get(f"/api/v1/scans/{sid}").json()
     assert one["status"] == "COMPLETED" and one["summary"]["findings"] == 29
-    assert all(r["report_available"] for r in one["scanner_runs"])
+    scanners = [r for r in one["scanner_runs"] if r["scanner"] != "riskgraph"]
+    assert scanners and all(r["report_available"] for r in scanners)
+    # RiskGraph's own analysis run is listed honestly: it stores no report (ADR-0018)
+    own = [r for r in one["scanner_runs"] if r["scanner"] == "riskgraph"]
+    assert [r["report_available"] for r in own] == [False]
     listing = api.get("/api/v1/scans", params={"status": "COMPLETED"}).json()
     assert listing["total"] == 1 and listing["items"][0]["id"] == sid
     assert api.get(f"/api/v1/scans/{uuid.uuid4()}").status_code == 404

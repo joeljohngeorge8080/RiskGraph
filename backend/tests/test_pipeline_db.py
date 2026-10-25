@@ -15,7 +15,7 @@ from riskgraph.modules.scans.service import ALL_SCANNERS
 from riskgraph.shared.config import Settings
 from riskgraph.shared.db import session_scope
 from riskgraph.shared.http import OutboundClient
-from riskgraph.shared.vocabulary import Priority, RunStatus, ScanStatus, SourceType
+from riskgraph.shared.vocabulary import Priority, RunStatus, ScannerName, ScanStatus, SourceType
 from sqlalchemy import func, select
 
 from tests.pipeline_support import FAKE_SHA, FixtureRunner, LocalDirCloner, make_deps
@@ -52,7 +52,10 @@ def test_full_pipeline_with_recorded_reports(db: None, settings: Settings) -> No
     assert summary["context"]["unmapped_findings"] == 29
 
     with session_scope() as s:
-        runs = repo.runs_for(s, sid)
+        # scanner runs only: the riskgraph run is RiskGraph's own analysis and stores no
+        # report (ADR-0018)
+        runs = [r for r in repo.runs_for(s, sid) if r.scanner is not ScannerName.RISKGRAPH]
+        assert {r.scanner for r in runs} == set(ALL_SCANNERS)
         assert all(r.status is RunStatus.SUCCEEDED and r.output_sha256 for r in runs)
         assert all(r.scanner_version == "1.2.3" for r in runs)
         rows, total = list_scan_findings(s, sid, FindingFilters(), limit=200)
@@ -112,7 +115,10 @@ def test_timeouts_are_recorded(db: None, settings: Settings) -> None:
     sid = _new_scan(settings)
     assert run_pipeline_inline(sid, ALL_SCANNERS, make_deps(settings, runner)) is ScanStatus.FAILED
     with session_scope() as s:
-        assert {r.status for r in repo.runs_for(s, sid)} == {RunStatus.TIMED_OUT}
+        runs = repo.runs_for(s, sid)
+        assert {r.status for r in runs if r.scanner is not ScannerName.RISKGRAPH} == {
+            RunStatus.TIMED_OUT
+        }
     assert _scan(sid).status_reason == "all scanners failed"
 
 

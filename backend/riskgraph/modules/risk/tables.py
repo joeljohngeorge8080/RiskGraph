@@ -3,14 +3,16 @@
 v1-ctx.1 added deployment context (X, D, P, C) to v1-cf.1. v1-ctx.2 adds reachability
 (R from L0/L1/L2), attack-path effective impact (§14.4) and the "L0 with high confidence
 → ceiling Medium" rule (§14.5). Without context, reachability and paths, all three
-versions give identical scores.
+versions give identical scores. v1-ctx.3 (expansion X1, X2): effective impact only from
+paths of at least "inferred" assurance (ADR-0017), and an interim score for runtime
+end-of-life findings until risk v2 (X6) defines runtime factor tables (ADR-0018).
 """
 
 from __future__ import annotations
 
 from riskgraph.shared.vocabulary import Priority, Severity
 
-MODEL_VERSION = "v1-ctx.2"
+MODEL_VERSION = "v1-ctx.3"
 FLOOR = 0.05
 
 # "Unknown" defaults when no context source covers a finding (§14.2, §14.3).
@@ -54,6 +56,11 @@ T_BY_SEVERITY = {
 E_SECRET_LIVE = 0.9
 E_SECRET_GENERIC = 0.6
 T_SECRET = 1.0
+
+# Interim (ADR-0018, replaced in X6): an end-of-life runtime gets no security fixes, so
+# future flaws stay open, but no specific exploitable flaw is known from the EOL alone.
+E_RUNTIME_EOL = 0.5
+T_RUNTIME_EOL = 0.6
 
 E_SAST = {
     Severity.CRITICAL: 0.7,

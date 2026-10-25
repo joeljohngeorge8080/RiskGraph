@@ -1,4 +1,16 @@
-# HANDOFF: resume here (updated 2026-10-25, session 8: X0 and X1 done; next X2, see todo1150.md)
+# HANDOFF: resume here (updated 2026-10-25, session 8: X0, X1 and X2 part 1 done; next X2 part 2, see todo1150.md)
+
+## Session 8, part 3: X2 part 1, runtime EOL and freshness (2026-10-25, local)
+- **Owner decisions (2026-10-25), recorded in ADR-0018:** image package CVEs stay `sca` (marked with the image); image pulls only from a public registry allow-list (5 images, 2 GB each, never fail the scan); runtime EOL gets an interim score until X6.
+- **Done** (`docs/phases/PHASE_X2.md`, migration `a7c2e9f4b1d6`):
+  - new `modules/runtime`: image references with the allow-list, runtime declarations (exact pins only produce findings), and endoflife.date cycles refreshed daily by Beat into `runtime_eol`;
+  - `runtime` findings come from a per-scan `riskgraph` producer run (no report; excluded from the final status);
+  - `container_image` assets;
+  - Trivy DB time and EOL fetch time as `data_as_of`, plus `summary.freshness`;
+  - model `v1-ctx.3` (also covers X1's gate).
+- Verified: `make lint` clean; 382 unit tests; 66 db tests, 2 skipped; migration round trip; `alembic check` clean; the X0 re-run differs only in C's key (X1).
+- **Next: X2 part 2:** a `trivy image` and `syft` stage in the egress profile, a recorded image fixture, and overhead measured. It pulls public images (python:3.8-slim, node:14) once to record the fixtures.
+- The dev DB needs `make dev` to apply `f3a9c1d7b2e8` and `a7c2e9f4b1d6`. Stop the test stack first (same ports). EOL findings appear after the first daily refresh (or run the `riskgraph.runtime.refresh_eol` task once).
 
 ## Session 8, part 2: X1 evidence and assurance (2026-10-25, local)
 - **X1 done** (`docs/phases/PHASE_X1.md`, ADR-0017, migration `f3a9c1d7b2e8`). New `modules/evidence`. Every graph edge has an assurance level (verified, inferred or hypothesis) and evidence ids, and the builder refuses an edge without them. Findings have stored evidence (scanner matches and reachability). The API serves `evidence[]`, path `assurance`, and edge `assurance` and `evidence_ids`.

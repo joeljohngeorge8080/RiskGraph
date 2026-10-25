@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime as dt
+import re
 import uuid
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
@@ -27,6 +28,7 @@ from sqlalchemy.orm import Session
 from riskgraph.modules.context import (
     ContextResolver,
     FindingContext,
+    IacAsset,
     IacResult,
     ManifestResult,
     Observed,
@@ -54,6 +56,14 @@ from riskgraph.modules.risk import (
     persist_score,
     rescore,
     score,
+)
+from riskgraph.modules.runtime import (
+    RUNTIME_ANALYZER,
+    ImageRef,
+    declarations,
+    image_refs,
+    load_feeds,
+    runtime_findings,
 )
 from riskgraph.modules.sbom import attach_findings, canonical_purl, persist_components
 from riskgraph.modules.sbom.service import PackageSeen
@@ -465,6 +475,71 @@ def _parse_all(
     return out
 
 
+def _own_run(session: Session, scan_id: uuid.UUID) -> None:
+    """The run that RiskGraph's own findings (runtime EOL) belong to (ADR-0018)."""
+    if repo.get_run(session, scan_id, ScannerName.RISKGRAPH) is None:
+        now = _now()
+        session.add(
+            ScannerRun(
+                scan_job_id=scan_id,
+                scanner=ScannerName.RISKGRAPH,
+                status=RunStatus.SUCCEEDED,
+                scanner_version=RUNTIME_ANALYZER,
+                started_at=now,
+                finished_at=now,
+            )
+        )
+        session.flush()
+
+
+def _runtime(
+    deps: PipelineDeps, scan_id: uuid.UUID, iac: IacResult
+) -> tuple[list[ImageRef], list[Any]]:
+    ws = _workspace(deps, scan_id)
+    if not ws.src.is_dir():
+        return [], []
+    images = image_refs(ws.src, iac.assets)
+    return images, declarations(ws.src, images)
+
+
+def _image_assets(images: list[ImageRef]) -> list[IacAsset]:
+    return [
+        IacAsset(
+            "container_image",
+            (i.canonical if i.repository else i.raw)[:160],
+            i.file,
+            {
+                "raw": i.raw,
+                "registry": i.registry,
+                "repository": i.repository,
+                "tag": i.tag,
+                "digest": i.digest,
+                "line": i.line,
+                "origin": i.origin,
+                "allowed": i.allowed,
+                "reason": i.reason,
+            },
+        )
+        for i in images
+    ]
+
+
+_DB_UPDATED = re.compile(r"^\s*UpdatedAt:\s*(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})")
+
+
+def _trivy_db_time(deps: PipelineDeps, scan_id: uuid.UUID) -> dt.datetime | None:
+    """Advisory freshness: Trivy's DB build time, from this scan's own version log."""
+    log_file = _workspace(deps, scan_id).logs(ScannerName.TRIVY) / "version.stdout.log"
+    try:
+        text = log_file.read_text(errors="replace")[:4096]
+    except OSError:
+        return None
+    for line in text.splitlines():
+        if m := _DB_UPDATED.match(line):
+            return dt.datetime.fromisoformat(f"{m.group(1)}T{m.group(2)}+00:00")
+    return None
+
+
 def _iac(deps: PipelineDeps, scan_id: uuid.UUID) -> IacResult:
     ws = _workspace(deps, scan_id)
     if not ws.src.is_dir():
@@ -598,6 +673,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
         if repository is None:
             raise LookupError("scan references a missing repository")
         repo_id, repo_name, ref = repository.id, repository.full_name, scan.requested_ref
+        _own_run(s, scan_id)
         runs = repo.runs_for(s, scan_id)
         run_ids = {r.scanner.value: r.id for r in runs}
         versions = {r.scanner.value: r.scanner_version for r in runs}
@@ -605,10 +681,21 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
 
     try:
         raw = _parse_all(deps, scan_id, succeeded, repo_name)
-        merged = merge(raw)
+        iac = _iac(deps, scan_id)
+        # X2: images and runtimes the repository declares; EOL from the stored feed only
+        images, decls = _runtime(deps, scan_id, iac)
+        with session_scope() as s:
+            feeds = load_feeds(s)
+        own = runtime_findings(decls, feeds, _now().date())
+        for f in own:
+            f.fingerprint = fingerprint(f, repo_name)
+        merged = merge([*raw, *own])
         syft_inventory = _sbom_documents(deps, scan_id, succeeded)
         manifest = _manifest(deps, scan_id)
-        iac = _iac(deps, scan_id)
+        trivy_db = _trivy_db_time(deps, scan_id)
+        eol_as_of = min(
+            (c.fetched_at for cycles in feeds.values() for c in cycles.values()), default=None
+        )
         # MVP scans only public github.com repositories (ADR-0010)
         resolver = ContextResolver(manifest, public_repository=True, iac=iac.assets)
         reach = _reachability(
@@ -654,7 +741,8 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
         # Each finding's own evidence (ADR-0017): edges built from a finding rest on it.
         now = _now()
         evidence: list[list[Evidence]] = [
-            finding_evidence(x.merged, x.verdict, run_ids, versions, now) for x in scored
+            finding_evidence(x.merged, x.verdict, run_ids, versions, now, {"trivy": trivy_db})
+            for x in scored
         ]
 
         # Attack paths, then pass 2: effective impact for findings on paths (§14.4).
@@ -712,7 +800,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                 multi += len(m.detected_by) > 1
                 max_score = max(max_score, result.score)
             persist_graph(s, scan_id, analysis, finding_ids)
-            assets_written = persist_assets(s, scan_id, iac.assets)
+            assets_written = persist_assets(s, scan_id, [*iac.assets, *_image_assets(images)])
             sbom_summary = _persist_sbom(s, scan_id, syft_inventory, scored, finding_ids)
             s.flush()
             history = apply_history(
@@ -720,7 +808,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                 scan_id=scan_id,
                 repository_id=repo_id,
                 ref=ref,
-                succeeded_scanners={sc.value for sc in succeeded},
+                succeeded_scanners={sc.value for sc in succeeded} | {ScannerName.RISKGRAPH.value},
                 now=now,
             )
             intel_status = sorted(
@@ -751,6 +839,17 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                     "warnings": list(iac.warnings),
                 },
                 "history": history,
+                "runtime": {
+                    "images": len(images),
+                    "images_allowed": sum(1 for i in images if i.allowed),
+                    "declarations": len(decls),
+                    "eol_findings": len(own),
+                    "eol_data": sorted(feeds),
+                },
+                "freshness": {
+                    "trivy_db": trivy_db.isoformat() if trivy_db else None,
+                    "eol": eol_as_of.isoformat() if eol_as_of else None,
+                },
             }
             s.execute(
                 update(ScanJob)
@@ -783,7 +882,11 @@ def finalize(scan_id: uuid.UUID, deps: PipelineDeps) -> ScanStatus | None:
             if r.status is RunStatus.QUEUED:
                 repo.cas_run(s, r.id, RunStatus.QUEUED, RunStatus.SKIPPED)
         if scan.status is ScanStatus.ANALYZING:
-            status, reason = final_status(r.status for r in runs)
+            # the riskgraph run is RiskGraph's own analysis, not a scanner: it never makes
+            # a scan whose scanners all failed look partial
+            status, reason = final_status(
+                r.status for r in runs if r.scanner is not ScannerName.RISKGRAPH
+            )
             repo.cas_scan(s, scan_id, ScanStatus.ANALYZING, status, reason, finished_at=_now())
         elif not scan.status.is_terminal:
             repo.cas_scan(

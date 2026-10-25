@@ -70,6 +70,7 @@ TABLES = (
     "scan_jobs",
     "repositories",
     "vulnerabilities",
+    "runtime_eol",
 )
 
 
