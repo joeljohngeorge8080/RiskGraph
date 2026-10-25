@@ -15,7 +15,8 @@ Gaps G4–G6: images were never scanned, runtime versions were never read, and a
 - A reference is **allowed** only when it is well formed, has no unresolved `$VAR`, and is on a public registry: `docker.io`, `ghcr.io`, `quay.io`, `gcr.io`, `registry.k8s.io`, `mcr.microsoft.com` or `public.ecr.aws`. Any other host (an internal registry, `localhost`, an IP address) is recorded and never pulled. The repository must not be able to make the worker contact the internal network.
 
 **Image scanning (X2.2).**
-- `trivy image` and `syft` run on at most 5 allowed references per scan, each at most 2 GB. They use the ADR-0014 runner with its existing `egress` network mode, as the git fetcher does.
+- `trivy image` runs on at most 5 allowed references per scan, each at most 2 GB. It uses the ADR-0014 runner with its existing `egress` network mode, as the git fetcher does.
+  - *Amendment 2026-10-25:* the plan also named a Syft image SBOM. Syft is **not** given network: its image has no CA certificates (a registry pull fails TLS verification), and fixing that would widen a second tool's network access for no gain. `trivy image --list-all-pkgs` already lists every OS and language package with its PURL, so that report is the image inventory. One pull per image, not two. Recorded in `backend/tests/fixtures/images/`.
 - A pull failure, a rate limit or the size cap is recorded as a warning and never fails the scan.
 - Image package vulnerabilities keep `source_type = sca` and are marked with the image (target and reference). They are package-versus-advisory matches like today's SCA, so the EPSS, KEV and CVSS scoring already applies. Reachability is "not assessable" for image packages, because the code that uses an OS package is not analyzed. The plan's separate `container` source type was not adopted.
 
@@ -50,6 +51,7 @@ Gaps G4–G6: images were never scanned, runtime versions were never read, and a
 - (−) Declared ranges never produce a finding: "supports 3.8+" on a 3.12 runtime is not a problem, and 3.8 actually running is only known from an exact pin or an image.
 - (−) The `riskgraph` run appears in the scan's run list with no report. That is honest, but it is one more row.
 - (−) EPSS and KEV fetch times are not yet part of `summary.freshness` (they are on each vulnerability row).
+- (+) Trivy's `Metadata.OS.EOSL` flag gives end-of-support for the base OS image with no feed (for example `node:14` on Debian 10).
 - (−) Kubernetes CronJob pod specs (under `jobTemplate`) are still not read by the IaC extractor, so their images are missed. This was already the case before X2.
 
 ## Rejected
