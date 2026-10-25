@@ -1,0 +1,42 @@
+[
+ {
+  "Author": "",
+  "Commit": "",
+  "Date": "",
+  "Description": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "Email": "",
+  "EndColumn": 59,
+  "EndLine": 3,
+  "Entropy": 5.171928,
+  "File": "web/dist/bundle.js",
+  "Fingerprint": "web/dist/bundle.js:generic-api-key:3",
+  "Message": "",
+  "RuleID": "generic-api-key",
+  "SecretHMAC": "69edbad7371f422c1614c8bb2e63be8e016c61b2335c73e64dd5f39f81304b3a",
+  "SecretMasked": "iT7a\u2026[REDACTED] (40 chars)",
+  "StartColumn": 2,
+  "StartLine": 3,
+  "SymlinkFile": "",
+  "Tags": []
+ },
+ {
+  "Author": "",
+  "Commit": "",
+  "Date": "",
+  "Description": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms.",
+  "Email": "",
+  "EndColumn": 34,
+  "EndLine": 2,
+  "Entropy": 4.221928,
+  "File": "web/dist/bundle.js",
+  "Fingerprint": "web/dist/bundle.js:aws-access-token:2",
+  "Message": "",
+  "RuleID": "aws-access-token",
+  "SecretHMAC": "be06a3134dc6d1890a97d649a65d667708dcaaa11ab0ec0d3fa2d778aa16eef4",
+  "SecretMasked": "AKIA\u2026[REDACTED] (20 chars)",
+  "StartColumn": 15,
+  "StartLine": 2,
+  "SymlinkFile": "",
+  "Tags": []
+ }
+]

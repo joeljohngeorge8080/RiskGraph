@@ -1,0 +1,190 @@
+{
+ "$schema": "http://cyclonedx.org/schema/bom-1.7.schema.json",
+ "bomFormat": "CycloneDX",
+ "components": [
+  {
+   "bom-ref": "pkg:pypi/django@2.2.0?package-id=d209b6d6ccd960c9",
+   "cpe": "cpe:2.3:a:python-django:python-django:2.2.0:*:*:*:*:*:*:*",
+   "name": "django",
+   "properties": [
+    {
+     "name": "syft:package:foundBy",
+     "value": "python-package-cataloger"
+    },
+    {
+     "name": "syft:package:language",
+     "value": "python"
+    },
+    {
+     "name": "syft:package:type",
+     "value": "python"
+    },
+    {
+     "name": "syft:package:metadataType",
+     "value": "python-pip-requirements-entry"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python-django:python_django:2.2.0:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python_django:python-django:2.2.0:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python_django:python_django:2.2.0:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:django:python-django:2.2.0:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:django:python_django:2.2.0:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python-django:django:2.2.0:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python:python-django:2.2.0:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python:python_django:2.2.0:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python_django:django:2.2.0:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:django:django:2.2.0:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python:django:2.2.0:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:location:0:path",
+     "value": "/requirements.txt"
+    }
+   ],
+   "purl": "pkg:pypi/django@2.2.0",
+   "type": "library",
+   "version": "2.2.0"
+  },
+  {
+   "bom-ref": "pkg:pypi/flask@3.0.3?package-id=dcb4e23b70150806",
+   "cpe": "cpe:2.3:a:python-flask:python-flask:3.0.3:*:*:*:*:*:*:*",
+   "name": "flask",
+   "properties": [
+    {
+     "name": "syft:package:foundBy",
+     "value": "python-package-cataloger"
+    },
+    {
+     "name": "syft:package:language",
+     "value": "python"
+    },
+    {
+     "name": "syft:package:type",
+     "value": "python"
+    },
+    {
+     "name": "syft:package:metadataType",
+     "value": "python-pip-requirements-entry"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python-flask:python_flask:3.0.3:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python_flask:python-flask:3.0.3:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python_flask:python_flask:3.0.3:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python:python-flask:3.0.3:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python:python_flask:3.0.3:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:flask:python-flask:3.0.3:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:flask:python_flask:3.0.3:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python-flask:flask:3.0.3:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python_flask:flask:3.0.3:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:python:flask:3.0.3:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:cpe23",
+     "value": "cpe:2.3:a:flask:flask:3.0.3:*:*:*:*:*:*:*"
+    },
+    {
+     "name": "syft:location:0:path",
+     "value": "/requirements.txt"
+    }
+   ],
+   "purl": "pkg:pypi/flask@3.0.3",
+   "type": "library",
+   "version": "3.0.3"
+  },
+  {
+   "bom-ref": "26ca2b7dc025d550",
+   "hashes": [
+    {
+     "alg": "SHA-1",
+     "content": "d459fa5fb3509ec826cf7849193eec0d8f7a9951"
+    },
+    {
+     "alg": "SHA-256",
+     "content": "1b5ab14366025b497f332152afdc8e37cd73c801ce788905b83346d5d18f62cc"
+    }
+   ],
+   "name": "/tmp/tmp208344xl/src/requirements.txt",
+   "type": "file"
+  }
+ ],
+ "metadata": {
+  "component": {
+   "bom-ref": "af63bd4c8601b7f1",
+   "name": ".",
+   "type": "file"
+  },
+  "timestamp": "2026-10-25T05:19:11Z",
+  "tools": {
+   "components": [
+    {
+     "author": "anchore",
+     "name": "syft",
+     "type": "application",
+     "version": "1.54.1"
+    }
+   ]
+  }
+ },
+ "serialNumber": "urn:uuid:29ab8d88-fcbf-41dc-b413-13088bb2f066",
+ "specVersion": "1.7",
+ "version": 1
+}

@@ -1,0 +1,188 @@
+{
+ "engine_requested": "OSS",
+ "errors": [],
+ "paths": {
+  "scanned": [
+   "api/app.py",
+   "requirements.txt",
+   "riskgraph.yaml"
+  ]
+ },
+ "profiling_results": [],
+ "results": [
+  {
+   "check_id": "opt.scanners.semgrep-rules.python.django.security.injection.ssrf.ssrf-injection-requests.ssrf-injection-requests",
+   "end": {
+    "col": 45,
+    "line": 10,
+    "offset": 190
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Data from request object is passed to a new server-side request. This could lead to a server-side request forgery (SSRF). To mitigate, ensure that schemes and hosts are validated against an allowlist, do not forward the response to the user, and ensure proper authentication and transport-layer security in the proxied request. See https://owasp.org/www-community/attacks/Server_Side_Request_Forgery to learn more about SSRF vulnerabilities.",
+    "metadata": {
+     "category": "security",
+     "confidence": "MEDIUM",
+     "cwe": [
+      "CWE-918: Server-Side Request Forgery (SSRF)"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "HIGH",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "likelihood": "MEDIUM",
+     "owasp": [
+      "A10:2021 - Server-Side Request Forgery (SSRF)",
+      "A01:2025 - Broken Access Control"
+     ],
+     "references": [
+      "https://owasp.org/www-community/attacks/Server_Side_Request_Forgery"
+     ],
+     "shortlink": "https://sg.run/YvY4",
+     "source": "https://semgrep.dev/r/python.django.security.injection.ssrf.ssrf-injection-requests.ssrf-injection-requests",
+     "subcategory": [
+      "vuln"
+     ],
+     "technology": [
+      "django"
+     ],
+     "vulnerability_class": [
+      "Server-Side Request Forgery (SSRF)"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "api/app.py",
+   "start": {
+    "col": 5,
+    "line": 9,
+    "offset": 116
+   }
+  },
+  {
+   "check_id": "opt.scanners.semgrep-rules.python.flask.security.injection.ssrf-requests.ssrf-requests",
+   "end": {
+    "col": 40,
+    "line": 10,
+    "offset": 185
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Data from request object is passed to a new server-side request. This could lead to a server-side request forgery (SSRF). To mitigate, ensure that schemes and hosts are validated against an allowlist, do not forward the response to the user, and ensure proper authentication and transport-layer security in the proxied request.",
+    "metadata": {
+     "category": "security",
+     "confidence": "MEDIUM",
+     "cwe": [
+      "CWE-918: Server-Side Request Forgery (SSRF)"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "HIGH",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "likelihood": "MEDIUM",
+     "owasp": [
+      "A10:2021 - Server-Side Request Forgery (SSRF)",
+      "A01:2025 - Broken Access Control"
+     ],
+     "references": [
+      "https://owasp.org/www-community/attacks/Server_Side_Request_Forgery"
+     ],
+     "shortlink": "https://sg.run/J9LW",
+     "source": "https://semgrep.dev/r/python.flask.security.injection.ssrf-requests.ssrf-requests",
+     "subcategory": [
+      "vuln"
+     ],
+     "technology": [
+      "flask"
+     ],
+     "vulnerability_class": [
+      "Server-Side Request Forgery (SSRF)"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "api/app.py",
+   "start": {
+    "col": 12,
+    "line": 10,
+    "offset": 157
+   }
+  }
+ ],
+ "skipped_rules": [],
+ "time": {
+  "fixpoint_timeouts": [],
+  "matching_time": {
+   "per_file_and_rule_time": {
+    "mean": 0.0001260301341181216,
+    "std_dev": 1.1050564392467707e-07
+   },
+   "total_time": 0.005797386169433594,
+   "very_slow_rules_on_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "max_memory_bytes": 769394624,
+  "parsing_time": {
+   "per_file_time": {
+    "mean": 0.00017764775649360988,
+    "std_dev": 6.956230787761818e-07
+   },
+   "total_time": 0.008171796798706055,
+   "very_slow_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "prefiltering": {
+   "file_level_time": 0.0,
+   "project_level_time": 0.0,
+   "rules_matched_ratio": 0.10978520286396182,
+   "rules_selected_ratio": 0.10978520286396182,
+   "rules_with_file_prefilters_ratio": 0.9164677804295943,
+   "rules_with_project_prefilters_ratio": 0.0
+  },
+  "profiling_times": {
+   "config_time": 11.517666816711426,
+   "core_time": 0.6841065883636475,
+   "ignores_time": 0.0013759136199951172,
+   "total_time": 12.21149230003357
+  },
+  "rules": [],
+  "rules_parse_time": 0.39412999153137207,
+  "scanning_time": {
+   "per_file_time": {
+    "mean": 0.002388179302215576,
+    "std_dev": 1.607784905033327e-05
+   },
+   "total_time": 0.01910543441772461,
+   "very_slow_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "tainting_time": {
+   "per_def_and_rule_time": {
+    "mean": 2.692805396185981e-05,
+    "std_dev": 4.029786107001896e-10
+   },
+   "total_time": 0.00048470497131347656,
+   "very_slow_rules_on_defs": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "targets": [],
+  "total_bytes": 0
+ },
+ "version": "1.182.0"
+}

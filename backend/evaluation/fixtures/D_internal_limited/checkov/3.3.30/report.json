@@ -1,0 +1,8 @@
+{
+ "checkov_version": "3.3.30",
+ "failed": 0,
+ "parsing_errors": 0,
+ "passed": 0,
+ "resource_count": 0,
+ "skipped": 0
+}
