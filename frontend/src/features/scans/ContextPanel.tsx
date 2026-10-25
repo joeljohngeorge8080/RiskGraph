@@ -72,6 +72,40 @@ export function ContextPanel({ context }: { context: ScanContext }) {
       {context.manifest === "valid" && context.unmapped_findings > 0 && (
         <p className="muted">{context.unmapped_findings} finding(s) are outside every service path and use the defaults.</p>
       )}
+      {(context.kubernetes_workloads?.length ?? 0) > 0 && (
+        <>
+          <h3>Kubernetes workloads</h3>
+          <p className="muted">
+            Used where the manifest is silent, for services of the same name (low confidence).
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Workload</th>
+                <th>File</th>
+                <th>Exposure</th>
+                <th>Privilege</th>
+              </tr>
+            </thead>
+            <tbody>
+              {context.kubernetes_workloads?.map((k) => (
+                <tr key={`${k.file}:${k.name}`}>
+                  <td>
+                    <strong>{k.name}</strong>
+                  </td>
+                  <td className="mono">{k.file}</td>
+                  <td>
+                    <Value v={k.exposure} />
+                  </td>
+                  <td>
+                    <Value v={k.privilege} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
       {context.public_repository && (
         <p className="note">Committed secrets count as internet-exposed: the repository is public.</p>
       )}

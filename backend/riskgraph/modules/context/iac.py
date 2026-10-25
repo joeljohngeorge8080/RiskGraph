@@ -8,6 +8,10 @@ Exposure is only claimed where the file states it. A Service of type LoadBalance
 NodePort, an Ingress, or a Compose port published on the host is ``internet``; a ClusterIP
 Service or a Compose service with no published port is ``internal``. Anything else is left
 unknown, which is the blueprint's under-claim rule.
+
+``kubernetes_context`` joins the Kubernetes objects into per-workload facts: a Service
+selects a workload by its pod labels, an Ingress routes to a Service, and a workload's
+ServiceAccount is granted privilege by the bindings that name it as a subject.
 """
 
 from __future__ import annotations
@@ -89,6 +93,28 @@ def _code_dir(compose_dir: str, context: str) -> str | None:
     return joined if not joined.startswith("..") else None
 
 
+def _labels(value: object) -> dict[str, str]:
+    return {
+        str(k)[:100]: str(v)[:100]
+        for k, v in list(_d(value).items())[:MAX_LIST]
+        if isinstance(k, str) and isinstance(v, (str, int, bool))
+    }
+
+
+def _ingress_backends(spec: dict[str, Any]) -> list[str]:
+    """Service names an Ingress routes to (networking.k8s.io/v1 and the old v1beta1 shape)."""
+    names: list[str] = []
+    backends = [_d(spec.get("defaultBackend")), _d(spec.get("backend"))]
+    for rule in _l(spec.get("rules")):
+        for path in _l(_d(_d(rule).get("http")).get("paths")):
+            backends.append(_d(_d(path).get("backend")))
+    for b in backends:
+        name = _text(_d(b.get("service")).get("name")) or _text(b.get("serviceName"))
+        if name and name not in names:
+            names.append(name)
+    return names[:MAX_LIST]
+
+
 def _k8s(doc: dict[str, Any], source: str) -> list[IacAsset]:
     kind = str(doc.get("kind", ""))
     meta = _d(doc.get("metadata"))
@@ -103,7 +129,11 @@ def _k8s(doc: dict[str, Any], source: str) -> list[IacAsset]:
                 "service",
                 name,
                 source,
-                {"type": svc_type, "ports": [p for p in ports if isinstance(p, int)][:MAX_LIST]},
+                {
+                    "type": svc_type,
+                    "ports": [p for p in ports if isinstance(p, int)][:MAX_LIST],
+                    "selector": _labels(spec.get("selector")),
+                },
                 exposure,
             )
         ]
@@ -115,7 +145,11 @@ def _k8s(doc: dict[str, Any], source: str) -> list[IacAsset]:
                 "ingress",
                 name,
                 source,
-                {"hosts": [h for h in hosts if h][:MAX_LIST], "tls": bool(spec.get("tls"))},
+                {
+                    "hosts": [h for h in hosts if h][:MAX_LIST],
+                    "tls": bool(spec.get("tls")),
+                    "backends": _ingress_backends(spec),
+                },
                 "internet",
             )
         ]
@@ -138,12 +172,22 @@ def _k8s(doc: dict[str, Any], source: str) -> list[IacAsset]:
             if kind == "ClusterRoleBinding"
             else None
         )
+        accounts = [
+            n
+            for sub in _l(doc.get("subjects"))
+            if _d(sub).get("kind") == "ServiceAccount" and (n := _text(_d(sub).get("name"), 160))
+        ]
         return [
             IacAsset(
                 "binding",
                 name,
                 source,
-                {"role": role_name, "scope": kind, "privilege": privilege},
+                {
+                    "role": role_name,
+                    "scope": kind,
+                    "privilege": privilege,
+                    "service_accounts": accounts[:MAX_LIST],
+                },
             )
         ]
     if kind in {"Deployment", "StatefulSet", "DaemonSet", "Pod", "Job", "CronJob"}:
@@ -170,10 +214,75 @@ def _k8s(doc: dict[str, Any], source: str) -> list[IacAsset]:
                     "service_account": _text(pod.get("serviceAccountName")) or "default",
                     "secret_refs": secret_refs,
                     "privileged": privileged,
+                    "labels": _labels(_d(template.get("metadata")).get("labels")),
+                    "containers": [n for c in containers if (n := _text(_d(c).get("name"), 160))][
+                        :MAX_LIST
+                    ],
                 },
             )
         ]
     return []
+
+
+@dataclass(frozen=True, slots=True)
+class KubeContext:
+    """What the Kubernetes objects say about one workload (kubernetes_context)."""
+
+    workload: str
+    source_path: str
+    exposure: str | None  # internet | internal | None
+    privilege: str | None  # admin | elevated | None (unknown)
+    evidence: dict[str, Any]
+
+
+PRIVILEGE_ORDER = ("elevated", "admin")
+
+
+def _selects(selector: dict[str, str], labels: dict[str, str]) -> bool:
+    # An empty selector selects nothing for a Service: its endpoints are managed by hand.
+    return bool(selector) and all(labels.get(k) == v for k, v in selector.items())
+
+
+def kubernetes_context(assets: tuple[IacAsset, ...] | list[IacAsset]) -> dict[str, KubeContext]:
+    """Per-workload exposure and privilege, joined from Services, Ingresses and RBAC.
+
+    Exposure: internet if a LoadBalancer or NodePort Service selects the workload, or an
+    Ingress routes to a Service that does; internal if only ClusterIP Services select it;
+    unknown otherwise. Privilege: the highest privilege bound to the workload's
+    ServiceAccount; unknown when nothing binds it (a missing binding is not proof of
+    least privilege, since roles can be granted outside the repository).
+    """
+    services = [a for a in assets if a.kind == "service" and "selector" in a.attrs]
+    ingress_targets = {
+        b for a in assets if a.kind == "ingress" for b in a.attrs.get("backends", [])
+    }
+    bindings = [a for a in assets if a.kind == "binding"]
+    out: dict[str, KubeContext] = {}
+    for w in (a for a in assets if a.kind == "workload"):
+        labels = w.attrs.get("labels", {})
+        selecting = [s for s in services if _selects(s.attrs.get("selector", {}), labels)]
+        internet = sorted(
+            s.name for s in selecting if s.exposure == "internet" or s.name in ingress_targets
+        )
+        exposure = "internet" if internet else "internal" if selecting else None
+        account = w.attrs.get("service_account", "default")
+        bound = [b for b in bindings if account in b.attrs.get("service_accounts", [])]
+        levels = [b.attrs.get("privilege") for b in bound if b.attrs.get("privilege")]
+        privilege = max(levels, key=PRIVILEGE_ORDER.index) if levels else None
+        out[w.name] = KubeContext(
+            w.name,
+            w.source_path,
+            exposure,
+            privilege,
+            {
+                "workload": w.name,
+                "file": w.source_path,
+                "exposed_by": internet or sorted(s.name for s in selecting),
+                "service_account": account,
+                "bindings": sorted(b.name for b in bound),
+            },
+        )
+    return out
 
 
 def _compose(doc: dict[str, Any], source: str, compose_dir: str) -> list[IacAsset]:

@@ -5,7 +5,10 @@ Blueprint §11.2 factors, from two sources in precedence order:
 1. what RiskGraph knows about the repository itself: every MVP scan is of a public
    GitHub repository, so a committed secret is exposed to the internet without auth;
 2. the repository manifest (``riskgraph.yaml``), mapped to findings by the longest
-   service ``path`` prefix of the finding's file.
+   service ``path`` prefix of the finding's file;
+3. where the manifest is silent: Kubernetes (exposure, RBAC privilege), then Compose
+   (exposure). A Kubernetes workload reaches findings through a manifest or Compose
+   service of the same name; that is an inference, so its confidence is low.
 
 Anything not covered stays ``None`` and the risk model uses its "unknown" default.
 Data sensitivity follows §14.2: the most sensitive data store reachable from the
@@ -19,7 +22,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from riskgraph.modules.context.iac import IacAsset
+from riskgraph.modules.context.iac import IacAsset, KubeContext, kubernetes_context
 from riskgraph.modules.context.manifest import Manifest, ManifestResult, ServiceDecl
 from riskgraph.shared.vocabulary import SourceType
 
@@ -83,6 +86,7 @@ class ContextResolver:
             key=lambda a: len(a.path_prefix or ""),
             reverse=True,
         )
+        self._kube = kubernetes_context(list(iac))
         self._cache: dict[str, FindingContext] = {}
         self.mapped: dict[str, int] = {}
         self.unmapped = 0
@@ -101,6 +105,15 @@ class ContextResolver:
         else:
             self.mapped[service.name] = self.mapped.get(service.name, 0) + 1
         base = self._service_context(service) if service else FindingContext()
+        kube = self._kube_for(file, service)
+        if kube is not None and (base.exposure is None or base.privilege is None):
+            base = FindingContext(
+                base.service,
+                base.exposure or self._kube_exposure(kube),
+                base.data,
+                base.privilege or self._kube_privilege(kube),
+                base.criticality,
+            )
         if base.exposure is None:
             iac_exposure = self._iac_exposure(file)
             if iac_exposure is not None:
@@ -118,6 +131,37 @@ class ContextResolver:
                 base.service, exposure, base.data, base.privilege, base.criticality
             )
         return base
+
+    def _compose_service(self, file: str) -> IacAsset | None:
+        f = _clean_file(file)
+        for a in self._iac:
+            prefix = (a.path_prefix or "").strip("/")
+            if not prefix or f.startswith(prefix + "/") or f == prefix:
+                return a  # an empty prefix is the repository root (`build: .`)
+        return None
+
+    def _kube_for(self, file: str, service: ServiceDecl | None) -> KubeContext | None:
+        """The workload named like the finding's manifest service, else its Compose service."""
+        if not self._kube:
+            return None
+        if service is not None and service.name in self._kube:
+            return self._kube[service.name]
+        compose = self._compose_service(file)
+        return self._kube.get(compose.name) if compose is not None else None
+
+    @staticmethod
+    def _kube_exposure(k: KubeContext) -> Observed | None:
+        if k.exposure is None:
+            return None
+        # Kubernetes says nothing about application auth: same worst case as Compose.
+        label = "internet_noauth" if k.exposure == "internet" else "internal"
+        return Observed(label, "kubernetes", "low", dict(k.evidence))
+
+    @staticmethod
+    def _kube_privilege(k: KubeContext) -> Observed | None:
+        if k.privilege is None:
+            return None
+        return Observed(k.privilege, "kubernetes", "low", dict(k.evidence))
 
     def _iac_exposure(self, file: str) -> Observed | None:
         f = _clean_file(file)
@@ -252,5 +296,14 @@ class ContextResolver:
                     "file": a.source_path,
                 }
                 for a in self._iac
+            ],
+            "kubernetes_workloads": [
+                {
+                    "name": k.workload,
+                    "file": k.source_path,
+                    "exposure": k.exposure,
+                    "privilege": k.privilege,
+                }
+                for k in sorted(self._kube.values(), key=lambda k: k.workload)
             ],
         }

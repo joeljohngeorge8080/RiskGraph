@@ -86,6 +86,16 @@ export interface ScanContext {
   public_repository: boolean;
   services: ServiceContext[];
   unmapped_findings: number;
+  /** Optional: scans analysed before P7 do not have them. */
+  iac_services?: { name: string; path: string | null; exposure: string | null; file: string }[];
+  kubernetes_workloads?: KubeWorkload[];
+}
+
+export interface KubeWorkload {
+  name: string;
+  file: string;
+  exposure: string | null;
+  privilege: string | null;
 }
 
 export interface Scan {
