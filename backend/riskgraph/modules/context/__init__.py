@@ -8,7 +8,7 @@
 
 from riskgraph.modules.context.cvss import CvssSubscores, subscores
 from riskgraph.modules.context.environment import ContextResolver, FindingContext, Observed
-from riskgraph.modules.context.iac import IacResult, KubeContext, kubernetes_context
+from riskgraph.modules.context.iac import IacAsset, IacResult, KubeContext, kubernetes_context
 from riskgraph.modules.context.iac import extract as extract_iac
 from riskgraph.modules.context.manifest import (
     Manifest,
@@ -29,6 +29,7 @@ __all__ = [
     "ContextResolver",
     "CvssSubscores",
     "FindingContext",
+    "IacAsset",
     "IacResult",
     "KubeContext",
     "Manifest",

@@ -194,6 +194,11 @@ def _k8s(doc: dict[str, Any], source: str) -> list[IacAsset]:
         template = _d(spec.get("template"))
         pod = _d(template.get("spec")) or spec
         containers = _l(pod.get("containers"))
+        images = [
+            ref
+            for c in [*containers, *_l(pod.get("initContainers"))]
+            if (ref := _text(_d(c).get("image"), 256))
+        ]
         secret_refs = 0
         privileged = False
         for c in containers:
@@ -218,6 +223,7 @@ def _k8s(doc: dict[str, Any], source: str) -> list[IacAsset]:
                     "containers": [n for c in containers if (n := _text(_d(c).get("name"), 160))][
                         :MAX_LIST
                     ],
+                    "images": list(dict.fromkeys(images))[:MAX_LIST],  # X2: image refs
                 },
             )
         ]
@@ -322,6 +328,7 @@ def _compose(doc: dict[str, Any], source: str, compose_dir: str) -> list[IacAsse
                     "published_ports": published[:MAX_LIST],
                     "privileged": svc.get("privileged") is True,
                     "secret_env_keys": secret_keys,
+                    "image": _text(svc.get("image"), 256),  # X2: image ref, if any
                 },
                 exposure,
                 code,

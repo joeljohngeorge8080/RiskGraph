@@ -19,3 +19,4 @@
 | [0015](0015-l3-call-graph-and-nvd-refresh.md) | L3 reachability by intraprocedural call graph; NVD refreshed by Beat | accepted |
 | [0016](0016-ai-explanation.md) | Evidence-grounded explanations with a local model and a template fallback | accepted |
 | [0017](0017-evidence-and-assurance.md) | One evidence and assurance contract; no edge without evidence | accepted |
+| [0018](0018-runtime-and-image-intel.md) | Runtime and image intelligence: EOL from a stored feed, image scans behind an allow-list | accepted |

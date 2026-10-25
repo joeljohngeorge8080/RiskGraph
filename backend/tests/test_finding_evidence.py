@@ -112,3 +112,38 @@ def test_secrets_never_carry_the_secret() -> None:
     [ev] = _evidence(raw)
     assert ev.kind == "secret_match" and ev.confidence == "high"
     assert ev.facts == {"rule_id": "aws-access-token", "severity": "critical", "family": "aws"}
+
+
+def test_scanner_matches_carry_their_advisory_data_date() -> None:
+    db_time = dt.datetime(2026, 10, 25, 1, 20, 33, tzinfo=dt.UTC)
+    [m] = merge([_sca()])
+    [ev] = finding_evidence(m, None, RUNS, VERSIONS, NOW, {"trivy": db_time})
+    assert ev.data_as_of == db_time
+    [no_date] = finding_evidence(m, None, RUNS, VERSIONS, NOW)
+    assert no_date.data_as_of is None and no_date.id == ev.id  # time never changes the id
+
+
+def test_runtime_eol_evidence_is_dated_by_its_feed() -> None:
+    raw = RawFinding(
+        scanner=ScannerName.RISKGRAPH,
+        source_type=SourceType.RUNTIME,
+        rule_id="runtime-eol:python:3.8",
+        title="Python 3.8 is end-of-life since 2024-10-07",
+        severity=Severity.HIGH,
+        location=Location("Dockerfile", 1),
+        category="runtime_eol",
+        package={"name": "python", "version": "3.8", "fixed_version": "3.11"},
+        attrs={
+            "advisory": "endoflife.date/python/3.8",
+            "eol_date": "2024-10-07",
+            "declared_by": "image",
+            "data_as_of": "2026-10-25T06:00:00+00:00",
+        },
+    )
+    [m] = merge([raw])
+    [ev] = finding_evidence(m, None, {**RUNS, "riskgraph": uuid.uuid4()}, {}, NOW)
+    assert ev.kind == "eol" and ev.assurance is Assurance.VERIFIED and ev.raw is None
+    assert ev.data_as_of == dt.datetime(2026, 10, 25, 6, tzinfo=dt.UTC)
+    assert (
+        ev.facts["advisory"] == "endoflife.date/python/3.8" and ev.facts["fixed_version"] == "3.11"
+    )

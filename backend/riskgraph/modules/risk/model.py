@@ -141,6 +141,8 @@ def _exploitability(inp: ScoreInput) -> Factor:
             value += t.E_SAST_HIGH_CONFIDENCE_BONUS
             raw += ",confidence=HIGH"
         return Factor("likelihood", "E", _clamp(value), "sast_severity", "medium", raw)
+    if st is SourceType.RUNTIME:
+        return Factor("likelihood", "E", t.E_RUNTIME_EOL, "runtime_eol", "low", "eol=true")
     family = inp.iac_family or "hygiene"
     return Factor(
         "likelihood", "E", t.E_IAC.get(family, 0.25), "iac_family", "medium", f"family={family}"
@@ -162,6 +164,8 @@ def _technical_impact(inp: ScoreInput) -> Factor:
     if st is SourceType.SAST:
         value = t.T_SAST.get(inp.category, t.T_SAST["other"])
         return Factor("impact", "T", value, "sast_category", "medium", f"category={inp.category}")
+    if st is SourceType.RUNTIME:
+        return Factor("impact", "T", t.T_RUNTIME_EOL, "runtime_eol", "low", "no security fixes")
     family = inp.iac_family or "hygiene"
     return Factor(
         "impact", "T", t.T_IAC.get(family, 0.2), "iac_family", "medium", f"family={family}"

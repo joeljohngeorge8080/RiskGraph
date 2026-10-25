@@ -304,3 +304,17 @@ def test_effective_impact_raises_never_lowers() -> None:
 def test_exploit_likelihood_is_geomean_of_e_and_r() -> None:
     r = score(ScoreInput(S.SCA, V.HIGH, epss=0.01, cvss_impact=5.9, reachability=_reach("L2")))
     assert r.exploit_likelihood == pytest.approx(math.sqrt(0.5 * 0.8))
+
+
+# --- v1-ctx.3: interim runtime end-of-life score (ADR-0018) -----------------------------
+
+
+def test_runtime_eol_has_its_own_interim_factors_not_iac_ones() -> None:
+    from riskgraph.modules.risk import ScoreInput, score
+    from riskgraph.shared.vocabulary import Severity, SourceType
+
+    r = score(ScoreInput(source_type=SourceType.RUNTIME, severity=Severity.HIGH))
+    e, t_ = r.factor("E"), r.factor("T")
+    assert e is not None and e.source == "runtime_eol" and e.value == 0.5
+    assert t_ is not None and t_.source == "runtime_eol" and t_.value == 0.6
+    assert r.factor("R") is None or not r.factor("R").applicable  # type: ignore[union-attr]

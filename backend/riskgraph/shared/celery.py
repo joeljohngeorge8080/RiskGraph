@@ -22,12 +22,14 @@ TASK_MODULES = [
     "riskgraph.modules.scanners.tasks",
     "riskgraph.modules.context.tasks",
     "riskgraph.modules.explain.tasks",
+    "riskgraph.modules.runtime.tasks",
 ]
 
 BEAT_SCHEDULE = {
     "reap-stale-scans": {"task": "riskgraph.scans.reap", "schedule": 300.0},
     "refresh-trivy-db": {"task": "riskgraph.scanners.refresh_trivy_db", "schedule": 6 * 3600.0},
     "refresh-feeds": {"task": "riskgraph.context.refresh_feeds", "schedule": 3600.0},
+    "refresh-eol": {"task": "riskgraph.runtime.refresh_eol", "schedule": 24 * 3600.0},
 }
 
 

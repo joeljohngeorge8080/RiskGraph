@@ -48,7 +48,13 @@ class TrivyScanner:
             "--disable-telemetry",
             ".",
         )
-        return Command(argv, {"HOME": str(paths.home), "TMPDIR": str(paths.home / "tmp")})
+        env = {
+            "HOME": str(paths.home),
+            "TMPDIR": str(paths.home / "tmp"),
+            # so `trivy --version` (same env) also reports the DB build time (X2 freshness)
+            "TRIVY_CACHE_DIR": str(paths.cache),
+        }
+        return Command(argv, env)
 
     def version_argv(self) -> tuple[str, ...]:
         return ("trivy", "--version")

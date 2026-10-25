@@ -17,6 +17,7 @@ from riskgraph.modules.graph import models as _graph_models  # noqa: F401
 from riskgraph.modules.reachability import models as _reachability_models  # noqa: F401
 from riskgraph.modules.repositories import models as _repositories_models  # noqa: F401
 from riskgraph.modules.risk import models as _risk_models  # noqa: F401
+from riskgraph.modules.runtime import models as _runtime_models  # noqa: F401
 from riskgraph.modules.scans import models as _scans_models  # noqa: F401
 from riskgraph.shared.config import get_settings
 from riskgraph.shared.db import Base

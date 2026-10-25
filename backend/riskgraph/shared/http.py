@@ -1,4 +1,4 @@
-"""Outbound HTTP for threat-intel feeds (EPSS, KEV).
+"""Outbound HTTP for threat-intel feeds (EPSS, KEV, NVD, endoflife.date).
 
 The only place the backend talks to the Internet besides ``git clone``. Hosts are
 allow-listed, redirects are refused and bodies are size-capped, so a compromised or
@@ -20,6 +20,7 @@ ALLOWED_TARGETS = (
     ("www.cisa.gov", "/sites/default/files/feeds/"),
     ("raw.githubusercontent.com", "/cisagov/kev-data/"),
     ("services.nvd.nist.gov", "/rest/json/cves/2.0"),
+    ("endoflife.date", "/api/"),  # runtime end-of-life cycles (X2)
 )
 DEFAULT_TIMEOUT_S = 10.0
 MAX_BODY_BYTES = 20 * 1024 * 1024
