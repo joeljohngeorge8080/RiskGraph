@@ -15,6 +15,7 @@ from riskgraph.modules.context.router import router as context_router
 from riskgraph.modules.findings.router import router as findings_router
 from riskgraph.modules.graph.router import router as graph_router
 from riskgraph.modules.repositories.router import router as repositories_router
+from riskgraph.modules.risk.router import router as risk_router
 from riskgraph.modules.sbom.router import router as sbom_router
 from riskgraph.modules.scans import router as scans_router
 from riskgraph.shared import health
@@ -61,6 +62,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(repositories_router, prefix=API_PREFIX)
     app.include_router(context_router, prefix=API_PREFIX)
     app.include_router(sbom_router, prefix=API_PREFIX)
+    app.include_router(risk_router, prefix=API_PREFIX)
 
     log.info("api_configured", env=settings.env, docs=docs_enabled)
     log.warning("auth_disabled_mvp", detail="bind the API to localhost only (ADR-0010)")
