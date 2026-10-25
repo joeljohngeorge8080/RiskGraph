@@ -32,6 +32,8 @@ class FixtureRunner:
     calls: list[tuple[str, ...]] = field(default_factory=list)
     # simulate a fix: results for these files are removed from the replayed reports
     drop_files: set[str] = field(default_factory=set)
+    # where recorded reports come from (the evaluation replays its own scenarios)
+    fixture: Callable[[ScannerName], Path] = fixture_path
 
     def run(self, spec: RunSpec) -> RunResult:
         argv = tuple(spec.argv)
@@ -48,7 +50,7 @@ class FixtureRunner:
         scanner = SCANNERS[ScannerName(name)]
         out = spec.log_dir.parent.parent / "out" / name / scanner.output_name
         out.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(fixture_path(ScannerName(name)), out)
+        shutil.copyfile(self.fixture(ScannerName(name)), out)
         if self.drop_files:
             out.write_text(json.dumps(_drop(json.loads(out.read_text()), self.drop_files)))
         return RunResult(0, False, 5, "")
@@ -67,15 +69,16 @@ def _drop(doc: Any, files: set[str]) -> Any:
 
 @dataclass
 class LocalDirCloner:
-    """Builds the kitchen-sink repository instead of cloning from GitHub."""
+    """Builds a local repository (the kitchen sink by default) instead of cloning."""
 
     error: str | None = None
     extra: dict[str, str] = field(default_factory=dict)  # added files, e.g. riskgraph.yaml
+    build: Callable[[Path], Path] = kitchen_sink.build
 
     def clone(self, ws: ScanWorkspace, clone_url: str, ref: str) -> CloneResult:
         if self.error:
             raise CloneError(self.error)
-        kitchen_sink.build(ws.src)
+        self.build(ws.src)
         for rel, content in self.extra.items():
             (ws.src / rel).write_text(content, encoding="utf-8")
         size, files = ws.measure(10**9, 10**6)

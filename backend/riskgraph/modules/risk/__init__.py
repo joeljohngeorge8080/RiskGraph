@@ -5,6 +5,7 @@ from riskgraph.modules.risk.model import (
     Factor,
     ScoreInput,
     ScoreResult,
+    epss_to_e,
     priority_for,
     score,
 )
@@ -20,6 +21,7 @@ __all__ = [
     "RiskScore",
     "ScoreInput",
     "ScoreResult",
+    "epss_to_e",
     "input_for",
     "persist_score",
     "priority_for",
