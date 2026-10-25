@@ -1,6 +1,8 @@
 """Celery canvas for a scan (ADR-0007) and an inline equivalent for tests and e2e.
 
-    chain(clone, chord(group(run_scanner x N), collect), analyze, finalize)
+    chain(clone, chord(group(run_scanner x N), collect), scan_images, analyze, finalize)
+
+``scan_images`` (X2) runs on the scan queue: it starts containers, like the scanners.
 
 Task names are strings, so the API process builds this canvas without importing the
 worker's task module.
@@ -49,6 +51,13 @@ def build_canvas(scan_id: uuid.UUID, scanners: list[ScannerName], settings: Sett
             time_limit=settings.clone_timeout_s + 120,
         ),
         chord(header, _sig("riskgraph.scans.collect", sid, immutable=False, queue=QUEUE_ANALYSIS)),
+        _sig(
+            "riskgraph.scans.scan_images",
+            sid,
+            queue=QUEUE_SCAN,
+            soft_time_limit=pipeline.image_stage_time_limit_s(settings),
+            time_limit=pipeline.image_stage_time_limit_s(settings) + 60,
+        ),
         _sig("riskgraph.scans.analyze", sid, queue=QUEUE_ANALYSIS, time_limit=ANALYZE_TIME_LIMIT_S),
         _sig("riskgraph.scans.finalize", sid, queue=QUEUE_ANALYSIS),
     )
@@ -73,5 +82,6 @@ def run_pipeline_inline(
     for name in scanners:
         pipeline.run_scanner(scan_id, name, deps)
     pipeline.collect(scan_id, deps)
+    pipeline.scan_images(scan_id, deps)
     pipeline.analyze(scan_id, deps)
     return pipeline.finalize(scan_id, deps)

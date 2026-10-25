@@ -22,6 +22,12 @@ from tests.fixtures.repos import kitchen_sink
 from tests.scanner_fixtures import fixture_path
 
 FAKE_SHA = "0123456789abcdef0123456789abcdef01234567"
+_IMAGES = Path(__file__).parent / "fixtures" / "images"
+# Recorded `trivy image` reports by canonical reference (X2 part 2).
+IMAGE_FIXTURES = {
+    "docker.io/library/python:3.8-slim": _IMAGES / "python_3.8-slim/trivy/0.76.0/report.json",
+    "docker.io/library/node:14": _IMAGES / "node_14/trivy/0.76.0/report.json",
+}
 TRIVY_DB = "2026-10-25 01:20:33.190884269 +0000 UTC"
 
 
@@ -35,12 +41,21 @@ class FixtureRunner:
     drop_files: set[str] = field(default_factory=set)
     # where recorded reports come from (the evaluation replays its own scenarios)
     fixture: Callable[[ScannerName], Path] = fixture_path
+    # `trivy image` reports by reference; any other reference fails like a refused pull
+    images: dict[str, Path] = field(default_factory=dict)
 
     def run(self, spec: RunSpec) -> RunResult:
         argv = tuple(spec.argv)
         self.calls.append(argv)
         if argv and argv[0] == SELF_PYTHON:  # the reachability extractor: run it for real
             return SubprocessRunner(Path("/nonexistent")).run(spec)
+        if argv[:2] == ("trivy", "image"):
+            ref, out = argv[-1], Path(argv[argv.index("--output") + 1])
+            if ref not in self.images:
+                return RunResult(1, False, 5, f"FATAL {ref}: MANIFEST_UNKNOWN: manifest unknown")
+            out.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(self.images[ref], out)
+            return RunResult(0, False, 5, "")
         name = spec.log_dir.name
         spec.log_dir.mkdir(parents=True, exist_ok=True)
         if spec.log_name == "version":

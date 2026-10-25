@@ -62,6 +62,15 @@ def collect_task(_results: list[Any], scan_id: str) -> None:
         _guard("collect", scan_id)
 
 
+@shared_task(name="riskgraph.scans.scan_images")
+def scan_images_task(scan_id: str) -> None:
+    # Images never fail a scan (ADR-0018): an error here is logged and analysis goes on.
+    try:
+        pipeline.scan_images(uuid.UUID(scan_id), pipeline.default_deps())
+    except Exception:
+        log.exception("stage_crashed", stage="scan_images", scan_id=scan_id)
+
+
 @shared_task(name="riskgraph.scans.analyze")
 def analyze_task(scan_id: str) -> None:
     try:
