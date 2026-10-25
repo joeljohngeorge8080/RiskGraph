@@ -633,6 +633,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                 m.location.file,
                 m.representative.package,
                 m.representative.vulnerability_id,
+                m.location.line_start,
             )
             observed = (
                 None

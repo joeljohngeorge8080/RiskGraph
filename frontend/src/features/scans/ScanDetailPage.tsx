@@ -132,7 +132,7 @@ export function ScanDetailPage({ scanId }: { scanId: string }) {
             <>
               {s.summary.reachability.files} source files parsed, {s.summary.reachability.entry_points} entry points
               {" · "}
-              {(["L2", "L1", "L0", "unknown"] as const)
+              {(["L3", "L2", "L1", "L0", "unknown"] as const)
                 .map((t) => `${s.summary.reachability?.tiers[t] ?? 0} ${t} (${REACH_LABEL[t]})`)
                 .join(" · ")}
             </>

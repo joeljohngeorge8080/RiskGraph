@@ -11,7 +11,14 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-from riskgraph.modules.reachability.callgraph import SYMBOLS, find_l3
+from riskgraph.modules.reachability.callgraph import (
+    SYMBOLS,
+    Node,
+    chain_to,
+    enclosing_function,
+    find_l3,
+    reachable_functions,
+)
 from riskgraph.modules.reachability.graph import ModuleGraph
 from riskgraph.modules.reachability.package_names import (
     PYTHON_ECOSYSTEMS,
@@ -44,6 +51,12 @@ class TierClassifier:
     def __init__(self, graph: ModuleGraph, deps: dict[str, dict[str, Any]]) -> None:
         self.graph = graph
         self.deps = deps
+        self._functions: dict[Node, Node | None] | None = None
+
+    def _reachable_functions(self) -> dict[Node, Node | None]:
+        if self._functions is None:
+            self._functions = reachable_functions(self.graph)
+        return self._functions
 
     def _imported(self, names: tuple[str, ...], scope: str) -> Verdict | None:
         g = self.graph
@@ -204,12 +217,26 @@ class TierClassifier:
             best.tier, conf, {**best.evidence, "via": best_parent, "relationship": "indirect"}
         )
 
-    def sast(self, file: str) -> Verdict:
+    def sast(self, file: str, line: int | None = None) -> Verdict:
+        """File reachability, refined by the enclosing function's place in the call graph."""
         g = self.graph
         if file not in g.files:
             return Verdict(ReachabilityTier.UNKNOWN, "low", {"reason": "file not analysed"})
         if file in g.parent:
-            return Verdict(ReachabilityTier.L2, "medium", {"chain": g.chain_to(file)})
+            function = enclosing_function(g, file, line) if line else None
+            if function is None:
+                return Verdict(ReachabilityTier.L2, "medium", {"chain": g.chain_to(file)})
+            reached = self._reachable_functions()
+            if (file, function) in reached:
+                chain = chain_to(reached, (file, function))
+                ev = {"function": function, "chain": [f"{f}:{fn}" for f, fn in chain]}
+                return Verdict(ReachabilityTier.L3, "medium", ev)
+            ev = {
+                "function": function,
+                "chain": g.chain_to(file),
+                "reason": "no resolved call path from an entry point reaches this function",
+            }
+            return Verdict(ReachabilityTier.L2, "medium", ev)
         if g.entries:
             return Verdict(
                 ReachabilityTier.L1, "medium", {"reason": "no entry point reaches this file"}
@@ -222,9 +249,10 @@ class TierClassifier:
         file: str,
         package: dict[str, Any] | None,
         vulnerability_id: str | None = None,
+        line: int | None = None,
     ) -> Verdict:
         if source_type is SourceType.SAST:
-            return self.sast(file)
+            return self.sast(file, line)
         if source_type is SourceType.SCA and package:
             return self.sca(
                 package.get("ecosystem"),

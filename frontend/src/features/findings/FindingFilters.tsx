@@ -5,7 +5,7 @@ import { REACH_LABEL, STATUS_LABEL } from "@/lib/level2";
 const SCANNERS: ScannerName[] = ["trivy", "semgrep", "checkov", "gitleaks"];
 const STATUSES = Object.keys(STATUS_LABEL);
 const CHANGES: FindingChange[] = ["new", "reopened"];
-const TIERS: ReachabilityTier[] = ["L2", "L1", "L0", "unknown"];
+const TIERS: ReachabilityTier[] = ["L3", "L2", "L1", "L0", "unknown"];
 
 export interface FilterState {
   priority: string[];

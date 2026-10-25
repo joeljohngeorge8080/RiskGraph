@@ -16,7 +16,7 @@ export type SourceType = "sca" | "sast" | "secret" | "iac";
 export type ScannerName = "trivy" | "semgrep" | "checkov" | "gitleaks";
 export type FindingStatus = "open" | "fixed" | "false_positive" | "accepted_risk" | "wont_fix";
 export type FindingChange = "new" | "existing" | "reopened";
-export type ReachabilityTier = "L0" | "L1" | "L2" | "unknown" | "n_a";
+export type ReachabilityTier = "L0" | "L1" | "L2" | "L3" | "unknown" | "n_a";
 
 export interface ScannerRun {
   scanner: ScannerName;
@@ -234,7 +234,17 @@ export interface FindingDetail {
   reachability: {
     tier: ReachabilityTier;
     confidence: string;
-    evidence: { importers?: string[]; chain?: string[]; reason?: string; via?: string; searched?: string[] };
+    evidence: {
+      importers?: string[];
+      chain?: string[];
+      reason?: string;
+      via?: string;
+      searched?: string[];
+      /** L3 (call graph): the vulnerable symbol and the function that calls it. */
+      symbol?: string;
+      function?: string;
+      cve?: string;
+    };
     analyzer_version: string;
   } | null;
   attack_paths: AttackPath[];

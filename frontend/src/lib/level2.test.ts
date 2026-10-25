@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TrendPoint } from "@/api/types";
-import { historyLine, pathLabel, shortLabel, trendBars } from "./level2";
+import { REACH_LABEL, REACH_TONE, historyLine, pathLabel, shortLabel, trendBars } from "./level2";
 
 const point = (id: string, by: TrendPoint["by_priority"]): TrendPoint => ({
   scan_id: id,
@@ -39,5 +39,15 @@ describe("level 2 helpers", () => {
     expect(historyLine({ new: 2, fixed: 1, reopened: 0 })).toBe("+2 new · −1 fixed");
     expect(historyLine({ new: 0, fixed: 0, reopened: 3 })).toBe("+0 new · −0 fixed · 3 reopened");
     expect(historyLine(undefined)).toBeNull();
+  });
+});
+
+describe("reachability tiers", () => {
+  it("labels every tier, including L3 from the call graph", () => {
+    expect(REACH_LABEL.L3).toBe("called from an entry point");
+    for (const tier of ["L3", "L2", "L1", "L0", "unknown", "n_a"] as const) {
+      expect(REACH_LABEL[tier]).toBeTruthy();
+      expect(REACH_TONE[tier]).toMatch(/^var\(--/);
+    }
   });
 });
