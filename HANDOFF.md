@@ -1,5 +1,16 @@
-# HANDOFF: resume here (updated 2026-10-23, session 6: P3, P4, P5, P7, P8)
+# HANDOFF: resume here (updated 2026-10-25, session 7: P7 finished; expansion A–D proposed)
 
+## Session 7 (2026-10-25, local)
+- **Committed locally (not pushed):** `08d5181`.
+  - P7 finished: Kubernetes Service/Ingress/RBAC joined per workload (`kubernetes_context`); RBAC privilege now scored; precedence manifest > Kubernetes > Compose.
+  - Also: `GET /scans/{id}/sbom`, the db test for the context endpoint, and `test_containers.py` retyped so mypy is clean (it had 23 pre-existing errors under mypy 2.3.1).
+- **Verified:** 247 unit and 42 db tests passed (2 e2e skipped); ruff and mypy clean; frontend lint, typecheck and 8 tests passed.
+- **Paused:** the owner asked for an architecture plan for four new capabilities (A deep code, B authz, C runtime intel, D evidence-backed chaining) before more implementation.
+  - The plan is in `docs/proposals/EXPANSION_A-D.md`, **awaiting approval**.
+  - Its first phase, X0, absorbs the remaining P9–P11 definition-of-done tests and the Semgrep-secret typing bug.
+- **Not started:** P8 UI for L3, P12 AI explanation.
+
+---
 ## Session 6 (2026-10-23, local): containers, SBOM, NVD, L3 — UNCOMMITTED
 - **Nothing from this session is committed or pushed.** Branch `mvp-level2-integration` is still at `8e8c4db` (housekeeping). Review, then commit in logical pieces.
 - **Built and verified here:**
