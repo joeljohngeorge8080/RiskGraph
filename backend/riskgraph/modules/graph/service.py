@@ -9,11 +9,20 @@ from typing import Any, Literal
 from sqlalchemy import delete, func, literal, select
 from sqlalchemy.orm import Session
 
+from riskgraph.modules.evidence import Assurance, link_edge, min_assurance, persist_evidence
 from riskgraph.modules.graph.attack import AttackAnalysis
 from riskgraph.modules.graph.models import AttackPath, AttackPathFinding, GraphEdge, GraphNode
 
 MAX_GRAPH_NODES = 2000
 MAX_REACH_DEPTH = 8  # the attack-path hop limit
+
+
+def path_assurance(edges: list[dict[str, Any]]) -> str | None:
+    """A stored path's assurance: its weakest edge's (ADR-0017). None before X1."""
+    levels = [e.get("assurance") for e in edges]
+    if not levels or not all(isinstance(level, str) for level in levels):
+        return None
+    return min_assurance(Assurance(str(level)) for level in levels).value
 
 
 def clear(session: Session, scan_id: uuid.UUID) -> None:
@@ -32,7 +41,10 @@ def persist(
     analysis: AttackAnalysis,
     finding_ids: dict[int, uuid.UUID],
 ) -> None:
-    """``finding_ids`` maps merged-list index → findings.id for evidence references."""
+    """``finding_ids`` maps merged-list index → findings.id for evidence references.
+
+    The findings' own evidence must already be stored: edges link to it (ADR-0017).
+    """
 
     def ids(indices: list[int]) -> list[str]:
         return [str(finding_ids[i]) for i in indices if i in finding_ids]
@@ -50,17 +62,26 @@ def persist(
         )
         for n in analysis.nodes.values()
     )
-    session.add_all(
-        GraphEdge(
-            scan_job_id=scan_id,
-            source=e["source"][:160],
-            target=e["target"][:160],
-            kind=e["kind"],
-            probability=_dec(e["probability"], "0.00001"),
-            evidence={"findings": ids(e["findings"])},
+    persist_evidence(session, scan_id, analysis.evidence.values())
+    edge_rows = [
+        (
+            GraphEdge(
+                scan_job_id=scan_id,
+                source=e.source[:160],
+                target=e.target[:160],
+                kind=e.kind,
+                probability=_dec(e.p, "0.00001"),
+                assurance=e.assurance.value,
+                evidence={"findings": ids(list(e.findings))},
+            ),
+            e.evidence_ids,
         )
         for e in analysis.edges
-    )
+    ]
+    session.add_all(edge_row for edge_row, _ in edge_rows)
+    session.flush()
+    for edge_row, evidence_ids in edge_rows:
+        link_edge(session, scan_id, edge_row.id, evidence_ids)
     for p in analysis.paths:
         row = AttackPath(
             scan_job_id=scan_id,

@@ -49,6 +49,9 @@ from sqlalchemy import text  # noqa: E402 - after environment defaults
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 TABLES = (
+    "edge_evidence",
+    "finding_evidence",
+    "evidence",
     "ai_explanations",
     "assets",
     "sbom_components",

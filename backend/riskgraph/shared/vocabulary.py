@@ -22,6 +22,10 @@ class SourceType(StrEnum):
     SAST = "sast"
     SECRET = "secret"  # noqa: S105 - a category name, not a credential
     IAC = "iac"
+    # Expansion X1 adds the values so the column accepts them; producers arrive in X2
+    # (runtime/EOL) and X5 (authorization), and their scoring in X6.
+    RUNTIME = "runtime"
+    AUTHZ = "authz"
 
 
 class Severity(StrEnum):

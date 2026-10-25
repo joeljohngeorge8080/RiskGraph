@@ -30,7 +30,12 @@ def explain(pack: EvidencePack) -> ExplanationDraft:
     ]
     if pack.paths:
         p = pack.paths[0]
-        reasons.append(Reason(claim=f"It lies on the attack path {p.label}.", evidence_ids=[p.id]))
+        claim = (
+            f"It may lie on the attack path {p.label}; that path is a hypothesis to verify."
+            if p.assurance == "hypothesis"
+            else f"It lies on the attack path {p.label}."
+        )
+        reasons.append(Reason(claim=claim[:400], evidence_ids=[p.id]))
     if not reasons:
         reasons.append(
             Reason(claim="No deployment context is known for it.", evidence_ids=["SCORE"])

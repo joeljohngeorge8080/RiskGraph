@@ -86,6 +86,8 @@ class PathEv(_Frozen):
     score: float
     sink: str
     hops: int
+    # ADR-0017: the weakest edge's level; "hypothesis" paths are unproven
+    assurance: str | None = None
 
 
 class SnippetEv(_Frozen):

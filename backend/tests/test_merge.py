@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from riskgraph.modules.normalization import Location, RawFinding, merge
+from riskgraph.modules.normalization import Location, RawFinding, fingerprint, merge
 from riskgraph.modules.normalization.families import iac_family, normalize_check_id, secret_family
 from riskgraph.shared.vocabulary import ScannerName, Severity, SourceType
 
@@ -91,3 +91,27 @@ def test_check_id_normalization_and_families() -> None:
     assert iac_family(None, "Ensure bucket is not public").value == "public"
     assert iac_family(None, "Something else").value == "hygiene"
     assert secret_family("generic-api-key") == "generic"
+
+
+def test_runtime_and_authz_findings_are_kept_not_dropped() -> None:
+    """X1 adds the source types before their producers (X2, X5): nothing may vanish."""
+
+    def raw(st: SourceType, rule: str, line: int) -> RawFinding:
+        return RawFinding(
+            scanner=ScannerName.TRIVY,
+            source_type=st,
+            rule_id=rule,
+            title=rule,
+            severity=Severity.HIGH,
+            location=Location("app.py", line),
+            category="runtime_eol" if st is SourceType.RUNTIME else "authz",
+        )
+
+    found = [
+        raw(SourceType.RUNTIME, "eol-python", 1),
+        raw(SourceType.RUNTIME, "eol-python", 1),  # the same thing twice: one finding
+        raw(SourceType.AUTHZ, "unguarded-route", 7),
+    ]
+    merged = merge(found)
+    assert sorted(m.source_type.value for m in merged) == ["authz", "runtime"]
+    assert len({fingerprint(f, "acme/x") for f in found}) == 2

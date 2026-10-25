@@ -1,4 +1,12 @@
-# HANDOFF: resume here (updated 2026-10-25, session 8: X0 done; next X1, see todo1150.md)
+# HANDOFF: resume here (updated 2026-10-25, session 8: X0 and X1 done; next X2, see todo1150.md)
+
+## Session 8, part 2: X1 evidence and assurance (2026-10-25, local)
+- **X1 done** (`docs/phases/PHASE_X1.md`, ADR-0017, migration `f3a9c1d7b2e8`). New `modules/evidence`. Every graph edge has an assurance level (verified, inferred or hypothesis) and evidence ids, and the builder refuses an edge without them. Findings have stored evidence (scanner matches and reachability). The API serves `evidence[]`, path `assurance`, and edge `assurance` and `evidence_ids`.
+- **Intended score change:** credential-family AUTHENTICATES_AS edges are hypotheses and no longer raise I\*. On the X0 scenarios only C's AWS key changes (99.61 → 62.26, still Critical). The pooled metrics are unchanged, and `BASELINE.md` stays frozen.
+- P12: path assurance is in the evidence pack; the prompt is now `explain.2` (cached explanations regenerate). Live check: validated in 18.2 s.
+- Verified: `make lint` clean; 358 unit tests; 62 db tests, 2 skipped; migration up/down/up; `alembic check` no drift; `make test-llm` 2 passed (model unloaded afterwards).
+- **Your dev DB is still at `e1b7d3a9c2f4`.** The next `make dev` applies `f3a9c1d7b2e8` and backfills assurance on the existing edges.
+- Open for later phases: there is no way to make a credential link verified yet (the manifest only lists families; X3); RawRef points at the whole report; `runtime`/`authz` scoring is X6.
 
 ## Session 8 (2026-10-25, local)
 - **X0 done** (`docs/phases/PHASE_X0.md`): `backend/evaluation/{run,metrics,baselines,report}.py`, `make eval-baseline` → `docs/evaluation/BASELINE.md` (byte-identical on rerun).

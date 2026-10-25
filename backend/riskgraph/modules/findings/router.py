@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from riskgraph.modules import audit, graph
+from riskgraph.modules.evidence import evidence_for_finding
 from riskgraph.modules.findings import history, service, triage
 from riskgraph.modules.findings.models import Finding
 from riskgraph.modules.findings.schemas import (
@@ -16,6 +17,7 @@ from riskgraph.modules.findings.schemas import (
     AuditOut,
     DiffItem,
     DiffOut,
+    EvidenceOut,
     FindingDetailOut,
     FindingList,
     FindingListItem,
@@ -100,6 +102,7 @@ def path_out(p: graph.AttackPath, finding_ids: list[uuid.UUID]) -> AttackPathOut
         sink_impact=float(p.sink_impact),
         score=float(p.score),
         finding_ids=finding_ids,
+        assurance=graph.path_assurance(p.edges),
     )
 
 
@@ -238,6 +241,23 @@ def get_finding(
                 reason=a.reason,
             )
             for a in audit.history(session, "finding", f.id)
+        ],
+        evidence=[
+            EvidenceOut(
+                id=e.id,
+                producer=e.producer,
+                kind=e.kind,
+                assurance=e.assurance,
+                confidence=e.confidence,
+                locations=list(e.payload.get("locations", [])),
+                facts=dict(e.payload.get("facts", {})),
+                steps=list(e.payload.get("steps", [])),
+                raw_run_id=e.raw_run_id,
+                raw_pointer=e.raw_pointer,
+                observed_at=e.observed_at,
+                data_as_of=e.data_as_of,
+            )
+            for e in (evidence_for_finding(session, d.scan_id, f.id) if d.scan_id else [])
         ],
     )
 

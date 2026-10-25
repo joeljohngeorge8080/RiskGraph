@@ -7,11 +7,14 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from riskgraph.modules.context import parse_manifest
+from riskgraph.modules.evidence import Assurance
 from riskgraph.modules.graph import GraphFinding, analyze
 from riskgraph.modules.graph.attack import INTERNET, MAX_HOPS
 from riskgraph.shared.vocabulary import SourceType as S
 
 from tests.fixtures.repos import kitchen_sink
+
+VERIFIED = Assurance.VERIFIED
 
 MANIFEST = """
 version: 1
@@ -37,9 +40,9 @@ def _manifest(text: str = MANIFEST):  # type: ignore[no-untyped-def]
 
 
 FINDINGS = [
-    GraphFinding(0, "web", S.SAST, exploit_p=0.6, tier="L2", title="SQLi in web"),
-    GraphFinding(1, "web", S.SCA, exploit_p=0.9, tier="L0", title="unused CVE"),  # L0: no edge
-    GraphFinding(2, "api", S.SCA, exploit_p=0.5, tier="L2", title="CVE in api"),
+    GraphFinding(0, "web", S.SAST, exploit_p=0.6, tier="L2", title="SQLi in web", evidence=("e0",)),
+    GraphFinding(1, "web", S.SCA, exploit_p=0.9, tier="L0", title="unused CVE", evidence=("e1",)),
+    GraphFinding(2, "api", S.SCA, exploit_p=0.5, tier="L2", title="CVE in api", evidence=("e2",)),
     GraphFinding(
         3,
         "web",
@@ -48,8 +51,11 @@ FINDINGS = [
         credential_p=0.9,
         public_secret=True,
         title="AWS key",
+        evidence=("e3",),
     ),
-    GraphFinding(4, "batch", S.SAST, exploit_p=0.99, tier="L2", title="isolated bug"),
+    GraphFinding(
+        4, "batch", S.SAST, exploit_p=0.99, tier="L2", title="isolated bug", evidence=("e4",)
+    ),
 ]
 
 
@@ -74,10 +80,14 @@ def test_paths_and_probabilities_match_hand_computation() -> None:
 
 def test_effective_impact_uses_the_rest_of_the_chain() -> None:
     a = analyze(_manifest(), FINDINGS)
-    # I_eff(f) = I(sink) * P(path) / p(f's edge), maximised over paths (§14.4)
-    assert a.effective[0].value == pytest.approx(0.9 * 0.54 / 0.6)  # via the key in web
+    # I_eff(f) = I(sink) * P(path) / p(f's edge), maximised over paths (§14.4), and only
+    # over paths of at least `inferred` (ADR-0017). Before X1, finding 0 took 0.9*.54/.6
+    # through the AWS key in web; that path crosses AUTHENTICATES_AS, a family match and
+    # so a hypothesis, and no longer counts. The exploit chain web -> api is L2 + L2.
+    assert a.effective[0].value == pytest.approx(0.9 * 0.3 / 0.6)
     assert a.effective[2].value == pytest.approx(0.9 * 0.3 / 0.5)
-    assert a.effective[3].value == pytest.approx(0.9)
+    # the key is on hypothesis paths only: listed to verify, no effective impact
+    assert 3 not in a.effective
     assert 1 not in a.effective and 4 not in a.effective
 
 
@@ -106,7 +116,7 @@ data_stores:
     )
     a = analyze(manifest, [])  # exposed, but no exploitable finding and no secret
     assert a.paths == [] and a.effective == {}
-    assert any(e["kind"] == "EXPOSES" for e in a.edges)
+    assert any(e.kind == "EXPOSES" for e in a.edges)
 
 
 def test_no_manifest_means_no_paths_but_credentials_are_nodes() -> None:
@@ -155,7 +165,7 @@ def test_search_matches_brute_force_top_k(
         if a == b or g.has_edge(key(a), key(b)):
             continue
         p = 1.0 if kind == "RUNS_AS" else p
-        g.add_edge(key(a), key(b), kind=kind, p=p, w=-math.log(p), findings=[a])
+        g.add_edge(key(a), key(b), kind=kind, p=p, w=-math.log(p), findings=[a], assurance=VERIFIED)
     g.add_edge(attack._VIRTUAL, INTERNET, kind="VIRTUAL", p=1.0, w=0.0, findings=[])
     sinks = {key(i): 1.0 for i in (5, 6, 7)}
 
@@ -199,9 +209,17 @@ def test_scenario_e_ssrf_path_to_metadata_and_pii_with_evidence() -> None:
     """Blueprint §14.6 E: SSRF (SAST high) on an internet API → api-role → creds → PII."""
     e_ssrf, r_l3 = 0.7, 1.0  # §14.2: SAST high; L3: the handler calls the sink
     ssrf = GraphFinding(
-        0, "api", S.SAST, exploit_p=math.sqrt(e_ssrf * r_l3), tier="L3", title="SSRF in fetch()"
+        0,
+        "api",
+        S.SAST,
+        exploit_p=math.sqrt(e_ssrf * r_l3),
+        tier="L3",
+        title="SSRF in fetch()",
+        evidence=("ssrf",),
     )
-    noise = GraphFinding(1, "worker", S.SCA, exploit_p=0.9, tier="L2", title="worker CVE")
+    noise = GraphFinding(
+        1, "worker", S.SCA, exploit_p=0.9, tier="L2", title="worker CVE", evidence=("cve",)
+    )
     a = analyze(_manifest(SCENARIO_E), [ssrf, noise])
     by = {p.label: p for p in a.paths}
     p_exploit = math.sqrt(0.7)
