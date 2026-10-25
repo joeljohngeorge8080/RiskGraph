@@ -4,6 +4,10 @@ adapter wire format. No model and no network: the NullAdapter returns canned rep
 from __future__ import annotations
 
 import json
+import threading
+from http.server import BaseHTTPRequestHandler
+from pathlib import Path
+from socketserver import UnixStreamServer
 from typing import Any
 
 import httpx
@@ -279,7 +283,66 @@ def test_ollama_request_shape_and_reply() -> None:
     assert body["think"] is False and body["stream"] is False
     assert body["options"]["temperature"] == 0 and body["format"] == {"type": "object"}
     assert [m["role"] for m in body["messages"]] == ["system", "user"]
+    assert body["keep_alive"] == "10m"  # the default; without it every call resets to 5 min
     assert a.name == "ollama:qwen3:4b"
+
+
+def test_ollama_over_a_unix_socket(tmp_path: Path) -> None:
+    """The stack reaches the host's Ollama through a socket file, not the network."""
+    seen: dict[str, Any] = {}
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            seen["path"] = self.path
+            seen["host"] = self.headers["Host"]
+            seen["body"] = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            reply = json.dumps({"message": {"content": '{"ok": true}'}}).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(reply)))
+            self.end_headers()
+            self.wfile.write(reply)
+
+        def log_message(self, *args: object) -> None:
+            pass
+
+    sock = str(tmp_path / "o.sock")
+    server = UnixStreamServer(sock, Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        a = OllamaAdapter("http://host.docker.internal:11434", "qwen3:4b", socket=sock)
+        assert a.complete("s", "u", {"type": "object"}) == '{"ok": true}'
+    finally:
+        server.shutdown()
+        server.server_close()
+    assert seen["path"] == "/api/chat" and seen["body"]["model"] == "qwen3:4b"
+    # Ollama answers 403 to a Host header that is not a local name (DNS-rebinding guard)
+    assert seen["host"] == "localhost"
+
+
+def test_ollama_socket_that_is_missing_is_an_adapter_error(tmp_path: Path) -> None:
+    a = OllamaAdapter("http://ollama.socket", "m", socket=str(tmp_path / "none.sock"))
+    with pytest.raises(AdapterError, match="unreachable"):
+        a.complete("s", "u", {})
+
+
+@pytest.mark.parametrize(
+    ("setting", "sent"), [("-1", -1), ("0", 0), ("30m", "30m"), (" 1h ", "1h")]
+)
+def test_ollama_keep_alive_is_sent_as_a_number_when_it_is_one(setting: str, sent: Any) -> None:
+    seen: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"message": {"content": "{}"}})
+
+    OllamaAdapter(
+        "http://ollama.test:11434",
+        "m",
+        keep_alive=setting,
+        transport=httpx.MockTransport(handler),
+    ).complete("s", "u", {})
+    assert seen["body"]["keep_alive"] == sent and type(seen["body"]["keep_alive"]) is type(sent)
 
 
 @pytest.mark.parametrize(

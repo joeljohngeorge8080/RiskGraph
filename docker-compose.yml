@@ -10,9 +10,14 @@ x-backend: &backend
   environment:
     RISKGRAPH_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-riskgraph}:${POSTGRES_PASSWORD:-riskgraph}@postgres:5432/${POSTGRES_DB:-riskgraph}
     RISKGRAPH_REDIS_URL: redis://:${REDIS_PASSWORD:-riskgraph}@redis:6379/0
-    # P12: the host's Ollama. It must listen on an address containers reach (for example
-    # OLLAMA_HOST=172.17.0.1); otherwise explanations fall back to the template.
+    # P12: the host's Ollama. `make dev` (infrastructure/scripts/llm.sh) loads the model,
+    # keeps it resident and exposes Ollama as a socket file, mounted below, because a host
+    # firewall may drop container-to-host TCP; `make down` unloads it. Without the socket,
+    # explanations fall back to the template. Set RISKGRAPH_OLLAMA_SOCKET= (empty) to use
+    # RISKGRAPH_OLLAMA_URL over the network instead.
     RISKGRAPH_OLLAMA_URL: ${RISKGRAPH_OLLAMA_URL:-http://host.docker.internal:11434}
+    RISKGRAPH_OLLAMA_SOCKET: ${RISKGRAPH_OLLAMA_SOCKET-/run/ollama/ollama.sock}
+    RISKGRAPH_OLLAMA_KEEP_ALIVE: ${RISKGRAPH_OLLAMA_KEEP_ALIVE:--1}
   extra_hosts: ["host.docker.internal:host-gateway"]
   volumes:                       # source-only mounts: the image's /app/.venv must stay intact
     - ./backend/riskgraph:/app/riskgraph:ro
@@ -85,6 +90,7 @@ services:
       - ./backend/alembic.ini:/app/alembic.ini:ro
       - ./backend/tests:/app/tests:ro
       - riskgraph_data:/var/lib/riskgraph:ro      # stored reports, for downloads
+      - ./.data/ollama:/run/ollama:ro             # socket to the host's Ollama (llm.sh)
     depends_on:
       migrate: { condition: service_completed_successfully }
 
@@ -101,11 +107,14 @@ services:
       - ./backend/tests:/app/tests:ro
       - riskgraph_data:/var/lib/riskgraph          # workspaces + stored reports
       - trivy_cache:/var/cache/riskgraph/trivy
+      - ./.data/ollama:/run/ollama:ro              # socket to the host's Ollama (llm.sh)
     # The anchor's environment is replaced, not merged, so the database URLs are repeated.
     environment:
       RISKGRAPH_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-riskgraph}:${POSTGRES_PASSWORD:-riskgraph}@postgres:5432/${POSTGRES_DB:-riskgraph}
       RISKGRAPH_REDIS_URL: redis://:${REDIS_PASSWORD:-riskgraph}@redis:6379/0
       RISKGRAPH_OLLAMA_URL: ${RISKGRAPH_OLLAMA_URL:-http://host.docker.internal:11434}
+      RISKGRAPH_OLLAMA_SOCKET: ${RISKGRAPH_OLLAMA_SOCKET-/run/ollama/ollama.sock}
+      RISKGRAPH_OLLAMA_KEEP_ALIVE: ${RISKGRAPH_OLLAMA_KEEP_ALIVE:--1}
       # Scanners run as containers through the socket proxy (ADR-0014). The host paths are
       # where Docker keeps the volumes below; `make dev` sets them.
       RISKGRAPH_SCANNER_RUNNER: docker

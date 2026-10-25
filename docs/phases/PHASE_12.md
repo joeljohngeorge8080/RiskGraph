@@ -70,7 +70,15 @@ Reviewed by hand; the round trip is in the db suite; `alembic check` reports no 
 - `RISKGRAPH_OLLAMA_URL` (default `http://127.0.0.1:11434`; Compose `http://host.docker.internal:11434`);
 - `RISKGRAPH_OLLAMA_MODEL` (`qwen3:4b`), `RISKGRAPH_OLLAMA_TIMEOUT_S` (60), `RISKGRAPH_EXPLAIN_TOP_N` (10; 0 = off).
 
-Tests force `none`. Containers reach the host model only if Ollama listens on a reachable address (for example `OLLAMA_HOST=172.17.0.1`); otherwise the template is used.
+- `RISKGRAPH_OLLAMA_KEEP_ALIVE` (`10m`; the stack sets `-1`) and `RISKGRAPH_OLLAMA_SOCKET` (empty = use the URL; the stack sets `/run/ollama/ollama.sock`).
+
+Tests force `none`.
+
+**Model lifecycle (added 2026-10-25).** `make dev` and `make dev-detached` run `infrastructure/scripts/llm.sh up`; `make down`, `make nuke` and Ctrl-C of `make dev` run `llm.sh down`; `make llm-status` shows the state.
+- `up` loads `qwen3:4b` in the background and keeps it loaded (`keep_alive` -1, sent as a number: Ollama rejects the string `"-1"`). Ollama splits the model between GPU and CPU by itself: on this laptop (GTX 1650, 4 GB) it loads 82 % GPU and 18 % CPU, 2.8 GB VRAM.
+- `down` cancels a preload still in flight, then unloads until Ollama no longer lists the model (an early Ctrl-C otherwise left it loaded), and stops the forwarder. The Ollama service itself keeps running, idle.
+- Containers reach it through a socket file, not TCP: `socat` publishes `.data/ollama/ollama.sock`, mounted read-only into `api` and `worker`, and the adapter speaks HTTP over it with `Host: localhost` (Ollama answers 403 to any other host). TCP to the host does not work here: `ufw` is active and drops container-to-host traffic, so a forwarder on the Docker bridge timed out.
+- Missing Ollama, model or `socat` is never fatal: the script says so and explanations use the template.
 
 ## M. Testing
 - **`test_explain.py` (33, unit, no network):**
@@ -110,4 +118,5 @@ make test-llm  (Ollama 0.32.9, qwen3:4b, this machine)     → 2 passed
 ## Q. Known limits
 - The validator checks ids, numbers and URLs, not meaning. The live summary's "can be used to decrypt sensitive data" is plausible but not stated by the evidence; it passes because it invents no number or id. The evidence chips beside each claim let a reader check.
 - One local model, one user: no queueing or rate limit on POST before Phase 2 auth.
+- The socket is mode 0666 because the container user (uid 10001) is not the host user. Ollama has no authentication and already answers every local user on 127.0.0.1, so the socket adds no new exposure.
 - The dev database was not migrated in this session (the stack was not running); `make dev` runs `alembic upgrade head`.
