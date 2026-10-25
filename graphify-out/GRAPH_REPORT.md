@@ -1,17 +1,17 @@
-# Graph Report - riskgraph  (2026-10-23)
+# Graph Report - riskgraph  (2026-10-25)
 
 ## Corpus Check
-- 240 files · ~111,035 words
+- 273 files · ~135,762 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 21 file(s) not represented in the graph (top: (none) 12, .Dockerfile 2, .example 1)
 
 ## Summary
-- 2456 nodes · 6830 edges · 141 communities (105 shown, 36 thin omitted)
-- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 705 edges (avg confidence: 0.91)
+- 2716 nodes · 8020 edges · 146 communities (129 shown, 17 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 835 edges (avg confidence: 0.94)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5def368c`
+- Built from commit: `943be497`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -21,599 +21,709 @@
 - RunSpec
 - context/service.py
 - ScanWorkspace
-- json
-- graph/__init__.py
+- RiskGraph expansion A–D: architecture decision and phased plan
+- attack.py
 - Findings API and Vocabulary
-- test_manifest.py
-- Findings Persistence and History
+- manifest.py
+- findings/service.py
 - cli.py
-- V1 Data Model Tables
-- Severity
-- Tech Choices and Threats
-- Phase MVP — Scan, normalize, merge, prioritize (vertical slice)
-- Scanner Isolation Threats
-- conftest.py
-- Graph and Reachability ADRs
+- pipeline_support.py
+- SourceType
+- modules/scanners/__init__.py
+- PHASE MVP level 2: context-aware scoring
+- PHASE MVP — Scan, normalize, merge, prioritize (vertical slice)
+- RiskGraph — Project Specification (Phase 0, v1.0, 2026-09-19)
+- scans/service.py
+- ADR-0006: Graph storage and analysis
 - Dev Stack and CI Docs
 - test_pipeline_db.py
-- test_level2_ext_db.py
+- Settings
 - Finding Drawer and Triage UI
 - Frontend Shell and Routing
-- ADR-0010 MVP vertical slice and deviations
-- ScanDetailPage.tsx
+- 0013-graph-paths-triage-history.md
+- App.tsx
 - trivy/parser.py
-- Deployment and Degradation
+- RiskGraph — Deployment, NFRs, Failure Handling (section 27)
 - Frontend Build Config
-- Scans API Router
+- explain/service.py
 - PHASE 3: Scanner orchestration engine (hardened DockerRunner)
-- Roadmap Phase Graph
-- Domain Module Layout
+- PHASE MVP level 2, extended: reachability, attack paths, triage and history
+- 05_REPO_STRUCTURE.md
 - repositories/router.py
-- _Resolver
-- Evaluation and Invariants
+- test_explain.py
+- RiskGraph — Security Threat Model (section 20)
 - AttackPathsPanel.tsx
 - docker_runner.py
 - test_parsers.py
-- Core Architecture ADRs
-- db/__init__.py
-- Triage and Audit Log
-- types.ts
-- iac.py
+- adr/README.md
+- Base
 - dataclasses
-- SourceType
-- os
+- types.ts
+- runner.py
+- attack.py
+- UUID
+- test_explain_db.py
 - TS App Config
-- API Auth and Errors Design
-- Architecture Scan Flow
-- Phase 0 — Project Definition & Threat Model
-- Auth and ID ADRs
-- Graph API Router
-- Spec and Manifest Docs
-- test_workspace.py
-- CI/CD and Database Design
-- default_deps
-- orchestration.py
-- repositories/router.py
-- Attack Graph Research
-- Hybrid Risk and AI Explain
-- Test Datasets
-- TS Node Config
-- _record
-- Project Risks and Isolation
-- Scan Creation and Rate Limits
-- Health Endpoint Tests
-- Blueprint Overview
-- semgrep/parser.py
-- UUIDv7 Generator
-- test_runtime_db.py
-- Graph Schema and Explainer
-- Process Architecture
-- Thesis and Finding Model
-- scans/service.py
-- Session 1 handoff (2026-09-19)
-- Hosting ADR
-- Scanner Installer
+- PHASE 0 — Project Definition & Threat Model
+- 26. Research evaluation methodology
+- PHASE 1 — Repository & Development Environment
+- ADR-0003: UUID v7 ids, single tenant, deletion policy
+- graph/router.py
+- ADR-0011: Context-aware scoring from the repository manifest (MVP level 2)
+- test_callgraph.py
+- RiskGraph — Data, API, Frontend, CI/CD (sections 16–19)
 - test_docker_runner.py
-- pipeline_support.py
+- api.py
+- Scanner
+- test_risks_db.py
+- RiskGraph — Master Blueprint (v0.1, 2026-09-19)
+- context/router.py
+- TS Node Config
+- record.py
+- ADR-0001: Modular monolith with API and worker roles
+- RiskGraph — Threat Model (living document; v0.1 from blueprint 03, 2026-09-19)
+- ContextResolver
+- RiskGraph — Architecture (sections 6–15)
+- test_iac.py
+- risk/router.py
+- analyze
+- Handoff
+- Work done — session 1 (2026-09-19)
+- .source
+- test_environment.py
+- Session 1 handoff (2026-09-19)
+- ADR-0004: Authentication and authorization model
+- Scanner Installer
+- parse_manifest
+- kitchen_sink.py
 - TS Root Config
 - Test DB Init
-- Evidence Labels
-- SSRF-safe HTTP Client
+- ADR-0007: Celery + Redis for background work
+- 14. Risk-engine architecture
 - Backend Package
-- test_config.py
+- format.ts
 - pytest
-- health.py
-- UUID
-- ScanDetailPage.tsx
-- vocabulary.py
-- Phase 1 — Repository & Development Environment
-- checkov/parser.py
-- orchestration.py
+- RiskGraph
+- sbom/service.py
+- iac.py
+- kitchen_sink.py
+- ADR-0008: Synchronous SQLAlchemy sessions
+- re
+- json
 - ScannerName
-- storage.py
+- semgrep/parser.py
 - PHASE 4: Scanner adapters (five hardened images)
-- api.py
-- context/router.py
+- health.py
+- scans/router.py
 - kitchen_sink.json
-- RiskGraph — AI session entry point
+- gitleaks/parser.py
 - ADR-0015: L3 reachability by intraprocedural call graph; NVD refreshed by Beat
-- test_reachability.py
+- tiers.py
 - sqlalchemy
-- level2.test.ts
+- ExplanationDraft
 - PHASE 8: Reachability (L0–L3)
+- context/service.py
 - build-scanner-images.sh
-- devDependencies
-- redact.py
+- ADR-0009: MVP runs scanners as subprocesses in the worker
+- Problems hit and fixed
+- extract.py
+- ADR-0012: Reachability tiers L0–L2 in the MVP (import graph, no call graph)
+- 13. Attack-path architecture
+- 9. Scanner orchestration architecture
+- TECH_STACK.md
 - test_api.py
-- test_scan_state.py
-- problems.py
-- Scanner
+- ScanStatus
+- PHASE 11: Contextual risk engine (scenarios, properties, GET /risks)
+- reachability/service.py
 - 20261023_0900_reachability_l3.py
+- PHASE 12: AI explanation (evidence-grounded, validated, cached)
+- conftest.py
+- OllamaAdapter
+- RiskGraph — AI session entry point
+- EvidencePack
+- test_reachability.py
+- uuid7.py
+- typing
+- normalization/__init__.py
+- checkov/parser.py
+- explain/router.py
+- PHASE 10: Attack-path engine (scenario E, performance budget)
+- reach
+- test_health.py
+- audit/models.py
+- sbom/router.py
+- problem_response
+- worker.py
+- ADR-0016: Evidence-grounded explanations with a local model and a template fallback
 
 ## God Nodes (most connected - your core abstractions)
-1. `Settings` - 118 edges
-2. `ScannerName` - 86 edges
-3. `SourceType` - 80 edges
-4. `Severity` - 52 edges
-5. `score()` - 38 edges
-6. `session_scope()` - 38 edges
-7. `ScanWorkspace` - 36 edges
-8. `analyze()` - 35 edges
-9. `RawFinding` - 33 edges
-10. `Priority` - 32 edges
+1. `Settings` - 142 edges
+2. `SourceType` - 113 edges
+3. `ScannerName` - 105 edges
+4. `ScanStatus` - 68 edges
+5. `session_scope()` - 64 edges
+6. `Severity` - 58 edges
+7. `score()` - 47 edges
+8. `analyze()` - 46 edges
+9. `Priority` - 45 edges
+10. `RawFinding` - 43 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Session 2 (2026-10-21): MVP vertical slice, done` --references--> `ScannerRunner`  [INFERRED]
-  HANDOFF.md → backend/riskgraph/modules/scanners/runner.py
-- `Verification` --references--> `test_analyze_is_idempotent_and_rescans_reuse_findings()`  [INFERRED]
-  docs/phases/PHASE_05.md → backend/tests/test_pipeline_db.py
-- `Verification` --references--> `clean_rule_id()`  [INFERRED]
-  docs/phases/PHASE_04.md → backend/riskgraph/modules/scanners/semgrep/parser.py
-- `Conventions` --references--> `Problem`  [INFERRED]
-  CLAUDE.md → backend/riskgraph/shared/problems.py
-- `Session 6 (2026-10-23, local): containers, SBOM, NVD, L3 — UNCOMMITTED` --references--> `DockerRunner`  [INFERRED]
-  HANDOFF.md → backend/riskgraph/modules/scanners/docker_runner.py
+- `Decision` --references--> `create_app()`  [INFERRED]
+  docs/adr/0010-mvp-scope.md → backend/riskgraph/entrypoints/api.py
+- `Session 7 additions (2026-10-25)` --references--> `kubernetes_context()`  [INFERRED]
+  docs/phases/PHASE_07.md → backend/riskgraph/modules/context/iac.py
+- `Session 7 (2026-10-25, local)` --references--> `kubernetes_context()`  [INFERRED]
+  HANDOFF.md → backend/riskgraph/modules/context/iac.py
+- `E. Technical decisions` --references--> `ScanPaths`  [INFERRED]
+  docs/phases/PHASE_MVP.md → backend/riskgraph/modules/scanners/base.py
+- `2.1 Options compared` --references--> `DockerRunner`  [INFERRED]
+  docs/proposals/EXPANSION_A-D.md → backend/riskgraph/modules/scanners/docker_runner.py
 
 ## Import Cycles
 - 3-file cycle: `backend/riskgraph/modules/risk/__init__.py -> backend/riskgraph/modules/risk/service.py -> backend/riskgraph/modules/risk/model.py -> backend/riskgraph/modules/risk/__init__.py`
 
 ## Hyperedges (group relationships)
-- **Analyze stage: context, reachability, attack paths, two-pass scoring** — docs_phases_phase_mvp2_context_resolver, docs_phases_phase_mvp2_ext_reachability_tiers, docs_phases_phase_mvp2_ext_attack_graph, docs_phases_phase_mvp2_ext_two_pass_scoring [EXTRACTED 1.00]
 - **Dev Compose stack services sharing the backend image** — docker_compose_migrate, docker_compose_api, docker_compose_worker, docker_compose_beat [EXTRACTED 1.00]
-- **Five sandboxed scanner adapters** — docs_blueprint_01_architecture_trivy, docs_blueprint_01_architecture_semgrep, docs_blueprint_01_architecture_gitleaks, docs_blueprint_01_architecture_checkov, docs_blueprint_01_architecture_syft [EXTRACTED 1.00]
-- **Evidence-bound LLM explanation with validation and fallback** — docs_blueprint_01_architecture_evidence_pack, docs_blueprint_01_architecture_llm_adapter, docs_blueprint_01_architecture_explanation_validator, docs_blueprint_01_architecture_template_explainer [EXTRACTED 1.00]
-- **Production Compose stack** — docs_blueprint_08_deployment_caddy, docs_blueprint_08_deployment_api_service, docs_blueprint_08_deployment_worker_service, docs_blueprint_08_deployment_beat_service, docs_blueprint_08_deployment_redis_service, docs_blueprint_08_deployment_postgres_service, docs_blueprint_08_deployment_migrate_service, docs_blueprint_08_deployment_socket_proxy_service [EXTRACTED 1.00]
 - **riskgraph.yaml context model (services, identities, data stores, criticality)** — docs_examples_riskgraph_services, docs_examples_riskgraph_identities, docs_examples_riskgraph_data_stores, docs_examples_riskgraph_criticality, readme_context_aware_scoring [EXTRACTED 1.00]
-- **Per-scan analysis data (components, graph, reachability, attack paths, risk scores)** — docs_blueprint_02_data_and_api_table_scan_jobs, docs_blueprint_02_data_and_api_table_components, docs_blueprint_02_data_and_api_table_graph_nodes, docs_blueprint_02_data_and_api_table_graph_edges, docs_blueprint_02_data_and_api_table_reachability_results, docs_blueprint_02_data_and_api_table_attack_paths, docs_blueprint_02_data_and_api_table_risk_scores [EXTRACTED 1.00]
-- **Scan pipeline: scanners -> normalization -> enrichment -> graph -> paths -> risk -> explain** — docs_blueprint_01_architecture_scanner_protocol, docs_blueprint_01_architecture_canonical_finding_model, docs_blueprint_01_architecture_context_enrichment, docs_blueprint_01_architecture_security_graph_schema, docs_blueprint_01_architecture_attack_graph_derivation, docs_blueprint_01_architecture_hybrid_risk_model, docs_blueprint_01_architecture_ai_explanation [EXTRACTED 1.00]
-- **ScannerRunner seam implementations** — docs_adr_0009_subprocess_scanner_runner_scannerrunner_protocol, docs_adr_0009_subprocess_scanner_runner_subprocess_runner, docs_adr_0009_subprocess_scanner_runner_dockerrunner, docs_adr_0005_hosting_k8sjobrunner [EXTRACTED 1.00]
-- **Risk score model evolution v1-cf.1 -> v1-ctx.1 -> v1-ctx.2 -> effective impact** — docs_adr_0010_mvp_scope_context_free_score_v1_cf_1, docs_adr_0011_manifest_context_scoring_v1_ctx_1, docs_adr_0012_reachability_tiers_mvp_v1_ctx_2, docs_adr_0013_graph_paths_triage_history_effective_impact [EXTRACTED 1.00]
-- **Authentication and authorization controls** — docs_blueprint_02_data_and_api_auth_jwt_api_key, docs_blueprint_02_data_and_api_rbac, docs_blueprint_02_data_and_api_redis_rate_limiting, docs_blueprint_02_data_and_api_audit_in_transaction, docs_blueprint_03_threat_model_t09, docs_blueprint_03_threat_model_t10, docs_blueprint_03_threat_model_t19 [INFERRED 0.85]
-- **Defenses against hostile repository content** — docs_phases_phase_00_hostile_repositories, docs_phases_phase_mvp_safe_resolve, docs_phases_phase_mvp_subprocess_runner, docs_phases_phase_mvp2_ext_extractor_isolation, docs_phases_phase_mvp2_riskgraph_manifest [INFERRED 0.85]
-- **Untrusted repository input parsing defenses** — docs_adr_0011_manifest_context_scoring_manifest_hardening, docs_adr_0012_reachability_tiers_mvp_tree_sitter_extraction, docs_adr_0009_subprocess_scanner_runner_hardened_git_clone, docs_threat_model_safe_resolve, docs_threat_model_t_02 [INFERRED 0.85]
-- **Risk model version lineage (v1-cf.1 → v1-ctx.1 → v1-ctx.2)** — docs_phases_phase_mvp_risk_model_v1_cf_1, docs_phases_phase_mvp2_risk_model_v1_ctx_1, docs_phases_phase_mvp2_ext_risk_model_v1_ctx_2 [INFERRED 0.95]
 
-## Communities (141 total, 36 thin omitted)
+## Communities (146 total, 17 thin omitted)
 
 ### Community 0 - "pipeline.py"
-Cohesion: 0.19
-Nodes (21): get_scanner(), analyze(), _classify(), _container_fields(), discard_workspace(), _excerpt(), fail_scan(), fetcher_image() (+13 more)
+Cohesion: 0.12
+Nodes (35): IacResult, get_scanner(), analyze(), _classify(), clone(), collect(), _container_fields(), discard_workspace() (+27 more)
 
 ### Community 1 - "FindingsSection.tsx"
-Cohesion: 0.15
-Nodes (17): FindingChange, FindingList, ReachabilityTier, ScannerName, CHANGES, FilterState, FindingFilters(), SCANNERS (+9 more)
+Cohesion: 0.13
+Nodes (21): apiGet(), FindingChange, FindingList, ReachabilityTier, ScannerName, FindingDrawer(), CHANGES, FilterState (+13 more)
 
 ### Community 2 - "RunSpec"
-Cohesion: 0.11
-Nodes (19): _kill_group(), _rlimits(), RunSpec, SubprocessRunner, _tail(), build_clone_argv(), _drop(), test_memory_limit_is_enforced() (+11 more)
+Cohesion: 0.20
+Nodes (16): RunSpec, SubprocessRunner, _tail(), build_clone_argv(), test_memory_limit_is_enforced(), test_self_python_is_the_only_path_alias(), runner(), _spec() (+8 more)
 
 ### Community 3 - "context/service.py"
 Cohesion: 0.10
-Nodes (17): _date(), _decimal(), _decimal_score(), EpssScore, fetch_epss(), fetch_kev(), fetch_nvd(), _kev_index() (+9 more)
+Nodes (18): _date(), _decimal(), _decimal_score(), EpssScore, fetch_epss(), fetch_kev(), fetch_nvd(), _kev_index() (+10 more)
 
 ### Community 4 - "ScanWorkspace"
-Cohesion: 0.18
-Nodes (6): CloneResult, GitCloner, ScanWorkspace, test_readonly_then_cleanup(), test_safe_resolve_stays_inside_src(), test_snippet_hash_ignores_whitespace()
+Cohesion: 0.11
+Nodes (13): Cloner, CloneResult, git_env(), GitCloner, ScanWorkspace, WorkspaceError, test_measure_enforces_limits(), test_readonly_then_cleanup() (+5 more)
 
-### Community 5 - "json"
-Cohesion: 0.13
-Nodes (12): CvssSubscores, _round1(), subscores(), IacResult, persist_assets(), _client(), test_cvss_rejects_v2_and_garbage(), test_cvss_subscores() (+4 more)
+### Community 5 - "RiskGraph expansion A–D: architecture decision and phased plan"
+Cohesion: 0.11
+Nodes (18): 1.1 Existing functionality (VERIFIED by reading the code at `08d5181`), 1.2 Gaps that matter for A–D, 1. Audit: what exists, and where A–D plug in, 2.1 Options compared, 2.2 Graph storage (re-evaluated, not assumed), 2.3 Recommended architecture, 2.4 Module boundaries and interfaces, 2. Architecture: options and the decision (+10 more)
 
-### Community 6 - "graph/__init__.py"
-Cohesion: 0.25
-Nodes (11): AttackPath, AttackPathFinding, GraphEdge, GraphNode, clear(), _dec(), list_paths(), load_graph() (+3 more)
+### Community 6 - "attack.py"
+Cohesion: 0.14
+Nodes (5): _EdgeRow, _NodeRow, to_networkx(), test_to_networkx_keeps_the_most_probable_parallel_edge(), M. Testing
 
 ### Community 7 - "Findings API and Vocabulary"
-Cohesion: 0.11
-Nodes (26): _diff_items(), _float(), get_finding(), list_findings(), path_out(), require_scan(), scan_diff(), scan_gate() (+18 more)
-
-### Community 8 - "test_manifest.py"
-Cohesion: 0.18
-Nodes (16): load_manifest(), normalize_service_path(), parse_manifest(), _short(), test_alias_bomb_is_refused_before_expansion(), test_deep_nesting_is_refused_without_crashing(), test_documented_example_manifest_is_valid(), test_hostile_or_broken_documents_never_raise() (+8 more)
-
-### Community 9 - "Findings Persistence and History"
 Cohesion: 0.14
-Nodes (16): apply_history(), diff_scans(), previous_scan_id(), ScanDiff, Finding, FindingOccurrence, ScanFinding, _base_query() (+8 more)
+Nodes (22): _float(), get_finding(), list_findings(), path_out(), scan_diff(), scan_gate(), triage_finding(), AttackPathOut (+14 more)
+
+### Community 8 - "manifest.py"
+Cohesion: 0.14
+Nodes (6): DataStoreDecl, IdentityDecl, _Resolver, _short(), _Strict, _structure_problem()
+
+### Community 9 - "findings/service.py"
+Cohesion: 0.11
+Nodes (22): apply_history(), diff_scans(), previous_scan_id(), ScanDiff, Finding, FindingOccurrence, ScanFinding, _base_query() (+14 more)
 
 ### Community 10 - "cli.py"
-Cohesion: 0.13
-Nodes (10): build_parser(), main(), markdown(), _out(), run_scan(), test_failed_scan_and_api_errors(), test_gate_failure_exit_code_and_escaping(), test_gate_pass_and_summary() (+2 more)
+Cohesion: 0.14
+Nodes (9): build_parser(), main(), markdown(), _out(), run_scan(), test_failed_scan_and_api_errors(), test_gate_failure_exit_code_and_escaping(), test_gate_pass_and_summary() (+1 more)
 
-### Community 11 - "V1 Data Model Tables"
-Cohesion: 0.08
-Nodes (36): Cytoscape.js graph view, GET /attack-paths, GET /findings, GET /graph, GET /risks, GET /sbom, POST /findings/{id}/explain, GET /repositories/{id}/context (+28 more)
+### Community 11 - "pipeline_support.py"
+Cohesion: 0.09
+Nodes (16): CloneError, no_lock(), _drop(), fixture_path(), api(), _scan(), test_context_endpoint_404s_without_a_finished_scan(), test_context_endpoint_returns_assets_and_kubernetes_privilege() (+8 more)
 
-### Community 12 - "Severity"
-Cohesion: 0.06
-Nodes (62): FindingContext, Observed, Manifest, VulnIntel, analyze(), AttackAnalysis, _ds(), GraphFinding (+54 more)
-
-### Community 13 - "Tech Choices and Threats"
+### Community 12 - "SourceType"
 Cohesion: 0.07
-Nodes (26): GET /findings/{id} composite view, GET /graph/nodes/{id}/neighbors (recursive CTE), FindingDetailPage (tabs), Frontend Architecture (React 18 + TS + Vite), TanStack Query server state, container_spec.py (only mount builder), T-01 Scanner container escape, T-02 Attacker-influenced scanner output (traversal/XSS) (+18 more)
+Nodes (64): FindingContext, VulnIntel, _clamp(), _context_factor(), EffectiveImpact, epss_to_e(), _exploitability(), Factor (+56 more)
 
-### Community 15 - "Phase MVP — Scan, normalize, merge, prioritize (vertical slice)"
-Cohesion: 0.09
-Nodes (21): Phase MVP — Scan, normalize, merge, prioritize (vertical slice), Phase MVP level 2 — context-aware scoring, ContextResolver (longest path-prefix service mapping), Phase MVP level 2 extended — reachability, attack paths, triage and history, Attack graph with Yen k=3 shortest paths, Effective impact I* (I_eff), L0 high-confidence ceiling (≤ Medium unless KEV), Reachability tiers L0/L1/L2 (R factor) (+13 more)
+### Community 13 - "modules/scanners/__init__.py"
+Cohesion: 0.20
+Nodes (10): derive_key(), mask(), scrub(), _scrub(), secret_hmac(), test_gitleaks_redaction_removes_every_raw_field(), test_hmac_is_keyed_and_deterministic(), test_mask_never_shows_short_secrets() (+2 more)
 
-### Community 16 - "Scanner Isolation Threats"
-Cohesion: 0.09
-Nodes (25): ADR-0009 MVP runs scanners as subprocesses in the worker, DockerRunner (deferred to Phase 3), ScannerRunner protocol, SubprocessRunner, Trivy Redis lock, tree-sitter extraction (reachability/extract.py), RiskGraph Threat Model (living), A1 Findings, secrets metadata, risk scores (+17 more)
+### Community 14 - "PHASE MVP level 2: context-aware scoring"
+Cohesion: 0.11
+Nodes (18): A. Objective, B. Why, C. Architecture, D. Components, F. Folder structure, H. API, I. Algorithms, J. Implementation (+10 more)
 
-### Community 17 - "conftest.py"
-Cohesion: 0.13
-Nodes (9): dispose_engine(), get_engine(), _session_factory(), _alembic(), client(), db(), migrated_db(), settings() (+1 more)
+### Community 15 - "PHASE MVP — Scan, normalize, merge, prioritize (vertical slice)"
+Cohesion: 0.11
+Nodes (18): A. Objective, B. Why, C. Architecture, D. Components, E. Technical decisions, F. Folder structure, G. Database, I. Algorithms (+10 more)
 
-### Community 18 - "Graph and Reachability ADRs"
+### Community 16 - "RiskGraph — Project Specification (Phase 0, v1.0, 2026-09-19)"
+Cohesion: 0.20
+Nodes (7): 1. Problem statement, 2. Scope, 3. Assumptions, 4. Research question, 5. Success criteria (project level), 6. Architecture principles, RiskGraph — Project Specification (Phase 0, v1.0, 2026-09-19)
+
+### Community 17 - "scans/service.py"
 Cohesion: 0.10
-Nodes (23): ADR-0006 Graph storage and analysis, Apache AGE (rejected for now), Neo4j (rejected), NetworkX in-process analysis, Yen's k-shortest simple paths, ADR-0012 Reachability tiers L0-L2 in the MVP, Entry point detection, Import graph (graph.py) (+15 more)
+Nodes (29): ScanJob, ScannerRun, reap(), ReapResult, active_scan(), cas_run(), count_active(), get_run() (+21 more)
+
+### Community 18 - "ADR-0006: Graph storage and analysis"
+Cohesion: 0.22
+Nodes (8): ADR-0006: Graph storage and analysis, Alternatives considered, Apache AGE (Postgres extension) — rejected for now, Consequences, Context, Decision, igraph instead of NetworkX — rejected, Neo4j Community — rejected
 
 ### Community 19 - "Dev Stack and CI Docs"
-Cohesion: 0.14
-Nodes (17): CI Workflow (ci.yml), CI backend job (ruff, mypy, pytest unit + db), CI frontend job (npm lint, typecheck, build), CI images job (build + Trivy scan backend image), CI security-self-scan job (Gitleaks + Trivy fs), Pre-commit config (pre-commit-hooks, ruff, gitleaks), Dev Compose stack, api service (uvicorn create_app) (+9 more)
+Cohesion: 0.16
+Nodes (16): CI Workflow (ci.yml), CI backend job (ruff, mypy, pytest unit + db), CI frontend job (npm lint, typecheck, build), CI images job (build + Trivy scan backend image), CI security-self-scan job (Gitleaks + Trivy fs), Pre-commit config (pre-commit-hooks, ruff, gitleaks), Dev Compose stack, api service (uvicorn create_app) (+8 more)
 
 ### Community 20 - "test_pipeline_db.py"
-Cohesion: 0.17
-Nodes (27): run_pipeline_inline(), clone(), collect(), finalize(), cas_scan(), runs_for(), session_scope(), test_real_scanners_end_to_end() (+19 more)
+Cohesion: 0.15
+Nodes (24): run_pipeline_inline(), session_scope(), criticals(), _ollama_up(), real_settings(), test_real_scanners_end_to_end(), test_real_scanners_with_manifest_reachability_paths_and_history(), scan() (+16 more)
 
-### Community 21 - "test_level2_ext_db.py"
-Cohesion: 0.14
-Nodes (14): Settings, FixtureRunner, test_prod_refuses_to_start_without_auth(), api(), _by_package(), _findings(), _scan(), test_attack_paths_and_effective_impact() (+6 more)
+### Community 21 - "Settings"
+Cohesion: 0.12
+Nodes (16): RunResult, Settings, FixtureRunner, workspace_exists(), api(), _by_package(), _findings(), _scan() (+8 more)
 
 ### Community 22 - "Finding Drawer and Triage UI"
-Cohesion: 0.16
-Nodes (25): FindingDetail, FindingListItem, FindingStatus, Priority, contextOrigin(), DrawerBody(), FACTOR_NAME, FactorRow() (+17 more)
+Cohesion: 0.13
+Nodes (28): apiPost(), Explanation, FindingDetail, FindingListItem, FindingStatus, TrendPoint, ExplanationPanel(), contextOrigin() (+20 more)
 
 ### Community 23 - "Frontend Shell and Routing"
-Cohesion: 0.17
-Nodes (14): RFC-7807, API_BASE, ApiError, apiPatch(), handle(), Health, problemMessage(), Readiness (+6 more)
+Cohesion: 0.27
+Nodes (8): RFC-7807, API_BASE, ApiError, apiPatch(), handle(), Health, problemMessage(), Readiness
 
-### Community 24 - "ADR-0010 MVP vertical slice and deviations"
-Cohesion: 0.13
-Nodes (18): ADR-0010 MVP vertical slice and deviations, Context-free score model v1-cf.1, Corroboration factor K, Cross-scanner merge keys (normalization/families.py), Threat intel: EPSS + CISA KEV, ADR-0011 Context-aware scoring from repository manifest, Context factors X, P, D, C with source/confidence, Longest path-prefix finding-to-service mapping (+10 more)
+### Community 24 - "0013-graph-paths-triage-history.md"
+Cohesion: 0.14
+Nodes (13): ADR-0010: MVP vertical slice and its deviations from the blueprint, Consequences, Context, Decision, ADR-0013: Per-scan attack paths with effective impact; triage, history and the CI gate, Alternatives considered, CI gate, Consequences (+5 more)
 
-### Community 25 - "ScanDetailPage.tsx"
-Cohesion: 0.22
-Nodes (17): apiGet(), ScanContext, PriorityCounts(), RepositoryPage(), ContextPanel(), MANIFEST_TEXT, Value(), ScanDetailPage() (+9 more)
+### Community 25 - "App.tsx"
+Cohesion: 0.19
+Nodes (13): Scan, App(), HealthDot(), HomePage(), RepositoryRoute(), ScanRoute(), EXAMPLES, NewScanForm() (+5 more)
 
 ### Community 26 - "trivy/parser.py"
-Cohesion: 0.15
-Nodes (17): Location, normalize_path(), gitleaks_severity(), trivy_severity(), count(), _items(), parse(), clip() (+9 more)
+Cohesion: 0.23
+Nodes (12): RawFinding, trivy_severity(), clip(), count(), dependency_graph(), _list(), _misconfig(), parse() (+4 more)
 
-### Community 27 - "Deployment and Degradation"
-Cohesion: 0.10
-Nodes (24): GET /healthz /readyz /metrics, T-20 LLM unavailability blocks scans, infrastructure/ (caddy, prometheus, socket-proxy, scripts), RiskGraph Deployment, NFRs, Failure Handling (section 27), api service (uvicorn), Nightly pg_dump backups (restore rehearsed), beat service, caddy service (only published port :443) (+16 more)
+### Community 27 - "RiskGraph — Deployment, NFRs, Failure Handling (section 27)"
+Cohesion: 0.40
+Nodes (4): 27.1 Deployment architecture, 27.2 Non-functional requirements (measurable targets), 27.3 Failure handling (graceful degradation table), RiskGraph — Deployment, NFRs, Failure Handling (section 27)
 
 ### Community 28 - "Frontend Build Config"
-Cohesion: 0.07
-Nodes (27): dependencies, cytoscape, react, react-dom, react-router-dom, @tanstack/react-query, name, private (+19 more)
+Cohesion: 0.05
+Nodes (39): dependencies, cytoscape, react, react-dom, react-router-dom, @tanstack/react-query, devDependencies, eslint (+31 more)
 
-### Community 29 - "Scans API Router"
-Cohesion: 0.14
-Nodes (11): cancel_scan(), create_scan(), download_report(), get_scan(), list_scans(), to_out(), RepositoryOut, ScanCreate (+3 more)
+### Community 29 - "explain/service.py"
+Cohesion: 0.21
+Nodes (12): clip_lines(), factor_evidence(), FactorEv, FindingEv, _Frozen, norm(), PathEv, ScoreEv (+4 more)
 
 ### Community 30 - "PHASE 3: Scanner orchestration engine (hardened DockerRunner)"
 Cohesion: 0.13
 Nodes (14): A. Objective, B. Why, F. Folder structure, G. Database, H. API, I. Algorithms, J. Implementation notes, K. Commands (+6 more)
 
-### Community 31 - "Roadmap Phase Graph"
-Cohesion: 0.16
-Nodes (22): RiskGraph Phase Dependency Graph and Roadmap (sections 23-24), Critical path P0->P1->P2->P3->P4->P5->P7->P8->P9->P10->P11->P13->P17->P19, Phase 0: Project definition & threat model, Phase 1: Repository & dev environment, Phase 2: Domain model, DB, auth skeleton, Phase 3: Scanner orchestration engine, Phase 4: Scanner adapters, Phase 5: Normalization, correlation, SBOM (+14 more)
-
-### Community 32 - "Domain Module Layout"
-Cohesion: 0.15
-Nodes (21): RiskGraph Repository Structure (section 22), backend/tests (fixtures, integration, security, e2e), backend/riskgraph/entrypoints (api, worker, cli), modules/attack_paths, modules/audit, modules/auth, modules/context (nvd, epss, kev, extractors), modules/dashboard (+13 more)
+### Community 31 - "PHASE MVP level 2, extended: reachability, attack paths, triage and history"
+Cohesion: 0.11
+Nodes (18): A. Objective, B. Why, C. Architecture, D. Components, E. Technical decisions, F. Folder structure, H. API, I. Algorithms (+10 more)
 
 ### Community 33 - "repositories/router.py"
-Cohesion: 0.20
-Nodes (12): clone_url_for(), get_or_create(), InvalidRef, InvalidRepositoryUrl, parse_github_url(), validate_ref(), UnprocessableEntity, test_accepts_branch_and_tag_names() (+4 more)
-
-### Community 35 - "Evaluation and Invariants"
 Cohesion: 0.10
-Nodes (19): RiskGraph Security Threat Model (section 20), Attack surfaces S1-S12, Scanner isolation profile, Protected assets A1-A7, STRIDE per element, Threat actors T1-T6, evaluation/, RiskGraph Testing Strategy and Research Evaluation (sections 25-26) (+11 more)
+Nodes (20): Repository, get_repository(), list_repositories(), _point(), RepositoryDetail, RepositorySummary, _summary(), TrendPoint (+12 more)
+
+### Community 34 - "test_explain.py"
+Cohesion: 0.17
+Nodes (26): Reason, generate(), validate(), _draft(), _ollama(), _pack(), test_a_grounded_draft_passes(), test_a_url_that_is_in_the_evidence_may_be_repeated_but_not_trusted_alone() (+18 more)
+
+### Community 35 - "RiskGraph — Security Threat Model (section 20)"
+Cohesion: 0.38
+Nodes (6): Actors, Assets (what we protect), Attack surfaces, RiskGraph — Security Threat Model (section 20), Security invariants (tested in Phase 15/16), Threats and mitigations
 
 ### Community 36 - "AttackPathsPanel.tsx"
 Cohesion: 0.24
 Nodes (11): AttackPath, GraphData, ScanSummary, AttackPathsPanel(), GraphView, KIND_COLOR, kindOf(), COLORS (+3 more)
 
 ### Community 37 - "docker_runner.py"
-Cohesion: 0.12
-Nodes (13): _Containers, DockerClient, DockerRunner, _Images, make_removable(), _printable(), _write_capped(), RunResult (+5 more)
+Cohesion: 0.07
+Nodes (17): _Containers, DockerClient, DockerRunner, _Images, make_removable(), PathRoot, _printable(), _write_capped() (+9 more)
 
 ### Community 38 - "test_parsers.py"
-Cohesion: 0.21
-Nodes (10): ScannerName, fixture_path(), load(), test_canvas_shape_and_queues(), test_checkov_shapes_and_resources(), test_counts_match_parsed_findings(), test_gitleaks_uses_redacted_fields_only(), test_hostile_paths_are_neutralised() (+2 more)
+Cohesion: 0.30
+Nodes (9): ScannerName, load(), test_checkov_shapes_and_resources(), test_counts_match_parsed_findings(), test_gitleaks_uses_redacted_fields_only(), test_hostile_paths_are_neutralised(), test_semgrep_rule_ids_and_categories(), test_semgrep_secret_rules_are_secrets_not_sast() (+1 more)
 
-### Community 39 - "Core Architecture ADRs"
-Cohesion: 0.11
-Nodes (20): ADR-0001 Modular monolith with API and worker roles, api process role (FastAPI), import-linter contract, Services per pipeline stage (rejected), worker process role (Celery + beat), ADR-0002 Stack, Caddy, Celery 5 (+12 more)
+### Community 39 - "adr/README.md"
+Cohesion: 0.15
+Nodes (10): ADR-0002: Stack, Alternatives considered, Consequences, Context, Decision, ADR-0005: Hosting and deployment, Alternatives considered, Consequences (+2 more)
 
-### Community 40 - "db/__init__.py"
-Cohesion: 0.10
-Nodes (15): downgrade(), upgrade(), upgrade(), Asset, Vulnerability, ReachabilityResult, persist_verdict(), Repository (+7 more)
+### Community 40 - "Base"
+Cohesion: 0.31
+Nodes (11): AttackPath, AttackPathFinding, GraphEdge, GraphNode, clear(), _dec(), list_paths(), load_graph() (+3 more)
 
-### Community 41 - "Triage and Audit Log"
-Cohesion: 0.16
-Nodes (8): AuditLog, history(), record(), evaluate_gate(), GatePolicy, GateResult, InvalidTriage, set_status()
+### Community 41 - "dataclasses"
+Cohesion: 0.13
+Nodes (12): _bfs(), chain_to(), enclosing_function(), find_l3(), Path3, _qualify(), reachable_functions(), _resolve() (+4 more)
 
 ### Community 42 - "types.ts"
-Cohesion: 0.11
-Nodes (22): AttackPathEdge, FindingLocation, ManifestStatus, Occurrence, PackageInfo, RepositoryDetail, RepositorySummary, RiskFactor (+14 more)
-
-### Community 43 - "iac.py"
-Cohesion: 0.07
-Nodes (33): _clean_file(), ContextResolver, _code_dir(), _compose(), _d(), extract(), IacAsset, _k8s() (+25 more)
-
-### Community 44 - "dataclasses"
 Cohesion: 0.10
-Nodes (11): _structure_problem(), find_l3(), Path3, _qualify(), build(), ModuleGraph, _python_module_index(), _python_roots() (+3 more)
+Nodes (21): AttackPathEdge, FindingLocation, KubeWorkload, ManifestStatus, Occurrence, PackageInfo, Priority, RepositoryDetail (+13 more)
 
-### Community 45 - "SourceType"
-Cohesion: 0.16
-Nodes (16): RawFinding, fingerprint(), stable_hash(), _build(), merge(), MergedFinding, _overlap_clusters(), _graph_label() (+8 more)
+### Community 43 - "runner.py"
+Cohesion: 0.12
+Nodes (7): _kill_group(), _rlimits(), _open_cache_to_scanners(), refresh_argv(), refresh_trivy_db(), _force_writable(), widen_own_directories()
 
-### Community 46 - "os"
-Cohesion: 0.18
-Nodes (4): Cloner, git_env(), _force_writable(), widen_own_directories()
+### Community 44 - "attack.py"
+Cohesion: 0.15
+Nodes (9): Manifest, AttackAnalysis, _ds(), _idn(), _path(), PathResult, _search(), _svc() (+1 more)
+
+### Community 45 - "UUID"
+Cohesion: 0.08
+Nodes (22): refresh_trivy_db_task(), build_canvas(), enqueue(), enqueue_kill(), _sig(), default_deps(), fetcher_image(), _kev_cache() (+14 more)
+
+### Community 46 - "test_explain_db.py"
+Cohesion: 0.21
+Nodes (11): NullAdapter, api(), _critical(), _grounded_reply(), test_a_grounded_model_answer_is_validated_and_stored(), test_an_injected_answer_is_rejected_and_never_stored(), test_explanation_not_found_cases(), test_refresh_replaces_a_fallback_once_the_model_is_back() (+3 more)
 
 ### Community 47 - "TS App Config"
 Cohesion: 0.11
 Nodes (17): compilerOptions, baseUrl, isolatedModules, jsx, lib, module, moduleResolution, noEmit (+9 more)
 
-### Community 48 - "API Auth and Errors Design"
+### Community 48 - "PHASE 0 — Project Definition & Threat Model"
 Cohesion: 0.13
-Nodes (15): API Architecture (FastAPI /api/v1), Audit log written in same transaction, Auth: JWT bearer + X-API-Key + rotating refresh tokens, Cursor-based pagination for findings, Problem schema (RFC 7807), RBAC roles (admin, security_engineer, developer, viewer), RFC 7807 Problem errors, RiskFactorOut schema (+7 more)
+Nodes (15): A. Objective, B. Why, C. Architecture, D. Components, E. Technical decisions, F. Folder structure, G. Database · H. API · I. Algorithms · J. Implementation · K. Commands · L. Configuration, M. Testing (+7 more)
 
-### Community 49 - "Architecture Scan Flow"
-Cohesion: 0.14
-Nodes (15): Beat Process (Celery Beat), Checkov, Context Enrichment (precedence: override > manifest > IaC > unknown), Cross-scanner Correlation (Trivy-Syft purl, Gitleaks-identity, Checkov-assets, Semgrep-functions), Entry Point Detection (FastAPI/Flask/Django/Express/...), Gitleaks, IaC Extractors (Kubernetes, Docker Compose, Terraform), Reachability Tiers L0-L3 (+7 more)
-
-### Community 50 - "Phase 0 — Project Definition & Threat Model"
-Cohesion: 0.25
-Nodes (4): Phase 0 — Project Definition & Threat Model, STRIDE Threat Model (T-01…T-20), Success Criteria S1–S8, HMAC secret redaction and report scrubbing
-
-### Community 51 - "Auth and ID ADRs"
-Cohesion: 0.13
-Nodes (12): ADR-0003 UUID v7 ids, single tenant, deletion policy, ADR-0004 Authentication and authorization model, Scoped API keys for CI, argon2id password hashing (pwdlib), 15-min JWT access tokens (HS256), RBAC roles (admin/security_engineer/developer/viewer), Rotating refresh tokens with reuse detection, CI gate (GET /scans/{id}/gate + CLI) (+4 more)
-
-### Community 52 - "Graph API Router"
-Cohesion: 0.27
-Nodes (6): attack_paths(), GraphEdgeOut, GraphNodeOut, GraphOut, scan_graph(), get_session()
-
-### Community 53 - "Spec and Manifest Docs"
-Cohesion: 0.18
-Nodes (12): riskgraph.yaml v1 manifest example, Manifest criticality, Manifest data_stores (kind, sensitivity), Manifest identities (privilege, can_access, credentials), Manifest services (path, exposure, auth, runs_as, connects_to), RiskGraph Project Specification (Phase 0), Assumptions A1-A6 (single-tenant, hostile repos, manifest context), Research question: contextual graph prioritization vs CVSS / CVSS+EPSS (+4 more)
-
-### Community 54 - "test_workspace.py"
-Cohesion: 0.22
-Nodes (5): WorkspaceError, test_measure_enforces_limits(), test_report_path_is_fixed(), test_workspace_requires_uuid(), ws()
-
-### Community 55 - "CI/CD and Database Design"
+### Community 49 - "26. Research evaluation methodology"
 Cohesion: 0.17
-Nodes (10): RiskGraph Data, API, Frontend, CI/CD (sections 16-19), Alembic migrations (reversible, migrate service), CI/CD Architecture, POST /webhooks/github, Beat retention job (keep last 20 scans), RiskGraph's own CI pipeline (ci.yml), webhook_deliveries table (idempotency), Path A: GitHub webhook integration (+2 more)
+Nodes (11): 25.1 Layers and markers, 25.2 Test datasets (`datasets/`), 25. Testing strategy, 26.1 Question and hypotheses, 26.2 Methods compared, 26.3 Ground truth, 26.4 Metrics, 26.5 Statistics (+3 more)
 
-### Community 56 - "default_deps"
-Cohesion: 0.11
-Nodes (9): SlotLimiter, SlotTimeoutError, refresh_trivy_db_task(), build_runner(), default_deps(), _kev_cache(), redis_scanner_lock(), reap_task() (+1 more)
+### Community 50 - "PHASE 1 — Repository & Development Environment"
+Cohesion: 0.10
+Nodes (20): A. Objective, B. Why, C. Architecture, D. Components, E. Technical decisions, F. Folder structure, G. Database, H. API (+12 more)
 
-### Community 57 - "orchestration.py"
-Cohesion: 0.29
-Nodes (4): build_canvas(), enqueue(), enqueue_kill(), _sig()
+### Community 51 - "ADR-0003: UUID v7 ids, single tenant, deletion policy"
+Cohesion: 0.25
+Nodes (7): ADR-0003: UUID v7 ids, single tenant, deletion policy, Alternatives considered, bigint serial ids — rejected, Consequences, Context, Decision, Multi-tenant from day one — rejected
 
-### Community 58 - "repositories/router.py"
-Cohesion: 0.22
-Nodes (7): get_repository(), list_repositories(), _point(), RepositoryDetail, RepositorySummary, _summary(), TrendPoint
+### Community 52 - "graph/router.py"
+Cohesion: 0.14
+Nodes (11): attack_paths(), _edge_out(), graph_reach(), GraphEdgeOut, GraphNodeOut, GraphOut, ReachNodeOut, ReachOut (+3 more)
 
-### Community 59 - "Attack Graph Research"
-Cohesion: 0.20
-Nodes (10): Comparison: DefectDojo, Dependency-Track, OWASP dep-scan, Snyk/Wiz/Orca, CVSS v3.1/v4.0 specifications, Vulnerable dependency reachability (Eclipse Steady), EPSS (Jacobs et al. 2021), MulVAL attack graphs (Ou et al. 2005), Novelty: open reproducible evaluated integration, Attack-Graph Derivation (exploit, credential, control edges; w=-ln p), Dijkstra best path per (source, sink) (+2 more)
+### Community 53 - "ADR-0011: Context-aware scoring from the repository manifest (MVP level 2)"
+Cohesion: 0.27
+Nodes (9): ADR-0011: Context-aware scoring from the repository manifest (MVP level 2), Alternatives considered, Consequences, Context, riskgraph.yaml v1 manifest example, Manifest criticality, Manifest data_stores (kind, sensitivity), Manifest identities (privilege, can_access, credentials) (+1 more)
 
-### Community 60 - "Hybrid Risk and AI Explain"
-Cohesion: 0.22
-Nodes (11): SSVC (CISA), AI Explanation Architecture, Attack-Path Coupling (effective impact I_eff), EvidencePack (Pydantic), Hybrid Risk Model (geomean likelihood x mean impact + overrides), Impact Factors T, D, P, C, Risk Model Versioning (model_version per score row), Path Scoring (100 * P(path) * I(sink)) (+3 more)
-
-### Community 61 - "Test Datasets"
+### Community 54 - "test_callgraph.py"
 Cohesion: 0.18
-Nodes (11): EvidencePack (LLM input), T-11 Prompt injection into AI explanation, datasets/, Scenario A: high CVSS unreachable, Scenario B: moderate reachable exposed, Scenario C: exposed credential, Scenario D: internal limited, Scenario E: attack path (SSRF) (+3 more)
+Nodes (20): load_symbols(), SymbolEntry, _classifier(), _l3(), _project(), test_a_call_through_another_module_function_is_l3(), test_a_direct_call_from_a_route_is_l3(), test_a_from_import_is_resolved() (+12 more)
+
+### Community 55 - "RiskGraph — Data, API, Frontend, CI/CD (sections 16–19)"
+Cohesion: 0.18
+Nodes (10): 17.1 Cross-cutting, 17.2 Endpoints (V1), 17.3 Representative schemas, 17. API architecture, 18. Frontend architecture, 19.1 Two integration paths, 19.2 Policy (from `riskgraph.yaml` `policy:` or repository settings; action input overrides), 19.3 RiskGraph's own CI (`.github/workflows/ci.yml`) (+2 more)
+
+### Community 56 - "test_docker_runner.py"
+Cohesion: 0.16
+Nodes (13): FakeClient, FakeContainer, FakeContainers, FakeImages, _runner(), _spec(), test_a_hung_container_is_killed_at_the_timeout(), test_a_missing_image_is_a_failure_not_an_exception() (+5 more)
+
+### Community 57 - "api.py"
+Cohesion: 0.14
+Nodes (4): create_app(), configure_logging(), get_logger(), RequestIdMiddleware
+
+### Community 59 - "test_risks_db.py"
+Cohesion: 0.33
+Nodes (6): api(), scan(), test_risk_detail_lists_factors_and_the_reasons_off_baseline(), test_risks_are_ranked_by_score_and_match_the_findings(), test_risks_parameter_errors(), test_triaged_noise_leaves_the_ranking_but_stays_retrievable()
+
+### Community 60 - "RiskGraph — Master Blueprint (v0.1, 2026-09-19)"
+Cohesion: 0.20
+Nodes (9): 1. Executive summary, 28. Final demonstration workflow (what the examiner sees, ~12 minutes), 29. Project risks and mitigations, 2. Exact problem definition, 30. Definition of the final MVP, 3. Scope (what V1 delivers), 4. Non-goals (stated so nobody expects them), 5. Novelty and technical contribution (honest version) (+1 more)
+
+### Community 61 - "context/router.py"
+Cohesion: 0.33
+Nodes (3): AssetOut, ContextOut, repository_context()
 
 ### Community 62 - "TS Node Config"
-Cohesion: 0.18
-Nodes (10): compilerOptions, composite, module, moduleResolution, noEmit, skipLibCheck, strict, target (+2 more)
+Cohesion: 0.13
+Nodes (12): manifests(), inputs(), compilerOptions, composite, module, moduleResolution, noEmit, skipLibCheck (+4 more)
 
-### Community 63 - "_record"
-Cohesion: 0.19
-Nodes (9): container_fields(), scanner_image(), main(), _make_removable_later(), _open_for_scanner_uid(), _record(), _recording_runner(), _trim_trivy() (+1 more)
+### Community 63 - "record.py"
+Cohesion: 0.14
+Nodes (11): container_fields(), scanner_image(), ScannerRunner, main(), _make_removable_later(), _open_for_scanner_uid(), _record(), _recording_runner() (+3 more)
 
-### Community 64 - "Project Risks and Isolation"
-Cohesion: 0.20
-Nodes (9): MVP Definition and Stretch List, Non-goals (not a scanner, not multi-tenant, no DAST, no live cloud, GitHub only), Project Risks R1-R11, V1 Scope, shared/docker/container_spec.py (only place mounts are built), docker-socket-proxy, git-fetcher clone container, LLM Adapter Protocol (Ollama, Anthropic, Null) (+1 more)
-
-### Community 65 - "Scan Creation and Rate Limits"
-Cohesion: 0.20
-Nodes (10): POST /scans, Path B: riskgraph-action GitHub Action, Redis token bucket rate limiting, ScanCreate schema, T-03 Command injection via ref/repo/commit, T-13 Resource exhaustion, T-17 CI token leakage in Action, Own Redis token bucket middleware (+2 more)
-
-### Community 66 - "Health Endpoint Tests"
-Cohesion: 0.29
-Nodes (5): test_healthz_reports_version(), test_readyz_ok_with_real_services(), test_readyz_reports_503_when_dependencies_down(), test_request_id_is_echoed_or_generated(), test_unknown_route_is_problem_json()
-
-### Community 67 - "Blueprint Overview"
+### Community 64 - "ADR-0001: Modular monolith with API and worker roles"
 Cohesion: 0.22
-Nodes (6): RiskGraph Master Blueprint v0.1, Motivating Example (unreachable CVSS 9.8 vs exposed credential), Problem Definition (orchestration cost, severity != risk, no correlation, no explanation), RiskGraph Platform, RiskGraph Architecture (sections 6-15), Worked Examples Scenarios A-E
+Nodes (8): ADR-0001: Modular monolith with API and worker roles, Alternatives considered, Compliance, Consequences, Context, Decision, Services per pipeline stage — rejected, Single flat package (no module boundaries) — rejected
 
-### Community 68 - "semgrep/parser.py"
-Cohesion: 0.28
-Nodes (7): cwe_ids(), sast_category(), semgrep_severity(), clean_rule_id(), count(), parse(), _results()
+### Community 65 - "RiskGraph — Threat Model (living document; v0.1 from blueprint 03, 2026-09-19)"
+Cohesion: 0.22
+Nodes (9): Actors, Assets (what we protect), Attack surfaces, MVP level 2 extended note (2026-10-22), MVP level 2 note (2026-10-21): manifest context, MVP note (2026-10-21), RiskGraph — Threat Model (living document; v0.1 from blueprint 03, 2026-09-19), Security invariants (tested in Phase 15/16) (+1 more)
 
-### Community 69 - "UUIDv7 Generator"
-Cohesion: 0.39
-Nodes (3): uuid7(), test_uuid7_is_time_ordered_and_unique(), test_uuid7_version_and_variant()
-
-### Community 70 - "test_runtime_db.py"
+### Community 66 - "ContextResolver"
 Cohesion: 0.16
-Nodes (11): reap(), ReapResult, api(), _ContainerOnlyRunner, _create(), kills(), test_a_finished_scan_cannot_be_cancelled(), test_a_healthy_running_scan_is_left_alone() (+3 more)
+Nodes (7): _clean_file(), ContextResolver, Observed, KubeContext, ServiceDecl, test_secret_in_public_repo_is_internet_exposed_without_manifest(), o()
 
-### Community 71 - "Graph Schema and Explainer"
+### Community 67 - "RiskGraph — Architecture (sections 6–15)"
+Cohesion: 0.18
+Nodes (10): 10.1 Canonical model, 10.2 Fingerprinting (dedup within and across scans), 10.3 Severity mapping, 10. Finding normalization architecture, 12. Security graph schema, 15. AI explanation architecture, 6. Complete system architecture, 7. Component architecture (+2 more)
+
+### Community 68 - "test_iac.py"
+Cohesion: 0.27
+Nodes (17): extract(), kubernetes_context(), _selects(), ManifestResult, _repo(), test_alias_bombs_are_refused_before_parsing(), test_compose_build_context_cannot_escape_the_repository(), test_compose_exposure_reaches_findings_under_its_build_context() (+9 more)
+
+### Community 69 - "risk/router.py"
+Cohesion: 0.18
+Nodes (9): RiskScoreOut, _latest_scan(), list_risks(), risk_detail(), RiskDetailOut, RiskItemOut, RiskListOut, _scan_id() (+1 more)
+
+### Community 70 - "analyze"
+Cohesion: 0.18
+Nodes (18): analyze(), GraphFinding, invariant_violations(), _manifest(), test_control_only_paths_are_not_attacks(), test_effective_impact_uses_the_rest_of_the_chain(), test_k_paths_per_sink_and_hop_limit(), test_kitchen_sink_manifest_is_valid_and_links_aws_keys() (+10 more)
+
+### Community 71 - "Handoff"
+Cohesion: 0.22
+Nodes (8): Before the next session, Commands, Gotchas, Handoff, Not done, State, Verified, What works
+
+### Community 72 - "Work done — session 1 (2026-09-19)"
+Cohesion: 0.22
+Nodes (9): 1. Orientation, 2. Blueprint (`docs/blueprint/`, 9 files, ~18.8k words), 3. Phase 0 (docs), 4. Phase 1 (code) — see `docs/phases/PHASE_01.md` for the full chapter, 5. Commit, 6. After the commit (uncommitted at time of writing), Problems hit and fixed during Phase 1, Verified results (+1 more)
+
+### Community 73 - ".source"
 Cohesion: 0.25
-Nodes (8): Final Demonstration Workflow (12 steps), Explanation Validator (evidence ids, numbers, URLs), Graph Builder Invariants, NetworkX DiGraph, riskgraph.yaml Manifest Schema v1, Security Graph Schema (node and edge kinds), TemplateExplainer (deterministic fallback), Yen's k-shortest simple paths (top-3)
+Nodes (7): Decision, 11.1 Manifest schema (`riskgraph.yaml`, v1), 11.2 Factors produced (all with `source` and `confidence`), 11.3 Reachability tiers (the honest design), 11. Context enrichment architecture, G. Database, R. Common failure modes
 
-### Community 72 - "Process Architecture"
-Cohesion: 0.29
-Nodes (8): API Process (FastAPI), Celery Canvas (clone -> chord(scanners) -> analyze -> finalize), Frontend (React + TS via Caddy), GitHub Action CI/CD Feedback (polling), PostgreSQL (system of record), Redis (broker, result backend, rate limits, scanner slots), scan_jobs / scanner_runs State Machines, Worker Process (Celery)
-
-### Community 73 - "Thesis and Finding Model"
-Cohesion: 0.29
-Nodes (4): Evaluation Protocol (constructed ground truth, blind labels, KEV held out), Five Thesis Contributions, Canonical Finding Model (Finding + ScanFinding), Finding Fingerprinting (per source type)
-
-### Community 74 - "scans/service.py"
-Cohesion: 0.20
-Nodes (10): ScanJob, cancel_scan(), create_scan(), get_scan(), list_scans(), report_file(), ScanView, start_scan() (+2 more)
+### Community 74 - "test_environment.py"
+Cohesion: 0.46
+Nodes (7): _resolver(), test_data_sensitivity_stops_after_two_hops(), test_data_sensitivity_two_hops_prefers_most_sensitive(), test_exposure_labels(), test_longest_path_prefix_wins(), test_secret_keeps_service_impact_context(), test_summary_counts_findings_per_service()
 
 ### Community 75 - "Session 1 handoff (2026-09-19)"
 Cohesion: 0.12
-Nodes (16): Commands that are known to work, Gotchas already hit (so you don't hit them again), HANDOFF: resume here (updated 2026-10-23, session 6: P3, P4, P5, P7, P8), Open items (decide before Phase 2), Open items (small, do at the start of Phase 2), Rules of engagement (from the brief and CLAUDE.md), Session 1 handoff (2026-09-19), Session 2 (2026-10-21): MVP vertical slice, done (+8 more)
+Nodes (16): Commands that are known to work, Gotchas already hit (so you don't hit them again), HANDOFF: resume here (updated 2026-10-25, session 7: P7 finished; expansion A–D proposed), Open items (decide before Phase 2), Open items (small, do at the start of Phase 2), Rules of engagement (from the brief and CLAUDE.md), Session 1 handoff (2026-09-19), Session 2 (2026-10-21): MVP vertical slice, done (+8 more)
 
-### Community 76 - "Hosting ADR"
-Cohesion: 0.33
-Nodes (5): ADR-0005 Hosting and deployment, docker-socket-proxy, K8sJobRunner (future), container_spec.py mount builder, T-08 Docker socket proxy abuse
+### Community 76 - "ADR-0004: Authentication and authorization model"
+Cohesion: 0.25
+Nodes (7): ADR-0004: Authentication and authorization model, Alternatives considered, Consequences, Context, Decision, GitHub OAuth — deferred (stretch), Server-side sessions — rejected
 
 ### Community 77 - "Scanner Installer"
 Cohesion: 0.50
 Nodes (4): fetch_verified(), install-scanners.sh script, UV_TOOL_BIN_DIR, UV_TOOL_DIR
 
-### Community 78 - "test_docker_runner.py"
-Cohesion: 0.14
-Nodes (14): PathRoot, FakeClient, FakeContainer, FakeContainers, FakeImages, _runner(), _spec(), test_a_hung_container_is_killed_at_the_timeout() (+6 more)
+### Community 78 - "parse_manifest"
+Cohesion: 0.19
+Nodes (15): load_manifest(), normalize_service_path(), parse_manifest(), test_alias_bomb_is_refused_before_expansion(), test_deep_nesting_is_refused_without_crashing(), test_documented_example_manifest_is_valid(), test_hostile_or_broken_documents_never_raise(), test_load_absent_valid_and_yml_fallback() (+7 more)
 
-### Community 79 - "pipeline_support.py"
-Cohesion: 0.17
-Nodes (3): CloneError, real_settings(), workspace_exists()
+### Community 79 - "kitchen_sink.py"
+Cohesion: 0.36
+Nodes (5): _attack_graph(), Row, _rows(), test_loader_builds_5k_nodes_20k_edges_under_one_second(), test_yen_top3_for_10_sinks_on_5k_20k_under_two_seconds()
 
-### Community 91 - "test_config.py"
+### Community 87 - "ADR-0007: Celery + Redis for background work"
 Cohesion: 0.25
-Nodes (6): _base(), test_bad_redis_url_rejected(), test_missing_required_fails(), test_non_psycopg_database_url_rejected(), test_short_secret_rejected(), test_valid_settings_parse()
+Nodes (7): ADR-0007: Celery + Redis for background work, Alternatives considered, arq / Dramatiq — rejected, Consequences, Context, Decision, Postgres job table + worker loop — rejected
+
+### Community 88 - "14. Risk-engine architecture"
+Cohesion: 0.25
+Nodes (8): 14.1 Model comparison, 14.2 Definitions, 14.3 Reduction to a context-free model (the property that makes the model defensible), 14.4 Attack-path coupling ("effective impact"), 14.5 Rule overrides (explainable, listed in output as `overrides[]`), 14.6 Worked examples (scenarios A–E from the brief), 14.7 Sensitivity, calibration, limitations, 14. Risk-engine architecture
+
+### Community 91 - "format.ts"
+Cohesion: 0.17
+Nodes (23): reportUrl(), RunStatus, ScanStatus, Severity, PriorityCounts(), RepositoryPage(), ScanDetailPage(), STAGES (+15 more)
 
 ### Community 92 - "pytest"
-Cohesion: 0.18
+Cohesion: 0.15
 Nodes (22): build_create_kwargs(), _check_env(), _checked_path(), ContainerSpecError, Limits, Mount, scanner_mounts(), _kwargs() (+14 more)
 
-### Community 93 - "health.py"
-Cohesion: 0.18
-Nodes (5): check_database(), Health, healthz(), Readiness, readyz()
-
-### Community 94 - "UUID"
-Cohesion: 0.06
-Nodes (39): parse_nvd_cvss(), clear(), SbomComponent, attach_findings(), canonical_purl(), clear(), _ecosystem(), list_components() (+31 more)
-
-### Community 95 - "ScanDetailPage.tsx"
-Cohesion: 0.21
-Nodes (13): apiPost(), App(), HealthDot(), HomePage(), RepositoryRoute(), ScanRoute(), EXAMPLES, NewScanForm() (+5 more)
-
-### Community 96 - "vocabulary.py"
-Cohesion: 0.19
-Nodes (5): run_extractor(), ScannerRunner, _open_cache_to_scanners(), refresh_argv(), refresh_trivy_db()
-
-### Community 97 - "Phase 1 — Repository & Development Environment"
+### Community 93 - "RiskGraph"
 Cohesion: 0.25
-Nodes (4): Phase 1 — Repository & Development Environment, Docker Compose dev stack (postgres, redis, migrate, api, worker, beat, frontend), healthz / readyz endpoints, RFC 7807 problem+json errors
+Nodes (7): Context-aware scoring, Develop, Documentation, Quickstart, RiskGraph, Run without Docker, Triage, history and the CI gate
 
-### Community 98 - "checkov/parser.py"
-Cohesion: 0.13
-Nodes (14): iac_family(), iac_topic(), IacFamily, normalize_check_id(), secret_family(), checkov_severity(), _blocks(), count() (+6 more)
+### Community 94 - "sbom/service.py"
+Cohesion: 0.06
+Nodes (42): parse_nvd_cvss(), SbomComponent, attach_findings(), canonical_purl(), clear(), _ecosystem(), list_components(), PackageSeen (+34 more)
 
-### Community 99 - "orchestration.py"
-Cohesion: 0.10
-Nodes (9): _bind_task_context(), _clear_task_context(), _configure_worker_logging(), ping(), create_celery(), get_celery_app(), get_settings(), check_redis() (+1 more)
+### Community 95 - "iac.py"
+Cohesion: 0.21
+Nodes (12): _code_dir(), _compose(), _d(), IacAsset, _ingress_backends(), _k8s(), _l(), _labels() (+4 more)
+
+### Community 97 - "ADR-0008: Synchronous SQLAlchemy sessions"
+Cohesion: 0.29
+Nodes (6): ADR-0008: Synchronous SQLAlchemy sessions, Alternatives considered, Async SQLAlchemy (asyncpg) — rejected, Consequences, Context, Decision
+
+### Community 99 - "json"
+Cohesion: 0.14
+Nodes (4): AdapterError, LlmAdapter, Outcome, _parse()
 
 ### Community 100 - "ScannerName"
 Cohesion: 0.07
-Nodes (9): Command, ParseContext, ScanPaths, CheckovScanner, GitleaksScanner, drop_keys(), SemgrepScanner, SyftScanner (+1 more)
+Nodes (10): Command, ParseContext, ScanPaths, CheckovScanner, GitleaksScanner, drop_keys(), SemgrepScanner, SyftScanner (+2 more)
 
-### Community 101 - "storage.py"
-Cohesion: 0.32
-Nodes (6): read_json_capped(), read_report(), report_path(), report_relpath(), ReportTooLargeError, write_report()
+### Community 101 - "semgrep/parser.py"
+Cohesion: 0.16
+Nodes (10): cwe_ids(), sast_category(), iac_topic(), semgrep_severity(), clean_rule_id(), count(), parse(), _results() (+2 more)
 
 ### Community 102 - "PHASE 4: Scanner adapters (five hardened images)"
-Cohesion: 0.25
-Nodes (7): Built, Decisions, Known differences from the host-run MVP, Not done, Objective, PHASE 4: Scanner adapters (five hardened images), Verification
+Cohesion: 0.29
+Nodes (6): Built, Decisions, Known differences from the host-run MVP, Not done, Objective, PHASE 4: Scanner adapters (five hardened images)
 
-### Community 103 - "api.py"
-Cohesion: 0.13
-Nodes (5): create_app(), configure_logging(), get_logger(), RequestIdMiddleware, X-Request-ID middleware
+### Community 103 - "health.py"
+Cohesion: 0.16
+Nodes (6): check_database(), Health, healthz(), Readiness, readyz(), check_redis()
 
-### Community 104 - "context/router.py"
-Cohesion: 0.43
-Nodes (4): AssetOut, ContextOut, repository_context(), list_assets()
+### Community 104 - "scans/router.py"
+Cohesion: 0.17
+Nodes (11): cancel_scan(), create_scan(), download_report(), get_scan(), list_scans(), to_out(), RepositoryOut, ScanCreate (+3 more)
 
 ### Community 105 - "kitchen_sink.json"
 Cohesion: 0.13
 Nodes (14): bomFormat, bom-ref, name, type, components, metadata, component, timestamp (+6 more)
 
-### Community 106 - "RiskGraph — AI session entry point"
-Cohesion: 0.29
-Nodes (6): Commands, Conventions, Current state, Dependencies, graphify, RiskGraph — AI session entry point
+### Community 106 - "gitleaks/parser.py"
+Cohesion: 0.33
+Nodes (4): gitleaks_severity(), count(), _items(), parse()
 
 ### Community 107 - "ADR-0015: L3 reachability by intraprocedural call graph; NVD refreshed by Beat"
 Cohesion: 0.29
 Nodes (6): ADR-0015: L3 reachability by intraprocedural call graph; NVD refreshed by Beat, Consequences, Context, Decision, L3, NVD
 
-### Community 108 - "test_reachability.py"
-Cohesion: 0.05
-Nodes (49): load_symbols(), SymbolEntry, _dotted(), extract(), _js(), main(), _package_json(), _parsers() (+41 more)
+### Community 108 - "tiers.py"
+Cohesion: 0.17
+Nodes (7): import_names(), python_import_names(), used_without_import(), _scope(), TierClassifier, Verdict, test_package_names()
 
 ### Community 109 - "sqlalchemy"
-Cohesion: 0.31
-Nodes (5): upgrade(), downgrade(), _in_list(), _replace_check(), upgrade()
+Cohesion: 0.16
+Nodes (8): downgrade(), upgrade(), upgrade(), downgrade(), _in_list(), _replace_check(), upgrade(), upgrade()
 
-### Community 110 - "level2.test.ts"
-Cohesion: 0.33
-Nodes (3): TrendPoint, buildQuery(), vitest
+### Community 110 - "ExplanationDraft"
+Cohesion: 0.17
+Nodes (7): ExplanationDraft, json_schema(), explain(), _phrase(), _steps(), _texts(), _words()
 
 ### Community 111 - "PHASE 8: Reachability (L0–L3)"
+Cohesion: 0.33
+Nodes (5): Built, Not done (out of the blueprint's P8 scope), PHASE 8: Reachability (L0–L3), Verification, Verification (session 7)
+
+### Community 112 - "context/service.py"
+Cohesion: 0.12
+Nodes (13): CvssSubscores, _round1(), subscores(), Asset, Vulnerability, _fresh(), list_assets(), _load_kev() (+5 more)
+
+### Community 114 - "ADR-0009: MVP runs scanners as subprocesses in the worker"
+Cohesion: 0.29
+Nodes (6): ADR-0009: MVP runs scanners as subprocesses in the worker, Alternatives considered, Blueprint DockerRunner now (§9.3): deferred, bubblewrap / `unshare --net` around each subprocess: deferred, Consequences, Context
+
+### Community 115 - "Problems hit and fixed"
+Cohesion: 0.29
+Nodes (6): Problems hit and fixed, Problems hit and fixed, What was built, What was built, Work done: session 2 (2026-10-21): MVP vertical slice, Work done: session 4 (2026-10-22): MVP level 2 extended
+
+### Community 116 - "extract.py"
+Cohesion: 0.26
+Nodes (12): _dotted(), extract(), _js(), main(), _package_json(), _parsers(), _python(), _python_calls() (+4 more)
+
+### Community 117 - "ADR-0012: Reachability tiers L0–L2 in the MVP (import graph, no call graph)"
+Cohesion: 0.33
+Nodes (5): ADR-0012: Reachability tiers L0–L2 in the MVP (import graph, no call graph), Alternatives considered, Consequences, Context, Decision
+
+### Community 118 - "13. Attack-path architecture"
 Cohesion: 0.40
-Nodes (4): Built, Not done (blueprint §11.3, §10.2), PHASE 8: Reachability (L0–L3), Verification
+Nodes (4): 13.1 Attack-graph derivation, 13.2 Algorithm choice, 13.3 Path scoring and output, 13. Attack-path architecture
 
-### Community 116 - "devDependencies"
-Cohesion: 0.17
-Nodes (12): devDependencies, eslint, @eslint/js, eslint-plugin-react-hooks, @types/node, @types/react, @types/react-dom, typescript (+4 more)
-
-### Community 118 - "redact.py"
-Cohesion: 0.19
-Nodes (10): derive_key(), mask(), scrub(), _scrub(), secret_hmac(), test_gitleaks_redaction_removes_every_raw_field(), test_hmac_is_keyed_and_deterministic(), test_mask_never_shows_short_secrets() (+2 more)
+### Community 119 - "9. Scanner orchestration architecture"
+Cohesion: 0.40
+Nodes (5): 9.1 Job model and state machines, 9.2 Celery canvas, 9.3 Isolation profile for scanner containers, 9.4 Scanner adapter interface, 9. Scanner orchestration architecture
 
 ### Community 123 - "test_api.py"
-Cohesion: 0.28
+Cohesion: 0.25
 Nodes (11): api(), _completed_scan(), enqueued(), test_concurrency_cap(), test_create_scan_enqueues_and_dedups(), test_create_scan_rejects_bad_input(), test_findings_sort_filter_and_detail(), test_get_and_list_scans() (+3 more)
 
-### Community 124 - "test_scan_state.py"
-Cohesion: 0.15
-Nodes (15): active_scan(), cas_run(), count_active(), get_run(), check_run(), check_scan(), final_status(), InvalidTransitionError (+7 more)
+### Community 124 - "ScanStatus"
+Cohesion: 0.28
+Nodes (11): check_run(), check_scan(), final_status(), InvalidTransitionError, RunStatus, ScanStatus, test_every_active_state_can_fail(), test_final_status() (+3 more)
 
-### Community 128 - "problems.py"
-Cohesion: 0.12
-Nodes (13): TooManyActiveScans, Conflict, Forbidden, Problem, problem_response(), register_problem_handlers(), _http(), _problem() (+5 more)
+### Community 127 - "PHASE 11: Contextual risk engine (scenarios, properties, GET /risks)"
+Cohesion: 0.17
+Nodes (8): _diff_items(), risk_out(), A. Objective, B. Built, M. Testing, Not done, O. Validation, PHASE 11: Contextual risk engine (scenarios, properties, GET /risks)
+
+### Community 130 - "reachability/service.py"
+Cohesion: 0.26
+Nodes (5): ReachabilityResult, clear(), persist_verdict(), ReachabilityRun, run_extractor()
 
 ### Community 132 - "20261023_0900_reachability_l3.py"
 Cohesion: 0.83
 Nodes (3): _check(), downgrade(), upgrade()
 
+### Community 134 - "PHASE 12: AI explanation (evidence-grounded, validated, cached)"
+Cohesion: 0.15
+Nodes (13): A. Objective, B. Why, C. Architecture, D. Components, E. Technical decisions, G. Database, H. API, L. Configuration (+5 more)
+
+### Community 135 - "conftest.py"
+Cohesion: 0.16
+Nodes (9): dispose_engine(), get_engine(), _session_factory(), _alembic(), client(), db(), migrated_db(), settings() (+1 more)
+
+### Community 136 - "OllamaAdapter"
+Cohesion: 0.15
+Nodes (10): OllamaAdapter, AiExplanation, adapter_from_settings(), cached(), explain(), _store(), top_critical(), explain_top_findings_task() (+2 more)
+
+### Community 140 - "RiskGraph — AI session entry point"
+Cohesion: 0.29
+Nodes (6): Commands, Conventions, Current state, Dependencies, graphify, RiskGraph — AI session entry point
+
+### Community 144 - "test_reachability.py"
+Cohesion: 0.22
+Nodes (16): build(), _resolve_python(), ReachabilityTier, _classifier(), extracted(), test_extractor_runs_isolated_through_the_runner(), test_hostile_inputs_do_not_break_extraction(), test_indirect_dependencies_inherit_from_direct_parents() (+8 more)
+
+### Community 145 - "uuid7.py"
+Cohesion: 0.39
+Nodes (3): uuid7(), test_uuid7_is_time_ordered_and_unique(), test_uuid7_version_and_variant()
+
+### Community 147 - "typing"
+Cohesion: 0.10
+Nodes (9): upgrade(), RiskFactor, RiskScore, ranked(), score_of(), Base, str_enum(), TimestampMixin (+1 more)
+
+### Community 148 - "normalization/__init__.py"
+Cohesion: 0.10
+Nodes (20): Location, iac_family(), normalize_check_id(), secret_family(), fingerprint(), stable_hash(), _build(), merge() (+12 more)
+
+### Community 150 - "checkov/parser.py"
+Cohesion: 0.29
+Nodes (7): IacFamily, checkov_severity(), _blocks(), count(), _failed(), parse(), _resource()
+
+### Community 153 - "explain/router.py"
+Cohesion: 0.19
+Nodes (7): create_explanation(), EvidenceRef, ExplanationOut, get_explanation(), _out(), ReasonOut, require_scan()
+
+### Community 154 - "PHASE 10: Attack-path engine (scenario E, performance budget)"
+Cohesion: 0.29
+Nodes (6): A. Objective, B. Defect found and fixed, M. Testing, Not done, O. Validation, PHASE 10: Attack-path engine (scenario E, performance budget)
+
+### Community 156 - "reach"
+Cohesion: 0.18
+Nodes (8): GraphInvariantError, reach(), A. Objective, B. Built, C. Decisions taken here, Not done, O. Validation, PHASE 9: Security graph (invariants, neighbourhood queries, loader)
+
+### Community 157 - "test_health.py"
+Cohesion: 0.25
+Nodes (5): test_healthz_reports_version(), test_readyz_ok_with_real_services(), test_readyz_reports_503_when_dependencies_down(), test_request_id_is_echoed_or_generated(), test_unknown_route_is_problem_json()
+
+### Community 158 - "audit/models.py"
+Cohesion: 0.38
+Nodes (3): AuditLog, history(), record()
+
+### Community 160 - "sbom/router.py"
+Cohesion: 0.15
+Nodes (4): ComponentOut, SbomOut, scan_sbom(), get_session()
+
+### Community 161 - "problem_response"
+Cohesion: 0.14
+Nodes (9): Forbidden, Problem, problem_response(), register_problem_handlers(), _http(), _problem(), _unhandled(), _validation() (+1 more)
+
+### Community 163 - "worker.py"
+Cohesion: 0.19
+Nodes (4): _bind_task_context(), _clear_task_context(), _configure_worker_logging(), ping()
+
+### Community 164 - "ADR-0016: Evidence-grounded explanations with a local model and a template fallback"
+Cohesion: 0.33
+Nodes (5): ADR-0016: Evidence-grounded explanations with a local model and a template fallback, Alternatives considered, Consequences, Context, Decision
+
 ## Knowledge Gaps
-- **102 isolated node(s):** `Docker Compose dev stack (postgres, redis, migrate, api, worker, beat, frontend)`, `GET /scans/{id}/events (SSE)`, `Finding fingerprint uq(repository_id, fingerprint)`, `TanStack Query server state`, `T-06 Plaintext secret storage` (+97 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 719 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **36 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **14 isolated node(s):** `riskgraph`, `@types/node`, `@types/react`, `@types/react-dom`, `eslint` (+9 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 962 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **17 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Phase 1 — Repository & Development Environment` connect `Phase 1 — Repository & Development Environment` to `Domain Module Layout`, `api.py`, `Core Architecture ADRs`, `Phase 0 — Project Definition & Threat Model`, `Auth and ID ADRs`?**
-  _High betweenness centrality (0.143) - this node is a cross-community bridge._
-- **Are the 19 inferred relationships involving `Settings` (e.g. with `Scanner` and `CheckovScanner`) actually correct?**
-  _`Settings` has 19 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `Docker Compose dev stack (postgres, redis, migrate, api, worker, beat, frontend)`, `GET /scans/{id}/events (SSE)`, `Finding fingerprint uq(repository_id, fingerprint)` to the rest of the system?**
-  _102 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `RunSpec` be split into smaller, more focused modules?**
-  _Cohesion score 0.11025641025641025 - nodes in this community are weakly interconnected._
-- **Why does `RiskGraph Repository Structure (section 22)` connect `Domain Module Layout` to `Scan Creation and Rate Limits`, `Phase 1 — Repository & Development Environment`, `Evaluation and Invariants`, `Tech Choices and Threats`, `API Auth and Errors Design`, `CI/CD and Database Design`, `Deployment and Degradation`, `Test Datasets`?**
-  _High betweenness centrality (0.104) - this node is a cross-community bridge._
-- **Are the 43 inferred relationships involving `ScannerName` (e.g. with `list_findings()` and `OccurrenceOut`) actually correct?**
-  _`ScannerName` has 43 INFERRED edges - model-reasoned connections that need verification._
-- **Should `context/service.py` be split into smaller, more focused modules?**
-  _Cohesion score 0.10299003322259136 - nodes in this community are weakly interconnected._
+- **Why does `AdapterError` connect `json` to `test_explain.py`, `PHASE 12: AI explanation (evidence-grounded, validated, cached)`?**
+  _High betweenness centrality (0.083) - this node is a cross-community bridge._
+- **Are the 80 inferred relationships involving `Settings` (e.g. with `create_app()` and `nvd_refresh()`) actually correct?**
+  _`Settings` has 80 INFERRED edges - model-reasoned connections that need verification._
+- **What connects `riskgraph`, `@types/node`, `@types/react` to the rest of the system?**
+  _14 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `pipeline.py` be split into smaller, more focused modules?**
+  _Cohesion score 0.11990950226244344 - nodes in this community are weakly interconnected._
+- **Why does `M. Testing` connect `PHASE 12: AI explanation (evidence-grounded, validated, cached)` to `json`?**
+  _High betweenness centrality (0.082) - this node is a cross-community bridge._
+- **Are the 78 inferred relationships involving `SourceType` (e.g. with `ContextResolver` and `Finding`) actually correct?**
+  _`SourceType` has 78 INFERRED edges - model-reasoned connections that need verification._
+- **Should `FindingsSection.tsx` be split into smaller, more focused modules?**
+  _Cohesion score 0.13438735177865613 - nodes in this community are weakly interconnected._
