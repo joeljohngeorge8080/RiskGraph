@@ -1,4 +1,12 @@
-# HANDOFF: resume here (updated 2026-10-25, session 7: P7-P12 done; X0 in progress, see todo1150.md)
+# HANDOFF: resume here (updated 2026-10-25, session 8: X0 done; next X1, see todo1150.md)
+
+## Session 8 (2026-10-25, local)
+- **X0 done** (`docs/phases/PHASE_X0.md`): `backend/evaluation/{run,metrics,baselines,report}.py`, `make eval-baseline` → `docs/evaluation/BASELINE.md` (byte-identical on rerun).
+- Pooled baseline, 59 findings and 7 important: nDCG@10 M1 0.293, M2 0.162, M4 0.991 (CIs in the report). Construct bias and a low positive rate are written up as limits.
+- `make eval-baseline` needs `make test-services` and empties `riskgraph_test` (it refuses any DB not named `*_test`).
+- Verified: `make lint` clean; 322 unit tests; 57 db tests, 2 skipped. Committed locally, not pushed.
+- **Next: X1 contracts** (ADR-0017, `modules/evidence`, migration). Owner items unchanged (push, PR #2, dev DB migrate, P2 auth).
+
 
 ## Session 7 (2026-10-25, local)
 - **Branch** `mvp-level2-integration`, all committed locally. **Not pushed** (owner approved local commits per phase only). PR #2 untouched.

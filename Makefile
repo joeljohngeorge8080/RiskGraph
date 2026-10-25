@@ -91,6 +91,9 @@ worker-local: .env ## Run the Celery worker on the host
 e2e: ## Full pipeline with the real scanners (needs scanner-tools, postgres, redis)
 > @$(TEST_DB_ENV) export RISKGRAPH_SCANNER_BIN_DIR=$(SCANNER_PREFIX)/bin RISKGRAPH_SEMGREP_RULES_PATH=$(SCANNER_PREFIX)/semgrep-rules RISKGRAPH_TRIVY_CACHE_DIR=$(HOME)/.cache/riskgraph/trivy && $(UV) run pytest -m e2e
 
+eval-baseline: ## Replay scenarios A-E offline and write docs/evaluation/BASELINE.md (needs test-services)
+> @$(TEST_DB_ENV) $(UV) run python -m evaluation.report
+
 migrate: ## Apply migrations against the running compose postgres
 > docker compose run --rm migrate
 
@@ -100,4 +103,4 @@ migration: ## Autogenerate a migration: make migration m="add findings"
 shell-api: ## Shell in the api container
 > docker compose exec api bash
 
-.PHONY: help dev dev-detached down nuke logs install lint fmt test test-services test-db test-llm test-all scanner-tools api-local worker-local e2e migrate migration shell-api
+.PHONY: help dev dev-detached down nuke logs install lint fmt test test-services test-db test-llm test-all scanner-tools api-local worker-local e2e eval-baseline migrate migration shell-api

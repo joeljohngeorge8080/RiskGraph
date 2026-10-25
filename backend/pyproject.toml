@@ -52,7 +52,7 @@ packages = ["riskgraph"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["riskgraph", "tests"]
+src = ["riskgraph", "tests", "evaluation"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N", "S", "SIM", "RUF", "T20"]
@@ -67,7 +67,7 @@ ignore = ["S104"]  # binding 0.0.0.0 is intentional inside containers
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["riskgraph", "tests"]
+files = ["riskgraph", "tests", "evaluation"]
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
