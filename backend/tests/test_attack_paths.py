@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import math
+from itertools import pairwise
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from riskgraph.modules.context import parse_manifest
 from riskgraph.modules.graph import GraphFinding, analyze
 from riskgraph.modules.graph.attack import INTERNET, MAX_HOPS
@@ -117,3 +120,104 @@ def test_kitchen_sink_manifest_is_valid_and_links_aws_keys() -> None:
     assert m.identities[0].credentials == ("aws",)
     bad = parse_manifest("version: 1\nidentities:\n  - {name: x, credentials: [ftp]}\n")
     assert bad.status == "invalid" and "credential family" in bad.warnings[0]
+
+
+@settings(max_examples=120, deadline=None)
+@given(
+    edges=st.lists(
+        st.tuples(
+            st.integers(0, 7),
+            st.integers(1, 7),
+            st.sampled_from(["EXPLOIT", "RUNS_AS"]),
+            st.floats(0.05, 0.95),
+        ),
+        min_size=1,
+        max_size=24,
+    ),
+    hop_limit=st.integers(1, 4),
+)
+def test_search_matches_brute_force_top_k(
+    edges: list[tuple[int, int, str, float]], hop_limit: int
+) -> None:
+    """The hop pre-filter is exact: same top-k probabilities as enumerating every path."""
+    import networkx as nx
+    from riskgraph.modules.graph import attack
+
+    def key(i: int) -> str:
+        return INTERNET if i == 0 else f"service:s{i}"
+
+    g: nx.DiGraph[str] = nx.DiGraph()
+    out = attack.AttackAnalysis()
+    for i in range(8):
+        g.add_node(key(i))
+        out.nodes[key(i)] = {"key": key(i), "kind": "service", "label": key(i), "properties": {}}
+    for a, b, kind, p in edges:
+        if a == b or g.has_edge(key(a), key(b)):
+            continue
+        p = 1.0 if kind == "RUNS_AS" else p
+        g.add_edge(key(a), key(b), kind=kind, p=p, w=-math.log(p), findings=[a])
+    g.add_edge(attack._VIRTUAL, INTERNET, kind="VIRTUAL", p=1.0, w=0.0, findings=[])
+    sinks = {key(i): 1.0 for i in (5, 6, 7)}
+
+    original = attack.MAX_HOPS
+    attack.MAX_HOPS = hop_limit
+    try:
+        attack._search(g, out, sinks)
+    finally:
+        attack.MAX_HOPS = original
+
+    for sink in sinks:
+        expected = sorted(
+            (
+                math.prod(g.edges[u, v]["p"] for u, v in pairwise(path))
+                for path in nx.all_simple_paths(g, INTERNET, sink, cutoff=hop_limit)
+                if any(g.edges[u, v]["kind"] == "EXPLOIT" for u, v in pairwise(path))
+            ),
+            reverse=True,
+        )[: attack.K_PATHS]
+        got = sorted((p.probability for p in out.paths if p.sink == sink), reverse=True)
+        # Yen stops after MAX_CANDIDATES; on 8 nodes that bound is never reached
+        assert got == pytest.approx(expected), (sink, got, expected)
+
+
+SCENARIO_E = """
+version: 1
+services:
+  - {name: api, path: api/, exposure: internet, auth: none, runs_as: api-role}
+  - {name: worker, path: worker/, exposure: internal, runs_as: worker-role}
+identities:
+  - {name: api-role, privilege: elevated, can_access: [instance-metadata, users-db]}
+  - {name: worker-role, privilege: limited}
+data_stores:
+  - {name: instance-metadata, sensitivity: credentials}
+  - {name: users-db, sensitivity: pii}
+criticality: {api: high}
+"""
+
+
+def test_scenario_e_ssrf_path_to_metadata_and_pii_with_evidence() -> None:
+    """Blueprint §14.6 E: SSRF (SAST high) on an internet API → api-role → creds → PII."""
+    e_ssrf, r_l3 = 0.7, 1.0  # §14.2: SAST high; L3: the handler calls the sink
+    ssrf = GraphFinding(
+        0, "api", S.SAST, exploit_p=math.sqrt(e_ssrf * r_l3), tier="L3", title="SSRF in fetch()"
+    )
+    noise = GraphFinding(1, "worker", S.SCA, exploit_p=0.9, tier="L2", title="worker CVE")
+    a = analyze(_manifest(SCENARIO_E), [ssrf, noise])
+    by = {p.label: p for p in a.paths}
+    p_exploit = math.sqrt(0.7)
+    pii = by["Internet → api → api-role → users-db"]
+    creds = by["Internet → api → api-role → instance-metadata"]
+    assert pii.probability == pytest.approx(p_exploit)
+    assert pii.score == pytest.approx(100 * p_exploit * 0.9, abs=0.01)  # D(pii) = 0.9
+    assert creds.score == pytest.approx(100 * p_exploit * 1.0, abs=0.01)  # credentials = 1.0
+    # evidence: the SSRF finding is the only attack edge, on the EXPLOIT hop
+    for path in (pii, creds):
+        assert path.findings == [0]
+        exploit = [e for e in path.edges if e["kind"] == "EXPLOIT"]
+        assert len(exploit) == 1 and exploit[0]["source"] == INTERNET
+        assert exploit[0]["findings"] == [0]
+    # the internal worker is not exposed: its CVE is on no path, whatever its p
+    assert all(1 not in p.findings for p in a.paths)
+    # §14.4: the rest of the chain is control (p = 1), so I_eff = I(sink)
+    assert a.effective[0].value == pytest.approx(1.0)
+    assert a.paths[0] is creds  # credentials outrank PII
