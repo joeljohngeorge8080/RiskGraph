@@ -9,7 +9,8 @@ Rules (blueprint §10.2, ADR-0013):
 - ``reopened``: not in the previous scan but seen in an earlier one (it came back);
 - ``existing``: in the previous scan;
 - a finding open in the previous scan and absent now becomes ``fixed`` only if every
-  scanner that reported it succeeded in this scan; otherwise it is left alone;
+  scanner that reported it succeeded in this scan, and, for a package in an image (X2),
+  only if that image was scanned in this scan; otherwise it is left alone;
 - a ``fixed`` finding seen again becomes ``open``; triage statuses (false positive,
   accepted risk, won't fix) are never changed automatically.
 """
@@ -60,6 +61,7 @@ def apply_history(
     ref: str,
     succeeded_scanners: set[str],
     now: dt.datetime,
+    scanned_images: set[str] | None = None,
 ) -> dict[str, Any]:
     prev = previous_scan_id(session, repository_id, ref, scan_id)
     current = dict(
@@ -112,6 +114,9 @@ def apply_history(
                 continue
             if not set(finding.detected_by) <= succeeded_scanners:
                 continue  # a scanner that reported it did not run cleanly: no verdict
+            image = (finding.package or {}).get("image")
+            if image and image not in (scanned_images or set()):
+                continue  # its image was not scanned this time (pull failed, cap): no verdict
             finding.status = FindingStatus.FIXED
             finding.status_reason = "not reported by the next scan"
             finding.status_changed_at = now

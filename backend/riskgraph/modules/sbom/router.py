@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -25,6 +25,7 @@ class ComponentOut(BaseModel):
     ecosystem: str
     location: str | None
     discovered_by: str
+    image: str | None = None  # X2: the image it is installed in; None in the repository
     findings: int
 
 
@@ -41,10 +42,17 @@ def scan_sbom(
     name: Annotated[str | None, Query(max_length=256)] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
     offset: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
+    origin: Literal["all", "repository", "image"] = "all",
 ) -> SbomOut:
     require_scan(session, scan_id)
     rows, total = page_components(
-        session, scan_id, ecosystem=ecosystem, name=name, limit=limit, offset=offset
+        session,
+        scan_id,
+        ecosystem=ecosystem,
+        name=name,
+        limit=limit,
+        offset=offset,
+        origin=origin,
     )
     return SbomOut(
         items=[
@@ -56,6 +64,7 @@ def scan_sbom(
                 ecosystem=c.ecosystem,
                 location=c.location,
                 discovered_by=c.discovered_by,
+                image=c.image,
                 findings=n,
             )
             for c, n in rows

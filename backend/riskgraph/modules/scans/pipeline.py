@@ -18,7 +18,7 @@ import re
 import uuid
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import redis
@@ -45,7 +45,13 @@ from riskgraph.modules.graph import analyze as attack_analysis
 from riskgraph.modules.graph import clear as clear_graph
 from riskgraph.modules.graph import persist as persist_graph
 from riskgraph.modules.normalization import MergedFinding, RawFinding, fingerprint, merge
-from riskgraph.modules.reachability import ReachabilityRun, Verdict, persist_verdict, run_extractor
+from riskgraph.modules.reachability import (
+    NOT_APPLICABLE,
+    ReachabilityRun,
+    Verdict,
+    persist_verdict,
+    run_extractor,
+)
 from riskgraph.modules.reachability import clear as clear_reachability
 from riskgraph.modules.repositories import Repository
 from riskgraph.modules.risk import (
@@ -63,6 +69,7 @@ from riskgraph.modules.runtime import (
     declarations,
     image_refs,
     load_feeds,
+    os_eol_finding,
     runtime_findings,
 )
 from riskgraph.modules.sbom import attach_findings, canonical_purl, persist_components
@@ -85,6 +92,8 @@ from riskgraph.modules.scanners.docker_runner import DockerRunner, PathRoot, mak
 from riskgraph.modules.scanners.slots import SlotLimiter
 from riskgraph.modules.scanners.syft.parser import Component
 from riskgraph.modules.scanners.syft.parser import components as syft_components
+from riskgraph.modules.scanners.trivy import TrivyScanner
+from riskgraph.modules.scanners.trivy.parser import parse_image
 from riskgraph.modules.scans import repo
 from riskgraph.modules.scans.clone import CloneError, Cloner, GitCloner
 from riskgraph.modules.scans.finding_evidence import finding_evidence
@@ -92,8 +101,12 @@ from riskgraph.modules.scans.models import ScanJob, ScannerRun
 from riskgraph.modules.scans.state import final_status
 from riskgraph.modules.scans.storage import (
     ReportTooLargeError,
+    read_image_index,
+    read_image_report,
     read_json_capped,
     read_report,
+    write_image_index,
+    write_image_report,
     write_report,
 )
 from riskgraph.modules.scans.workspace import ScanWorkspace, widen_own_directories
@@ -446,6 +459,162 @@ def collect(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
         repo.cas_scan(s, scan_id, ScanStatus.SCANNING, ScanStatus.ANALYZING)
 
 
+# --- stage 3b: images the repository names (X2, ADR-0018) --------------------------
+
+IMAGE_TOOL = "trivy-image"
+IMAGE_WARNING_LIMIT = 300
+
+
+def image_stage_budget_s(settings: Settings) -> int:
+    """No image is started after this many seconds (one lock wait plus every image)."""
+    return settings.image_scan_max_refs * settings.timeout_trivy_image_s + TRIVY_LOCK_WAIT_S
+
+
+def image_stage_time_limit_s(settings: Settings) -> int:
+    """Celery's soft limit for the stage: the budget, plus one image started at its end."""
+    return image_stage_budget_s(settings) + settings.timeout_trivy_image_s + TRIVY_LOCK_WAIT_S
+
+
+def _touch(scan_id: uuid.UUID) -> bool:
+    """Record progress, so the reaper does not take a long image stage for a dead one.
+    False when the scan has left ANALYZING (cancelled, reaped): stop pulling images."""
+    with session_scope() as s:
+        result = s.execute(
+            update(ScanJob)
+            .where(ScanJob.id == scan_id, ScanJob.status == ScanStatus.ANALYZING)
+            .values(updated_at=_now())
+        )
+        return bool(getattr(result, "rowcount", 0))
+
+
+def _image_entry(ref: ImageRef, k: int, status: str, warning: str | None) -> dict[str, Any]:
+    return {
+        "index": k,
+        "ref": ref.canonical,
+        "file": ref.file,
+        "line": ref.line,
+        "origin": ref.origin,
+        "status": status,  # scanned | failed | skipped
+        "warning": warning[:IMAGE_WARNING_LIMIT] if warning else None,
+    }
+
+
+def _scan_one_image(
+    deps: PipelineDeps, scan_id: uuid.UUID, ws: ScanWorkspace, ref: ImageRef, k: int
+) -> dict[str, Any]:
+    settings = deps.settings
+    scanner = TrivyScanner()
+    tool = f"{IMAGE_TOOL}-{k}"
+    ws.prepare_tool(tool)
+    paths = ScanPaths(ws.src, ws.out(tool), ws.home(tool), settings.trivy_cache_dir)
+    output = paths.out / scanner.output_name
+    cmd = scanner.image_command(paths, settings, ref.canonical, str(output))
+    fields = container_fields(
+        ScannerName.TRIVY.value, scanner.image_tag, paths, {SCAN_LABEL: str(scan_id)}
+    )
+    timeout = settings.timeout_trivy_image_s
+    try:
+        with deps.scanner_lock(ScannerName.TRIVY, timeout) as acquired:
+            if not acquired:
+                return _image_entry(ref, k, "failed", "waited too long for the trivy cache lock")
+            result = deps.runner.run(
+                RunSpec(
+                    cmd.argv,
+                    ws.src,
+                    ws.logs(tool),
+                    timeout,
+                    "egress",  # the pull needs the registry; nothing else is mounted writable
+                    cmd.env,
+                    EGRESS_FSIZE,
+                    log_name="scan",
+                    **fields,
+                )
+            )
+        status, excerpt = _classify(
+            result, scanner.ok_exit_codes, output, settings.raw_report_max_bytes
+        )
+        if status is not RunStatus.SUCCEEDED:
+            return _image_entry(ref, k, "failed", _excerpt(excerpt or status.value, ws))
+        doc, _ = scanner.redact(
+            read_json_capped(output, settings.raw_report_max_bytes), derive_key(settings)
+        )
+        size = (doc.get("Metadata") or {}).get("Size") if isinstance(doc, dict) else None
+        if isinstance(size, int) and size > settings.image_scan_max_bytes:
+            return _image_entry(ref, k, "skipped", "image is larger than the size cap")
+        write_image_report(settings.scan_output_root, scan_id, k, doc)
+        entry = _image_entry(ref, k, "scanned", None)
+        entry["duration_ms"] = result.duration_ms
+        return entry
+    except (OSError, ValueError, ReportTooLargeError) as exc:
+        return _image_entry(ref, k, "failed", f"report unreadable: {type(exc).__name__}")
+    finally:
+        ws.remove_dir(ws.out(tool))
+
+
+def scan_images(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
+    """``trivy image`` for each allowed reference, at most ``image_scan_max_refs``.
+
+    Runs after collect and before analyze. A pull failure, a rate limit, the size cap or
+    a missing Trivy DB is a warning in the index, never a failed scan. Writes the index
+    last, so a redelivered message finds it and does nothing.
+    """
+    settings = deps.settings
+    root = settings.scan_output_root
+    with session_scope() as s:
+        scan = s.get(ScanJob, scan_id)
+        if scan is None or scan.status is not ScanStatus.ANALYZING:
+            return
+        trivy = repo.get_run(s, scan_id, ScannerName.TRIVY)
+        trivy_ok = trivy is not None and trivy.status is RunStatus.SUCCEEDED
+    if read_image_index(root, scan_id) is not None:
+        return
+    ws = _workspace(deps, scan_id)
+    entries: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    try:
+        if not ws.src.is_dir():
+            warnings.append("checkout no longer on disk")
+            refs: list[ImageRef] = []
+        else:
+            refs = sorted(
+                (i for i in image_refs(ws.src, extract_iac(ws.src).assets) if i.allowed),
+                key=lambda i: i.canonical,
+            )
+        deadline = _now() + dt.timedelta(seconds=image_stage_budget_s(settings))
+        active = True
+        for k, ref in enumerate(refs):
+            if not active:
+                entries.append(_image_entry(ref, k, "skipped", "the scan stopped"))
+            elif k >= settings.image_scan_max_refs:
+                reason = f"more than {settings.image_scan_max_refs} images; not scanned"
+                entries.append(_image_entry(ref, k, "skipped", reason))
+            elif not trivy_ok:
+                entries.append(
+                    _image_entry(ref, k, "skipped", "trivy did not run cleanly in this scan")
+                )
+            elif _now() > deadline:
+                entries.append(_image_entry(ref, k, "skipped", "the image stage ran out of time"))
+            else:
+                try:
+                    entries.append(_scan_one_image(deps, scan_id, ws, ref, k))
+                except Exception:
+                    log.exception("image_scan_crashed", scan_id=str(scan_id), index=k)
+                    entries.append(
+                        _image_entry(ref, k, "failed", "image scan failed (internal error)")
+                    )
+                active = _touch(scan_id)
+    except Exception:
+        log.exception("image_stage_crashed", scan_id=str(scan_id))
+        warnings.append("image stage failed (internal error)")
+    write_image_index(root, scan_id, {"images": entries, "warnings": warnings})
+    log.info(
+        "images_done",
+        scan_id=str(scan_id),
+        scanned=sum(1 for e in entries if e["status"] == "scanned"),
+        total=len(entries),
+    )
+
+
 # --- stage 4: normalize, merge, enrich, score ----------------------------------------
 
 
@@ -635,33 +804,112 @@ def _persist_sbom(
     inventory: list[Component],
     scored: list[_Scored],
     finding_ids: dict[int, uuid.UUID],
+    image_packages: list[PackageSeen],
 ) -> dict[str, int]:
-    """Write the SBOM and attach each SCA finding to its package (blueprint §10.2)."""
-    seen: list[PackageSeen] = []
-    wanted: dict[int, str] = {}
+    """Write the SBOM and attach each SCA finding to its package (blueprint §10.2).
+
+    Image inventories (X2) come before the findings' packages, so a component keeps the
+    file Trivy read it from rather than the file that names the image."""
+    seen: list[PackageSeen] = list(image_packages)
+    wanted: dict[int, tuple[str, str | None]] = {}
     for i, x in enumerate(scored):
         pkg = x.merged.representative.package
         if x.merged.source_type is not SourceType.SCA or not pkg or not pkg.get("purl"):
             continue
         purl = str(pkg["purl"])
-        wanted[i] = canonical_purl(purl)
+        image = str(pkg["image"]) if pkg.get("image") else None
+        wanted[i] = (canonical_purl(purl), image)
         seen.append(
             PackageSeen(
                 purl=purl,
                 name=str(pkg.get("name") or ""),
                 version=str(pkg.get("version") or ""),
                 location=x.merged.location.file,
+                image=image,
             )
         )
     ids = persist_components(session, scan_id, inventory, seen)
     links = {finding_ids[i]: ids[key] for i, key in wanted.items() if key in ids}
     attached = attach_findings(session, scan_id, links)
+    syft_keys = {(canonical_purl(x.purl), None) for x in inventory}
     return {
         "components": len(ids),
         "syft": len(inventory),
-        "trivy_only": sum(1 for c in ids if c not in {canonical_purl(x.purl) for x in inventory}),
+        "trivy_only": sum(1 for c in ids if c not in syft_keys and c[1] is None),
+        "image_packages": sum(1 for c in ids if c[1] is not None),
         "findings_attached": attached,
     }
+
+
+@dataclass
+class _ImageResults:
+    """What the image stage left for the analysis (X2): findings, inventory, the index."""
+
+    entries: list[dict[str, Any]] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    findings: list[RawFinding] = field(default_factory=list)
+    eol: list[RawFinding] = field(default_factory=list)
+    packages: list[PackageSeen] = field(default_factory=list)
+
+    @property
+    def scanned(self) -> set[str]:
+        return {str(e["ref"]) for e in self.entries if e.get("status") == "scanned"}
+
+    def summary(self) -> dict[str, Any]:
+        return {
+            "scanned": sorted(self.scanned),
+            "results": [
+                {k: e.get(k) for k in ("ref", "file", "origin", "status", "warning")}
+                for e in self.entries
+            ],
+            "warnings": [
+                *self.warnings,
+                *(str(e["warning"]) for e in self.entries if e.get("warning")),
+            ],
+            "findings": len(self.findings),
+            "eol_findings": len(self.eol),
+        }
+
+
+def _image_results(deps: PipelineDeps, scan_id: uuid.UUID, repository: str) -> _ImageResults:
+    out = _ImageResults()
+    root, cap = deps.settings.scan_output_root, deps.settings.raw_report_max_bytes
+    try:
+        index = read_image_index(root, scan_id)
+    except (OSError, ValueError, ReportTooLargeError):
+        index = None
+        out.warnings.append("image index unreadable")
+    if not isinstance(index, dict):
+        return out
+    out.warnings.extend(str(w)[:IMAGE_WARNING_LIMIT] for w in index.get("warnings") or [])
+    seen: set[str] = set()
+    for e in index.get("images") or []:
+        if not isinstance(e, dict) or not isinstance(e.get("ref"), str):
+            continue
+        out.entries.append(e)
+        if e.get("status") != "scanned" or not isinstance(e.get("index"), int):
+            continue
+        ref, file = e["ref"], str(e.get("file") or "")
+        line = e.get("line") if isinstance(e.get("line"), int) else None
+        try:
+            doc = read_image_report(root, scan_id, e["index"], cap)
+        except (OSError, ValueError, ReportTooLargeError):
+            e["status"], e["warning"] = "failed", "image report unreadable"
+            continue
+        report = parse_image(doc, ref, file, line)
+        for f in report.findings:
+            f.fingerprint = fingerprint(f, repository)
+            if f.fingerprint not in seen:  # one package at two paths in the same image
+                seen.add(f.fingerprint)
+                out.findings.append(f)
+        out.packages.extend(
+            PackageSeen(p.purl, p.name, p.version, p.location, ref) for p in report.packages
+        )
+        if report.eosl and report.os_family and report.os_name:
+            f = os_eol_finding(ref, report.os_family, report.os_name, file, line, report.created_at)
+            f.fingerprint = fingerprint(f, repository)
+            out.eol.append(f)
+    return out
 
 
 def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
@@ -689,7 +937,10 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
         own = runtime_findings(decls, feeds, _now().date())
         for f in own:
             f.fingerprint = fingerprint(f, repo_name)
-        merged = merge([*raw, *own])
+        # X2 part 2: what the image stage found (sca, marked with the image) and EOSL
+        image_scan = _image_results(deps, scan_id, repo_name)
+        own = [*own, *image_scan.eol]
+        merged = merge([*raw, *image_scan.findings, *own])
         syft_inventory = _sbom_documents(deps, scan_id, succeeded)
         manifest = _manifest(deps, scan_id)
         trivy_db = _trivy_db_time(deps, scan_id)
@@ -719,12 +970,17 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
         scored: list[_Scored] = []
         for m in merged:
             context = resolver.for_finding(m.location.file, m.source_type)
-            verdict = reach.classify(
-                m.source_type,
-                m.location.file,
-                m.representative.package,
-                m.representative.vulnerability_id,
-                m.location.line_start,
+            # the code that uses an image's packages is not analysed: not assessable
+            verdict = (
+                NOT_APPLICABLE
+                if (m.representative.package or {}).get("image")
+                else reach.classify(
+                    m.source_type,
+                    m.location.file,
+                    m.representative.package,
+                    m.representative.vulnerability_id,
+                    m.location.line_start,
+                )
             )
             observed = (
                 None
@@ -801,7 +1057,9 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                 max_score = max(max_score, result.score)
             persist_graph(s, scan_id, analysis, finding_ids)
             assets_written = persist_assets(s, scan_id, [*iac.assets, *_image_assets(images)])
-            sbom_summary = _persist_sbom(s, scan_id, syft_inventory, scored, finding_ids)
+            sbom_summary = _persist_sbom(
+                s, scan_id, syft_inventory, scored, finding_ids, image_scan.packages
+            )
             s.flush()
             history = apply_history(
                 s,
@@ -809,6 +1067,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                 repository_id=repo_id,
                 ref=ref,
                 succeeded_scanners={sc.value for sc in succeeded} | {ScannerName.RISKGRAPH.value},
+                scanned_images=image_scan.scanned,
                 now=now,
             )
             intel_status = sorted(
@@ -846,6 +1105,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                     "eol_findings": len(own),
                     "eol_data": sorted(feeds),
                 },
+                "images": image_scan.summary(),
                 "freshness": {
                     "trivy_db": trivy_db.isoformat() if trivy_db else None,
                     "eol": eol_as_of.isoformat() if eol_as_of else None,

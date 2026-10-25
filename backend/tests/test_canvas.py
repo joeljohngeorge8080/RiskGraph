@@ -9,7 +9,7 @@ from riskgraph.shared.config import Settings
 
 
 def test_canvas_shape_and_queues(settings: Settings) -> None:
-    """clone → chord(run_scanner x 4) → collect → analyze → finalize.
+    """clone → chord(run_scanner x 4) → collect → scan_images → analyze → finalize.
 
     Celery folds the tasks after a chord into the chord body; behaviour is identical.
     """
@@ -29,9 +29,13 @@ def test_canvas_shape_and_queues(settings: Settings) -> None:
     body = [t.task for t in chord.body.tasks]
     assert body == [
         "riskgraph.scans.collect",
+        "riskgraph.scans.scan_images",
         "riskgraph.scans.analyze",
         "riskgraph.scans.finalize",
     ]
-    collect = chord.body.tasks[0]
+    collect, images, *rest = chord.body.tasks
     assert not collect.immutable  # receives the header results
-    assert all(t.options["queue"] == "analysis" for t in chord.body.tasks)
+    # images are pulled by the worker that may start containers (the scan queue)
+    assert images.options["queue"] == "scan" and images.immutable
+    assert images.options["soft_time_limit"] < images.options["time_limit"]
+    assert all(t.options["queue"] == "analysis" for t in [collect, *rest])

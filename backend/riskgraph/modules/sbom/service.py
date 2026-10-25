@@ -27,12 +27,16 @@ def canonical_purl(purl: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class PackageSeen:
-    """A package a scanner reported with a purl (Trivy SCA findings)."""
+    """A package a scanner reported with a purl (Trivy SCA findings, image inventories)."""
 
     purl: str
     name: str
     version: str
     location: str | None
+    image: str | None = None  # X2: the image it is installed in; None in the repository
+
+
+ComponentKey = tuple[str, str | None]  # canonical purl, image
 
 
 def _ecosystem(purl: str) -> str:
@@ -46,13 +50,13 @@ def persist_components(
     scan_id: uuid.UUID,
     syft: Iterable[Component],
     trivy_seen: Iterable[PackageSeen],
-) -> dict[str, uuid.UUID]:
-    """Write the scan's SBOM. Returns canonical purl -> component id for attaching."""
-    rows: dict[str, dict[str, object]] = {}
+) -> dict[ComponentKey, uuid.UUID]:
+    """Write the scan's SBOM. Returns (canonical purl, image) -> component id."""
+    rows: dict[ComponentKey, dict[str, object]] = {}
     for c in syft:
         key = canonical_purl(c.purl)
         rows.setdefault(
-            key,
+            (key, None),
             {
                 "purl": key,
                 "name": c.name,
@@ -65,7 +69,7 @@ def persist_components(
     for p in trivy_seen:
         key = canonical_purl(p.purl)
         rows.setdefault(
-            key,
+            (key, p.image),
             {
                 "purl": key,
                 "name": p.name[:256],
@@ -73,14 +77,15 @@ def persist_components(
                 "ecosystem": _ecosystem(key),
                 "location": p.location[:512] if p.location else None,
                 "discovered_by": "trivy",
+                "image": p.image[:255] if p.image else None,
             },
         )
     session.execute(delete(SbomComponent).where(SbomComponent.scan_job_id == scan_id))
-    ids: dict[str, uuid.UUID] = {}
-    for key, values in rows.items():
+    ids: dict[ComponentKey, uuid.UUID] = {}
+    for component, values in rows.items():
         row = SbomComponent(id=uuid.uuid4(), scan_job_id=scan_id, **values)
         session.add(row)
-        ids[key] = row.id
+        ids[component] = row.id
     session.flush()
     return ids
 
@@ -127,9 +132,16 @@ def page_components(
     name: str | None,
     limit: int,
     offset: int,
+    origin: str = "all",
 ) -> tuple[list[tuple[SbomComponent, int]], int]:
-    """One page of the scan's SBOM, each component with its number of attached findings."""
+    """One page of the scan's SBOM, each component with its number of attached findings.
+
+    ``origin``: ``all`` (default, as before X2), ``repository`` or ``image`` packages."""
     where = [SbomComponent.scan_job_id == scan_id]
+    if origin == "repository":
+        where.append(SbomComponent.image.is_(None))
+    elif origin == "image":
+        where.append(SbomComponent.image.is_not(None))
     if ecosystem:
         where.append(SbomComponent.ecosystem == ecosystem)
     if name:
@@ -147,7 +159,12 @@ def page_components(
         select(SbomComponent, func.coalesce(counts.c.n, 0))
         .outerjoin(counts, counts.c.component_id == SbomComponent.id)
         .where(*where)
-        .order_by(SbomComponent.ecosystem, SbomComponent.name, SbomComponent.version)
+        .order_by(
+            SbomComponent.ecosystem,
+            SbomComponent.name,
+            SbomComponent.version,
+            SbomComponent.image.nulls_first(),
+        )
         .limit(limit)
         .offset(offset)
     ).all()
