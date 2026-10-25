@@ -47,6 +47,7 @@ ALLOWED_ENV = frozenset(
         "BC_SKIP_MAPPING",
         "CHECKOV_RUN_SCA_PACKAGE_SCAN_V2",  # checkov tuning: turns off its SCA package scan
         "SYFT_CHECK_FOR_APP_UPDATE",
+        "TRIVY_CACHE_DIR",  # so `trivy --version` reports the DB build time (ADR-0018)
     }
 )
 
