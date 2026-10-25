@@ -145,6 +145,13 @@ services:
       context: .
       dockerfile: docker/frontend.Dockerfile
       target: dev
+    # node_modules lives in a named volume, which Docker fills from the image only once.
+    # A dependency added later would never arrive, so install again when the lockfile is
+    # newer than the last install (npm records it in node_modules/.package-lock.json).
+    command:
+      - sh
+      - -c
+      - '[ node_modules/.package-lock.json -nt package-lock.json ] || npm ci --no-audit --no-fund; exec npm run dev'
     environment:
       VITE_API_PROXY_TARGET: http://api:8000
     volumes:
