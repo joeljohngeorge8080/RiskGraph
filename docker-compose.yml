@@ -10,6 +10,10 @@ x-backend: &backend
   environment:
     RISKGRAPH_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-riskgraph}:${POSTGRES_PASSWORD:-riskgraph}@postgres:5432/${POSTGRES_DB:-riskgraph}
     RISKGRAPH_REDIS_URL: redis://:${REDIS_PASSWORD:-riskgraph}@redis:6379/0
+    # P12: the host's Ollama. It must listen on an address containers reach (for example
+    # OLLAMA_HOST=172.17.0.1); otherwise explanations fall back to the template.
+    RISKGRAPH_OLLAMA_URL: ${RISKGRAPH_OLLAMA_URL:-http://host.docker.internal:11434}
+  extra_hosts: ["host.docker.internal:host-gateway"]
   volumes:                       # source-only mounts: the image's /app/.venv must stay intact
     - ./backend/riskgraph:/app/riskgraph:ro
     - ./backend/alembic:/app/alembic:ro
@@ -101,6 +105,7 @@ services:
     environment:
       RISKGRAPH_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-riskgraph}:${POSTGRES_PASSWORD:-riskgraph}@postgres:5432/${POSTGRES_DB:-riskgraph}
       RISKGRAPH_REDIS_URL: redis://:${REDIS_PASSWORD:-riskgraph}@redis:6379/0
+      RISKGRAPH_OLLAMA_URL: ${RISKGRAPH_OLLAMA_URL:-http://host.docker.internal:11434}
       # Scanners run as containers through the socket proxy (ADR-0014). The host paths are
       # where Docker keeps the volumes below; `make dev` sets them.
       RISKGRAPH_SCANNER_RUNNER: docker

@@ -71,10 +71,13 @@ test-services: ## Start postgres+redis for db-marked tests on the host
 > docker compose -f docker-compose.test.yml up -d --wait
 
 test-db: ## Tests that need postgres+redis (dev stack or test-services running)
-> @$(TEST_DB_ENV) $(UV) run pytest -m db
+> @$(TEST_DB_ENV) $(UV) run pytest -m "db and not llm"
+
+test-llm: ## Explanations with the real local model (needs Ollama and test-services)
+> @$(TEST_DB_ENV) $(UV) run pytest -m llm -s
 
 test-all: ## Everything except perf
-> @$(TEST_DB_ENV) $(UV) run pytest -m "not perf"
+> @$(TEST_DB_ENV) $(UV) run pytest -m "not perf and not llm"
 
 scanner-tools: ## Install trivy, semgrep, checkov, gitleaks into $(SCANNER_PREFIX) (host runs)
 > infrastructure/scripts/install-scanners.sh $(SCANNER_PREFIX)
@@ -97,4 +100,4 @@ migration: ## Autogenerate a migration: make migration m="add findings"
 shell-api: ## Shell in the api container
 > docker compose exec api bash
 
-.PHONY: help dev dev-detached down nuke logs install lint fmt test test-services test-db test-all scanner-tools api-local worker-local e2e migrate migration shell-api
+.PHONY: help dev dev-detached down nuke logs install lint fmt test test-services test-db test-llm test-all scanner-tools api-local worker-local e2e migrate migration shell-api

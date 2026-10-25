@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 
 # Defaults must be in place before any riskgraph import reads settings.
 os.environ.setdefault("RISKGRAPH_ENV", "test")
+os.environ.setdefault("RISKGRAPH_LLM_PROVIDER", "none")  # tests never call a real model
 os.environ.setdefault("RISKGRAPH_LOG_JSON", "false")
 os.environ.setdefault(
     "RISKGRAPH_DATABASE_URL",
@@ -48,6 +49,7 @@ from sqlalchemy import text  # noqa: E402 - after environment defaults
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 TABLES = (
+    "ai_explanations",
     "assets",
     "sbom_components",
     "audit_logs",

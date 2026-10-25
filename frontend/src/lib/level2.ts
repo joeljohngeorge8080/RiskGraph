@@ -1,4 +1,4 @@
-import type { AttackPath, FindingStatus, Priority, ReachabilityTier, TrendPoint } from "@/api/types";
+import type { AttackPath, Explanation, FindingStatus, Priority, ReachabilityTier, TrendPoint } from "@/api/types";
 
 export const STATUS_LABEL: Record<FindingStatus, string> = {
   open: "open",
@@ -66,4 +66,15 @@ export function historyLine(h: { new: number; fixed: number; reopened: number } 
   const parts = [`+${h.new} new`, `−${h.fixed} fixed`];
   if (h.reopened) parts.push(`${h.reopened} reopened`);
   return parts.join(" · ");
+}
+
+/** Who wrote an explanation, in words: the model (validated) or the template fallback. */
+export function explanationSource(e: Pick<Explanation, "status" | "generator" | "attempts">): string {
+  if (e.status === "validated") {
+    const model = e.generator.startsWith("ollama:") ? e.generator.slice("ollama:".length) : e.generator;
+    return `${model} · checked against the evidence`;
+  }
+  return e.attempts === 0
+    ? "template (no model configured)"
+    : "template (model unavailable or its answer was rejected)";
 }

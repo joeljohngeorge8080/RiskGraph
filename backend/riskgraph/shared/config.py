@@ -81,6 +81,15 @@ class Settings(BaseSettings):
     scanner_slot_lease_s: int = 3600
     scanner_slot_wait_s: int = 600
 
+    # --- AI explanation (P12, blueprint §15) ------------------------------------------
+    # "ollama" uses a local model; "none" always uses the deterministic template. When the
+    # model is unreachable, explanations fall back to the template, never fail.
+    llm_provider: Literal["none", "ollama"] = "ollama"
+    ollama_url: str = "http://127.0.0.1:11434"
+    ollama_model: str = "qwen3:4b"
+    ollama_timeout_s: float = 60.0
+    explain_top_n: int = Field(default=10, ge=0, le=100)  # Critical findings per scan; 0 = off
+
     @field_validator("database_url")
     @classmethod
     def _postgres_only(cls, value: str) -> str:

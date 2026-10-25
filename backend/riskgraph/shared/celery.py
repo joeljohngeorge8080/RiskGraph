@@ -21,6 +21,7 @@ TASK_MODULES = [
     "riskgraph.modules.scans.tasks",
     "riskgraph.modules.scanners.tasks",
     "riskgraph.modules.context.tasks",
+    "riskgraph.modules.explain.tasks",
 ]
 
 BEAT_SCHEDULE = {

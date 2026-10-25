@@ -14,10 +14,13 @@ from celery import shared_task
 
 from riskgraph.modules.scanners.docker_runner import DockerRunner
 from riskgraph.modules.scans import pipeline, reaper
+from riskgraph.shared.celery import get_celery_app
 from riskgraph.shared.config import get_settings
 from riskgraph.shared.db import session_scope
 from riskgraph.shared.logging import get_logger
-from riskgraph.shared.vocabulary import RunStatus, ScannerName
+from riskgraph.shared.vocabulary import RunStatus, ScannerName, ScanStatus
+
+EXPLAIN_TASK = "riskgraph.explain.top_findings"  # modules/explain/tasks.py
 
 log = get_logger(__name__)
 
@@ -101,4 +104,11 @@ def finalize_task(scan_id: str) -> str | None:
     except Exception:
         _guard("finalize", scan_id)
         return None
+    if status in (ScanStatus.COMPLETED, ScanStatus.PARTIAL) and get_settings().explain_top_n:
+        try:
+            # by name: scans must not import explain (explain reads findings and risk)
+            get_celery_app().signature(EXPLAIN_TASK, args=(scan_id,)).apply_async()
+        except Exception:
+            # the scan is done either way; explanations can be generated on demand
+            log.exception("explain_enqueue_failed", scan_id=scan_id)
     return status.value if status else None

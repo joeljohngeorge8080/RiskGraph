@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TrendPoint } from "@/api/types";
-import { REACH_LABEL, REACH_TONE, historyLine, pathLabel, shortLabel, trendBars } from "./level2";
+import { REACH_LABEL, REACH_TONE, explanationSource, historyLine, pathLabel, shortLabel, trendBars } from "./level2";
 
 const point = (id: string, by: TrendPoint["by_priority"]): TrendPoint => ({
   scan_id: id,
@@ -49,5 +49,15 @@ describe("reachability tiers", () => {
       expect(REACH_LABEL[tier]).toBeTruthy();
       expect(REACH_TONE[tier]).toMatch(/^var\(--/);
     }
+  });
+});
+
+describe("explanationSource", () => {
+  it("names the model only for validated answers", () => {
+    expect(explanationSource({ status: "validated", generator: "ollama:qwen3:4b", attempts: 1 })).toBe(
+      "qwen3:4b · checked against the evidence",
+    );
+    expect(explanationSource({ status: "fallback", generator: "template", attempts: 2 })).toMatch(/rejected/);
+    expect(explanationSource({ status: "fallback", generator: "template", attempts: 0 })).toMatch(/no model/);
   });
 });
