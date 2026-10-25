@@ -28,7 +28,7 @@ from riskgraph.modules.findings.schemas import (
     TriageOut,
     VulnerabilityOut,
 )
-from riskgraph.modules.risk import RiskScore
+from riskgraph.modules.risk import RiskFactor, RiskScore
 from riskgraph.shared.db import get_session
 from riskgraph.shared.problems import NotFound
 from riskgraph.shared.vocabulary import (
@@ -57,6 +57,34 @@ def require_scan(session: Session, scan_id: uuid.UUID):  # type: ignore[no-untyp
     if scan is None:
         raise NotFound("Scan not found")
     return scan
+
+
+def risk_out(s: RiskScore, factors: list[RiskFactor]) -> RiskScoreOut:
+    """A stored score with its factors (shared with the /risks endpoints)."""
+    return RiskScoreOut(
+        model_version=s.model_version,
+        score=float(s.score),
+        priority=s.priority,
+        likelihood=float(s.likelihood),
+        impact=float(s.impact),
+        corroboration=float(s.corroboration),
+        overrides=s.overrides,
+        effective_impact=_float(s.effective_impact),
+        factors=[
+            RiskFactorOut(
+                group=x.group,
+                name=x.name,
+                value=float(x.value),
+                raw_value=x.raw_value,
+                source=x.source,
+                confidence=x.confidence,
+                applicable=x.applicable,
+                evidence=x.evidence,
+            )
+            for x in factors
+        ],
+        computed_at=s.computed_at,
+    )
 
 
 def path_out(p: graph.AttackPath, finding_ids: list[uuid.UUID]) -> AttackPathOut:
@@ -176,32 +204,7 @@ def get_finding(
             )
             for o in d.occurrences
         ],
-        risk=RiskScoreOut(
-            model_version=s.model_version,
-            score=float(s.score),
-            priority=s.priority,
-            likelihood=float(s.likelihood),
-            impact=float(s.impact),
-            corroboration=float(s.corroboration),
-            overrides=s.overrides,
-            effective_impact=_float(s.effective_impact),
-            factors=[
-                RiskFactorOut(
-                    group=x.group,
-                    name=x.name,
-                    value=float(x.value),
-                    raw_value=x.raw_value,
-                    source=x.source,
-                    confidence=x.confidence,
-                    applicable=x.applicable,
-                    evidence=x.evidence,
-                )
-                for x in d.factors
-            ],
-            computed_at=s.computed_at,
-        )
-        if s is not None
-        else None,
+        risk=risk_out(s, d.factors) if s is not None else None,
         vulnerability=VulnerabilityOut(
             id=v.id,
             cvss_vector=v.cvss_vector,
