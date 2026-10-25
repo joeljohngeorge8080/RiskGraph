@@ -139,7 +139,7 @@ def test_working_directory_must_not_be_a_sibling_of_a_mount() -> None:
         build_create_kwargs(**_kwargs(working_dir=SRC + "x"))
 
 
-@pytest.mark.parametrize("name", sorted(SCANNERS, key=lambda n: n.value))
+@pytest.mark.parametrize("name", sorted(SCANNERS))
 def test_every_adapter_command_passes_the_container_profile(name: ScannerName) -> None:
     # Regression: Trivy's TRIVY_CACHE_DIR (X2 freshness) was not on the allow-list, so
     # every Trivy run failed under the docker runner while the subprocess runner passed.
