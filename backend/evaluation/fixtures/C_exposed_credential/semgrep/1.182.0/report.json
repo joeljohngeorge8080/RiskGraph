@@ -1,0 +1,84 @@
+{
+ "engine_requested": "OSS",
+ "errors": [],
+ "paths": {
+  "scanned": [
+   "riskgraph.yaml",
+   "web/package.json"
+  ]
+ },
+ "profiling_results": [],
+ "results": [],
+ "skipped_rules": [],
+ "time": {
+  "fixpoint_timeouts": [],
+  "matching_time": {
+   "per_file_and_rule_time": {
+    "mean": 0.00021162714276994976,
+    "std_dev": 4.4574244412262707e-07
+   },
+   "total_time": 0.007406949996948242,
+   "very_slow_rules_on_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "max_memory_bytes": 759704192,
+  "parsing_time": {
+   "per_file_time": {
+    "mean": 0.00023523739406040747,
+    "std_dev": 9.1217344282884e-07
+   },
+   "total_time": 0.008233308792114258,
+   "very_slow_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "prefiltering": {
+   "file_level_time": 0.0,
+   "project_level_time": 0.0,
+   "rules_matched_ratio": 0.2692307692307692,
+   "rules_selected_ratio": 0.2692307692307692,
+   "rules_with_file_prefilters_ratio": 0.7307692307692307,
+   "rules_with_project_prefilters_ratio": 0.0
+  },
+  "profiling_times": {
+   "config_time": 13.309277296066284,
+   "core_time": 0.8513717651367188,
+   "ignores_time": 0.0027420520782470703,
+   "total_time": 14.173994541168213
+  },
+  "rules": [],
+  "rules_parse_time": 0.5529439449310303,
+  "scanning_time": {
+   "per_file_time": {
+    "mean": 0.0028238693873087564,
+    "std_dev": 1.4331298026427752e-05
+   },
+   "total_time": 0.01694321632385254,
+   "very_slow_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "tainting_time": {
+   "per_def_and_rule_time": {
+    "mean": 0.0,
+    "std_dev": 0.0
+   },
+   "total_time": 0.0,
+   "very_slow_rules_on_defs": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "targets": [],
+  "total_bytes": 0
+ },
+ "version": "1.182.0"
+}

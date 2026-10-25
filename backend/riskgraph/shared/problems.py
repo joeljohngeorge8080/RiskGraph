@@ -59,6 +59,18 @@ class Forbidden(Problem):
     title = "Forbidden"
 
 
+class UnprocessableEntity(Problem):
+    status = 422
+    slug = "unprocessable-entity"
+    title = "Unprocessable Entity"
+
+
+class TooManyRequests(Problem):
+    status = 429
+    slug = "too-many-requests"
+    title = "Too Many Requests"
+
+
 class ServiceUnavailable(Problem):
     status = 503
     slug = "service-unavailable"

@@ -1,0 +1,438 @@
+{
+ "ArtifactName": ".",
+ "ArtifactType": "filesystem",
+ "CreatedAt": "2026-10-25T05:20:44.142980408Z",
+ "ReportID": "01a17181-086e-7ef0-b520-f25c547ebe05",
+ "Results": [
+  {
+   "Class": "lang-pkgs",
+   "Packages": [
+    {
+     "AnalyzedBy": "pip",
+     "Identifier": {
+      "PURL": "pkg:pypi/requests@2.19.0",
+      "UID": "8f5650d71772d3a0"
+     },
+     "Locations": [
+      {
+       "EndLine": 1,
+       "StartLine": 1
+      }
+     ],
+     "Name": "requests",
+     "Version": "2.19.0"
+    }
+   ],
+   "Target": "requirements.txt",
+   "Type": "pip",
+   "Vulnerabilities": [
+    {
+     "CVSS": {
+      "ghsa": {
+       "V3Score": 7.5,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+      },
+      "nvd": {
+       "V2Score": 5,
+       "V2Vector": "AV:N/AC:L/Au:N/C:P/I:N/A:N",
+       "V3Score": 7.5,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+      },
+      "redhat": {
+       "V3Score": 2.6,
+       "V3Vector": "CVSS:3.0/AV:A/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N"
+      }
+     },
+     "CweIDs": [
+      "CWE-522"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "The Requests package before 2.20.0 for Python sends an HTTP Authorization header to an http URI upon receiving a same-hostname https-to-http redirect, which makes it easier for remote attackers to discover credentials by sniffing the network.",
+     "Fingerprint": "sha256:082136e24eac8569c4ee5ff2870444ca3b0af13007f247c373532c1a7aca4cfd",
+     "FixedVersion": "2.20.0",
+     "InstalledVersion": "2.19.0",
+     "LastModifiedDate": "2026-06-17T01:46:44.62Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/requests@2.19.0",
+      "UID": "8f5650d71772d3a0"
+     },
+     "PkgName": "requests",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2018-18074",
+     "PublishedDate": "2018-10-09T17:29:01.897Z",
+     "References": [
+      "http://docs.python-requests.org/en/master/community/updates/#release-and-version-history",
+      "http://lists.opensuse.org/opensuse-security-announce/2019-07/msg00024.html",
+      "https://access.redhat.com/errata/RHSA-2019:2035",
+      "https://access.redhat.com/security/cve/CVE-2018-18074",
+      "https://bugs.debian.org/910766",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1643829",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1649153",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1659551",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1700824",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1702473",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1740347",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1749839",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1762422",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-18074",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-20060",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-20852",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-11236",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-11324",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-16056",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-16935",
+      "https://errata.almalinux.org/8/ALSA-2020-1605.html",
+      "https://errata.rockylinux.org/RLSA-2020:1605",
+      "https://github.com/pypa/advisory-database/tree/main/vulns/requests/PYSEC-2018-28.yaml",
+      "https://github.com/requests/requests",
+      "https://github.com/requests/requests/commit/c45d7c49ea75133e52ab22a8e9e13173938e36ff",
+      "https://github.com/requests/requests/issues/4716",
+      "https://github.com/requests/requests/pull/4718",
+      "https://linux.oracle.com/cve/CVE-2018-18074.html",
+      "https://linux.oracle.com/errata/ELSA-2020-2081.html",
+      "https://nvd.nist.gov/vuln/detail/CVE-2018-18074",
+      "https://ubuntu.com/security/notices/USN-3790-1",
+      "https://ubuntu.com/security/notices/USN-3790-2",
+      "https://usn.ubuntu.com/3790-1",
+      "https://usn.ubuntu.com/3790-1/",
+      "https://usn.ubuntu.com/3790-2",
+      "https://usn.ubuntu.com/3790-2/",
+      "https://www.cve.org/CVERecord?id=CVE-2018-18074",
+      "https://www.oracle.com/security-alerts/cpujul2022.html"
+     ],
+     "Severity": "HIGH",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "python-requests: Redirect from HTTPS to HTTP does not remove Authorization header",
+     "VendorIDs": [
+      "GHSA-x84v-xcm2-53pg"
+     ],
+     "VendorSeverity": {
+      "alma": 2,
+      "amazon": 2,
+      "ghsa": 3,
+      "nvd": 3,
+      "oracle-oval": 2,
+      "photon": 3,
+      "redhat": 1,
+      "rocky": 2,
+      "ubuntu": 2
+     },
+     "VulnerabilityID": "CVE-2018-18074"
+    },
+    {
+     "CVSS": {
+      "ghsa": {
+       "V3Score": 6.1,
+       "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:N/A:N"
+      },
+      "nvd": {
+       "V3Score": 6.1,
+       "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:N/A:N"
+      },
+      "redhat": {
+       "V3Score": 6.1,
+       "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:N/A:N"
+      }
+     },
+     "CweIDs": [
+      "CWE-200"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "Requests is a HTTP library. Since Requests 2.3.0, Requests has been leaking Proxy-Authorization headers to destination servers when redirected to an HTTPS endpoint. This is a product of how we use `rebuild_proxies` to reattach the `Proxy-Authorization` header to requests. For HTTP connections sent through the tunnel, the proxy will identify the header in the request itself and remove it prior to forwarding to the destination server. However when sent over HTTPS, the `Proxy-Authorization` header must be sent in the CONNECT request as the proxy has no visibility into the tunneled request. This results in Requests forwarding proxy credentials to the destination server unintentionally, allowing a malicious actor to potentially exfiltrate sensitive information. This issue has been patched in version 2.31.0.",
+     "Fingerprint": "sha256:abd8d777009b4f1be6ecf76f2fda7522589627cf9f6d7945015adb45a7fe0b69",
+     "FixedVersion": "2.31.0",
+     "InstalledVersion": "2.19.0",
+     "LastModifiedDate": "2026-06-17T05:59:22.687Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/requests@2.19.0",
+      "UID": "8f5650d71772d3a0"
+     },
+     "PkgName": "requests",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2023-32681",
+     "PublishedDate": "2023-05-26T18:15:14.147Z",
+     "References": [
+      "https://access.redhat.com/errata/RHSA-2023:4350",
+      "https://access.redhat.com/security/cve/CVE-2023-32681",
+      "https://bugzilla.redhat.com/2209469",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=2209469",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32681",
+      "https://errata.almalinux.org/9/ALSA-2023-4350.html",
+      "https://errata.rockylinux.org/RLSA-2023:4520",
+      "https://github.com/psf/requests",
+      "https://github.com/psf/requests/commit/74ea7cf7a6a27a4eeb2ae24e162bcc942a6706d5",
+      "https://github.com/psf/requests/releases/tag/v2.31.0",
+      "https://github.com/psf/requests/security/advisories/GHSA-j8r2-6x86-q33q",
+      "https://github.com/pypa/advisory-database/tree/main/vulns/requests/PYSEC-2023-74.yaml",
+      "https://linux.oracle.com/cve/CVE-2023-32681.html",
+      "https://linux.oracle.com/errata/ELSA-2023-7050.html",
+      "https://lists.debian.org/debian-lts-announce/2023/06/msg00018.html",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/AW7HNFGYP44RT3DUDQXG2QT3OEV2PJ7Y",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/AW7HNFGYP44RT3DUDQXG2QT3OEV2PJ7Y/",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/KOYASTZDGQG2BWLSNBPL3TQRL2G7QYNZ",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/KOYASTZDGQG2BWLSNBPL3TQRL2G7QYNZ/",
+      "https://nvd.nist.gov/vuln/detail/CVE-2023-32681",
+      "https://security.gentoo.org/glsa/202309-08",
+      "https://ubuntu.com/security/notices/USN-6155-1",
+      "https://ubuntu.com/security/notices/USN-6155-2",
+      "https://ubuntu.com/security/notices/USN-7568-1",
+      "https://ubuntu.com/security/notices/USN-7762-1",
+      "https://www.cve.org/CVERecord?id=CVE-2023-32681"
+     ],
+     "Severity": "MEDIUM",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "python-requests: Unintended leak of Proxy-Authorization header",
+     "VendorIDs": [
+      "GHSA-j8r2-6x86-q33q"
+     ],
+     "VendorSeverity": {
+      "alma": 2,
+      "amazon": 2,
+      "cbl-mariner": 2,
+      "ghsa": 2,
+      "nvd": 2,
+      "oracle-oval": 2,
+      "photon": 2,
+      "redhat": 2,
+      "rocky": 2,
+      "ubuntu": 2
+     },
+     "VulnerabilityID": "CVE-2023-32681"
+    },
+    {
+     "CVSS": {
+      "ghsa": {
+       "V3Score": 5.6,
+       "V3Vector": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:H/I:H/A:N"
+      },
+      "redhat": {
+       "V3Score": 5.6,
+       "V3Vector": "CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:H/I:H/A:N"
+      }
+     },
+     "CweIDs": [
+      "CWE-670"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "Requests is a HTTP library. Prior to 2.32.0, when making requests through a Requests `Session`, if the first request is made with `verify=False` to disable cert verification, all subsequent requests to the same host will continue to ignore cert verification regardless of changes to the value of `verify`. This behavior will continue for the lifecycle of the connection in the connection pool. This vulnerability is fixed in 2.32.0.",
+     "Fingerprint": "sha256:a3ee868562eab04e8aff3d928020e061461d2d79903c088ac4f159636ce8e1a7",
+     "FixedVersion": "2.32.0",
+     "InstalledVersion": "2.19.0",
+     "LastModifiedDate": "2026-06-17T07:34:31.23Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/requests@2.19.0",
+      "UID": "8f5650d71772d3a0"
+     },
+     "PkgName": "requests",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2024-35195",
+     "PublishedDate": "2024-05-20T21:15:09.99Z",
+     "References": [
+      "https://access.redhat.com/errata/RHSA-2025:7049",
+      "https://access.redhat.com/security/cve/CVE-2024-35195",
+      "https://bugzilla.redhat.com/2282114",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=2282114",
+      "https://creativecommons.org/licenses/by/4.0/",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-35195",
+      "https://errata.almalinux.org/9/ALSA-2025-7049.html",
+      "https://errata.rockylinux.org/RLSA-2025:7049",
+      "https://github.com/psf/requests",
+      "https://github.com/psf/requests/commit/a58d7f2ffb4d00b46dca2d70a3932a0b37e22fac",
+      "https://github.com/psf/requests/pull/6655",
+      "https://github.com/psf/requests/security/advisories/GHSA-9wx4-h78v-vm56",
+      "https://linux.oracle.com/cve/CVE-2024-35195.html",
+      "https://linux.oracle.com/errata/ELSA-2025-7049.html",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/IYLSNK5TL46Q6XPRVMHVWS63MVJQOK4Q",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/IYLSNK5TL46Q6XPRVMHVWS63MVJQOK4Q/",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/N7WP6EYDSUOCOJYHDK5NX43PYZ4SNHGZ",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/N7WP6EYDSUOCOJYHDK5NX43PYZ4SNHGZ/",
+      "https://nvd.nist.gov/vuln/detail/CVE-2024-35195",
+      "https://ubuntu.com/security/notices/USN-8344-1",
+      "https://www.cve.org/CVERecord?id=CVE-2024-35195"
+     ],
+     "Severity": "MEDIUM",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "requests: subsequent requests to the same host ignore cert verification",
+     "VendorIDs": [
+      "GHSA-9wx4-h78v-vm56"
+     ],
+     "VendorSeverity": {
+      "alma": 2,
+      "amazon": 2,
+      "azure": 2,
+      "cbl-mariner": 2,
+      "ghsa": 2,
+      "oracle-oval": 2,
+      "photon": 2,
+      "redhat": 2,
+      "rocky": 2,
+      "ubuntu": 2
+     },
+     "VulnerabilityID": "CVE-2024-35195"
+    },
+    {
+     "CVSS": {
+      "ghsa": {
+       "V3Score": 5.3,
+       "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:N/A:N"
+      },
+      "redhat": {
+       "V3Score": 5.3,
+       "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:N/A:N"
+      }
+     },
+     "CweIDs": [
+      "CWE-522"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "Requests is a HTTP library. Due to a URL parsing issue, Requests releases prior to 2.32.4 may leak .netrc credentials to third parties for specific maliciously-crafted URLs. Users should upgrade to version 2.32.4 to receive a fix. For older versions of Requests, use of the .netrc file can be disabled with `trust_env=False` on one's Requests Session.",
+     "Fingerprint": "sha256:96ca7a407181df0889eb341145184b016d3a111ba6d5bfbd2807fe592b24f221",
+     "FixedVersion": "2.32.4",
+     "InstalledVersion": "2.19.0",
+     "LastModifiedDate": "2026-06-17T07:56:30.697Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/requests@2.19.0",
+      "UID": "8f5650d71772d3a0"
+     },
+     "PkgName": "requests",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2024-47081",
+     "PublishedDate": "2025-06-09T18:15:24.983Z",
+     "References": [
+      "http://seclists.org/fulldisclosure/2025/Jun/2",
+      "http://www.openwall.com/lists/oss-security/2025/06/03/11",
+      "http://www.openwall.com/lists/oss-security/2025/06/03/9",
+      "http://www.openwall.com/lists/oss-security/2025/06/04/1",
+      "http://www.openwall.com/lists/oss-security/2025/06/04/6",
+      "https://access.redhat.com/errata/RHSA-2025:12519",
+      "https://access.redhat.com/security/cve/CVE-2024-47081",
+      "https://bugzilla.redhat.com/2371272",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=2371272",
+      "https://creativecommons.org/licenses/by/4.0/",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-47081",
+      "https://errata.almalinux.org/9/ALSA-2025-12519.html",
+      "https://errata.rockylinux.org/RLSA-2025:12519",
+      "https://github.com/advisories/GHSA-9hjg-9r4m-mvj7",
+      "https://github.com/psf/requests",
+      "https://github.com/psf/requests/commit/96ba401c1296ab1dda74a2365ef36d88f7d144ef",
+      "https://github.com/psf/requests/pull/6965",
+      "https://github.com/psf/requests/releases/tag/v2.32.4",
+      "https://github.com/psf/requests/security/advisories/GHSA-9hjg-9r4m-mvj7",
+      "https://github.com/pypa/advisory-database/tree/main/vulns/requests/PYSEC-2026-1872.yaml",
+      "https://linux.oracle.com/cve/CVE-2024-47081.html",
+      "https://linux.oracle.com/errata/ELSA-2025-14999.html",
+      "https://nvd.nist.gov/vuln/detail/CVE-2024-47081",
+      "https://pypi.org/project/requests",
+      "https://requests.readthedocs.io/en/latest/api/#requests.Session.trust_env",
+      "https://seclists.org/fulldisclosure/2025/Jun/2",
+      "https://ubuntu.com/security/notices/USN-7568-1",
+      "https://ubuntu.com/security/notices/USN-7762-1",
+      "https://www.cve.org/CVERecord?id=CVE-2024-47081",
+      "https://www.openwall.com/lists/oss-security/2025/06/03/9"
+     ],
+     "Severity": "MEDIUM",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "requests: Requests vulnerable to .netrc credentials leak via malicious URLs",
+     "VendorIDs": [
+      "GHSA-9hjg-9r4m-mvj7"
+     ],
+     "VendorSeverity": {
+      "alma": 2,
+      "amazon": 2,
+      "azure": 2,
+      "cbl-mariner": 2,
+      "ghsa": 2,
+      "oracle-oval": 2,
+      "photon": 2,
+      "redhat": 2,
+      "rocky": 2,
+      "ubuntu": 2
+     },
+     "VulnerabilityID": "CVE-2024-47081"
+    },
+    {
+     "CVSS": {
+      "ghsa": {
+       "V3Score": 4.4,
+       "V3Vector": "CVSS:3.1/AV:L/AC:H/PR:L/UI:R/S:U/C:N/I:H/A:N"
+      },
+      "nvd": {
+       "V3Score": 5.5,
+       "V3Vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:H/A:N"
+      },
+      "redhat": {
+       "V3Score": 4.7,
+       "V3Vector": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:N/I:H/A:N"
+      }
+     },
+     "CweIDs": [
+      "CWE-377"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "Requests is a HTTP library. Prior to version 2.33.0, the `requests.utils.extract_zipped_paths()` utility function uses a predictable filename when extracting files from zip archives into the system temporary directory. If the target file already exists, it is reused without validation. A local attacker with write access to the temp directory could pre-create a malicious file that would be loaded in place of the legitimate one. Standard usage of the Requests library is not affected by this vulnerability. Only applications that call `extract_zipped_paths()` directly are impacted. Starting in version 2.33.0, the library extracts files to a non-deterministic location. If developers are unable to upgrade, they can set `TMPDIR` in their environment to a directory with restricted write access.",
+     "Fingerprint": "sha256:f9e4a954a3c3570e5175dc04c7898930449bd97d035332c05555903ee9fd6e2c",
+     "FixedVersion": "2.33.0",
+     "InstalledVersion": "2.19.0",
+     "LastModifiedDate": "2026-06-17T10:25:00.443Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/requests@2.19.0",
+      "UID": "8f5650d71772d3a0"
+     },
+     "PkgName": "requests",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-25645",
+     "PublishedDate": "2026-03-25T17:16:52.97Z",
+     "References": [
+      "https://access.redhat.com/security/cve/CVE-2026-25645",
+      "https://github.com/psf/requests",
+      "https://github.com/psf/requests/commit/66d21cb07bd6255b1280291c4fafb71803cdb3b7",
+      "https://github.com/psf/requests/releases/tag/v2.33.0",
+      "https://github.com/psf/requests/security/advisories/GHSA-gc5v-m9x4-r6x2",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-25645",
+      "https://ubuntu.com/security/notices/USN-8825-1",
+      "https://www.cve.org/CVERecord?id=CVE-2026-25645"
+     ],
+     "Severity": "MEDIUM",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "requests: Requests: Security bypass due to predictable temporary file creation",
+     "VendorIDs": [
+      "GHSA-gc5v-m9x4-r6x2"
+     ],
+     "VendorSeverity": {
+      "azure": 2,
+      "ghsa": 2,
+      "nvd": 2,
+      "photon": 2,
+      "redhat": 2,
+      "ubuntu": 1
+     },
+     "VulnerabilityID": "CVE-2026-25645"
+    }
+   ]
+  }
+ ],
+ "SchemaVersion": 2,
+ "Trivy": {
+  "Version": "0.76.0"
+ }
+}

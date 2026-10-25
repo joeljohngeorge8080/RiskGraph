@@ -11,6 +11,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from riskgraph import __version__
+from riskgraph.modules.context.router import router as context_router
+from riskgraph.modules.explain.router import router as explain_router
+from riskgraph.modules.findings.router import router as findings_router
+from riskgraph.modules.graph.router import router as graph_router
+from riskgraph.modules.repositories.router import router as repositories_router
+from riskgraph.modules.risk.router import router as risk_router
+from riskgraph.modules.sbom.router import router as sbom_router
+from riskgraph.modules.scans import router as scans_router
 from riskgraph.shared import health
 from riskgraph.shared.config import Settings, get_settings
 from riskgraph.shared.logging import configure_logging, get_logger
@@ -24,6 +32,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level, settings.log_json)
     log = get_logger(__name__)
+    if settings.is_prod:
+        # MVP has no authentication (ADR-0010): it must never be deployed as production.
+        raise RuntimeError("RiskGraph MVP has no authentication; refusing to start with env=prod")
 
     docs_enabled = settings.api_docs_enabled and not settings.is_prod
     app = FastAPI(
@@ -46,6 +57,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_problem_handlers(app)
 
     app.include_router(health.router, prefix=API_PREFIX)
+    app.include_router(scans_router, prefix=API_PREFIX)
+    app.include_router(findings_router, prefix=API_PREFIX)
+    app.include_router(graph_router, prefix=API_PREFIX)
+    app.include_router(repositories_router, prefix=API_PREFIX)
+    app.include_router(context_router, prefix=API_PREFIX)
+    app.include_router(sbom_router, prefix=API_PREFIX)
+    app.include_router(risk_router, prefix=API_PREFIX)
+    app.include_router(explain_router, prefix=API_PREFIX)
 
     log.info("api_configured", env=settings.env, docs=docs_enabled)
+    log.warning("auth_disabled_mvp", detail="bind the API to localhost only (ADR-0010)")
     return app
