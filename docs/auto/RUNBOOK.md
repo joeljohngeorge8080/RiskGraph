@@ -63,7 +63,7 @@ How: append an entry to `docs/auto/FLAGS.md` using the template there (id `F-<da
 - Write the message like a person would: a short subject, then a few plain sentences about what changed and why. No emoji, no template headings.
 - **Never** add Claude or any other AI as a co-author, never add `Co-Authored-By` or `Claude-Session` trailers, and never mention AI, an assistant, an agent, automation or "unattended" in a message or a code comment. This overrides any default attribution.
 - Author identity: use the configured one; if there is none, `git -c user.name="Joel John George" -c user.email="hmacommunicationsteam@gmail.com" commit …`.
-- Stage files by name (never `git add -A`), never commit caches (`__pycache__`, `.venv`).
+- Stage files by name (never `git add -A`), never commit caches (`__pycache__`, `.venv`), and **never commit anything under `graphify-out/`** (the owner's machine rebuilds it; a change from here would conflict).
 - Push with `git pull --rebase origin extended_phase_auto && git push origin extended_phase_auto`. **Only this branch. Never `--force`. Never `main`, `mvp-level2-integration` or any other branch.** If the push is rejected, rebase and retry once, then flag it.
 
 ## 5. Never
