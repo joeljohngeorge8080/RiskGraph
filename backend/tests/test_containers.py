@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
+from riskgraph.modules.scanners import SCANNERS, ScanPaths
 from riskgraph.modules.scanners.containers import (
     SCANNER_USER,
     ContainerSpecError,
@@ -14,6 +16,8 @@ from riskgraph.modules.scanners.containers import (
     scanner_image,
     scanner_mounts,
 )
+from riskgraph.shared.config import Settings
+from riskgraph.shared.vocabulary import ScannerName
 
 SRC = "/var/lib/riskgraph/workspaces/x/src"
 OUT = "/var/lib/riskgraph/workspaces/x/out/trivy"
@@ -133,3 +137,14 @@ def test_working_directory_may_be_below_a_mount() -> None:
 def test_working_directory_must_not_be_a_sibling_of_a_mount() -> None:
     with pytest.raises(ContainerSpecError, match="working directory"):
         build_create_kwargs(**_kwargs(working_dir=SRC + "x"))
+
+
+@pytest.mark.parametrize("name", sorted(SCANNERS, key=lambda n: n.value))
+def test_every_adapter_command_passes_the_container_profile(name: ScannerName) -> None:
+    # Regression: Trivy's TRIVY_CACHE_DIR (X2 freshness) was not on the allow-list, so
+    # every Trivy run failed under the docker runner while the subprocess runner passed.
+    scanner = SCANNERS[name]
+    paths = ScanPaths(Path(SRC), Path(OUT), Path(HOME), Path("/cache"))
+    cmd = scanner.command(paths, Settings())
+    kw = build_create_kwargs(**_kwargs(argv=cmd.argv, env=cmd.env))
+    assert kw["environment"] == dict(cmd.env)
