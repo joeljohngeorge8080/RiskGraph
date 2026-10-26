@@ -15,6 +15,8 @@ from riskgraph.modules.graph.models import AttackPath, AttackPathFinding, GraphE
 
 MAX_GRAPH_NODES = 2000
 MAX_REACH_DEPTH = 8  # the attack-path hop limit
+# /attack-paths groups by this; a path stored before X1 has no assurance and comes last
+ASSURANCE_ORDER: dict[str | None, int] = {"verified": 0, "inferred": 1, "hypothesis": 2}
 
 
 def path_assurance(edges: list[dict[str, Any]]) -> str | None:

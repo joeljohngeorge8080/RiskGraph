@@ -157,3 +157,23 @@ def test_the_migration_backfill_matches_the_builder(settings: Settings, db: None
         }
         assert s.execute(select(func.count()).select_from(EvidenceRow)).scalar_one() == 0
     assert backfilled == built
+
+
+def test_attack_paths_are_grouped_by_assurance_and_name_what_is_missing(
+    api: TestClient, settings: Settings
+) -> None:
+    sid = _scan(settings)
+    paths = api.get(f"/api/v1/scans/{sid}/attack-paths").json()
+    order = {"verified": 0, "inferred": 1, "hypothesis": 2}
+    groups = [order[p["assurance"]] for p in paths]
+    assert groups == sorted(groups) and 2 in groups
+    for g in set(groups):  # each group by score
+        scores = [p["score"] for p in paths if order[p["assurance"]] == g]
+        assert scores == sorted(scores, reverse=True)
+    for p in paths:
+        hyp_edges = [e for e in p["edges"] if e["assurance"] == "hypothesis"]
+        assert [(m["source"], m["target"], m["kind"]) for m in p["missing_evidence"]] == [
+            (e["source"], e["target"], e["kind"]) for e in hyp_edges
+        ]
+    needed = {m["needed"] for p in paths for m in p["missing_evidence"]}
+    assert any("an `owns:` entry would" in n for n in needed), needed

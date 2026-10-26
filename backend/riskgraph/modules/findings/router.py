@@ -22,6 +22,7 @@ from riskgraph.modules.findings.schemas import (
     FindingList,
     FindingListItem,
     GateOut,
+    MissingEvidenceOut,
     OccurrenceOut,
     ReachabilityOut,
     RiskFactorOut,
@@ -103,6 +104,17 @@ def path_out(p: graph.AttackPath, finding_ids: list[uuid.UUID]) -> AttackPathOut
         score=float(p.score),
         finding_ids=finding_ids,
         assurance=graph.path_assurance(p.edges),
+        missing_evidence=[
+            MissingEvidenceOut(
+                source=str(e.get("source", "")),
+                target=str(e.get("target", "")),
+                kind=str(e.get("kind", "")),
+                # paths stored before X3 part 2 do not say what is missing
+                needed=str(e.get("missing") or "not recorded"),
+            )
+            for e in p.edges
+            if e.get("assurance") == "hypothesis"
+        ],
     )
 
 
