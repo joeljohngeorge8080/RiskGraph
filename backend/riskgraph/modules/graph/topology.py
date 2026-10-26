@@ -32,6 +32,9 @@ from riskgraph.modules.runtime import ImageRef, parse_ref
 
 MAX_SERVICES = 200
 MAX_IMAGES_PER_SERVICE = 20
+# Graph keys are stored in 160 characters and add a prefix ("identity:sa:"); the IaC
+# extractor allows 160-character names, so derived names are cut to leave room.
+MAX_NAME = 120
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,15 +140,18 @@ def derive(assets: Sequence[IacAsset], dockerfiles: Sequence[ImageRef] = ()) -> 
     compose = {a.name: a for a in _compose_services(assets)}
 
     out: list[DerivedService] = []
-    for name in sorted({*compose, *workloads})[:MAX_SERVICES]:
-        c, w = compose.get(name), workloads.get(name)
+    for full in sorted({*compose, *workloads})[:MAX_SERVICES]:
+        c, w = compose.get(full), workloads.get(full)
+        name = full[:MAX_NAME]
+        if any(s.name == name for s in out):
+            continue  # two names that only differ after the cut: keep the first
         sources = tuple(s for s, a in (("compose", c), ("kubernetes", w)) if a is not None)
         declared_in = (c or w).source_path  # type: ignore[union-attr]
         declared = Declared(declared_in, {"service": name, "sources": list(sources)})
         prefix = c.path_prefix if c is not None else None
 
         exposure: Declared | None = None
-        k = kube.get(name) if w is not None else None
+        k = kube.get(full) if w is not None else None
         if k is not None and k.exposure == "internet":
             by = [str(x) for x in k.evidence.get("exposed_by", [])]
             # the file of the Service (or the Ingress in front of it) that makes it public
@@ -194,7 +200,8 @@ def derive(assets: Sequence[IacAsset], dockerfiles: Sequence[ImageRef] = ()) -> 
         privilege: str | None = None
         bound: tuple[Declared, ...] = ()
         if w is not None:
-            identity = str(w.attrs.get("service_account") or "default")[:160]
+            account = str(w.attrs.get("service_account") or "default")
+            identity = account[:MAX_NAME]
             # a named account is stated by the pod spec; "default" may only be implied, and
             # a Compose service gets it through a name match: both are inferences
             stated = identity != "default" and c is None
@@ -217,7 +224,7 @@ def derive(assets: Sequence[IacAsset], dockerfiles: Sequence[ImageRef] = ()) -> 
                     kind="rbac_binding",
                 )
                 for b in bindings
-                if identity in b.attrs.get("service_accounts", [])
+                if account in b.attrs.get("service_accounts", [])
             )
         out.append(
             DerivedService(
