@@ -1029,6 +1029,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                     title=_graph_label(x.merged),
                     evidence=tuple(e.id for e in evidence[i]),
                     file=x.merged.location.file,
+                    line=x.merged.location.line_start,
                     image=_image_of(x.merged),
                     kev=bool(
                         (hit := intel.get(x.merged.representative.vulnerability_id or ""))

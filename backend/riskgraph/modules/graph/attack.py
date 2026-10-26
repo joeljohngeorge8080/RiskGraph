@@ -38,7 +38,7 @@ from __future__ import annotations
 import datetime as dt
 import math
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from itertools import islice, pairwise
 from typing import Any, Protocol
 
@@ -119,6 +119,24 @@ class GraphFinding:
     file: str | None = None  # the finding's file: maps it to a derived service (X3)
     image: str | None = None  # a package installed in this image (X2)
     kev: bool = False  # listed as exploited in the wild
+    line: int | None = None  # the finding's first line: matches a manifest ``owns:`` link
+
+
+@dataclass(frozen=True, slots=True)
+class Assured:
+    """An EXPLOIT edge's best support of at least ``inferred`` when its stored p comes from
+    a hypothesis (ADR-0020): the score search uses it, the stored edge keeps the top p."""
+
+    p: float
+    assurance: Assurance
+    findings: tuple[int, ...]
+
+
+def exploit_missing(f: GraphFinding) -> str:
+    """What would make an EXPLOIT edge resting on ``f`` more than a hypothesis."""
+    if f.image is not None:
+        return f"reachability of {f.title or 'the package'} in {f.image} is not assessable"
+    return f"no import or call chain shows {f.title or 'the finding'} is reached (L2 or L3 would)"
 
 
 def exploit_assurance(tier: str | None) -> Assurance:
@@ -128,6 +146,19 @@ def exploit_assurance(tier: str | None) -> Assurance:
     if tier == "L2":
         return Assurance.INFERRED
     return Assurance.HYPOTHESIS  # L1 (only unreachable importers) or unknown
+
+
+def assured_alternative(level: Assurance, ranked: list[GraphFinding]) -> Assured | None:
+    """For a hypothesis EXPLOIT edge, the most exploitable finding of at least ``inferred``
+    among the same candidates (``ranked`` by p), and the findings from it on."""
+    if level is not Assurance.HYPOTHESIS:
+        return None
+    for j, f in enumerate(ranked):
+        own = exploit_assurance(f.tier)
+        if own is not Assurance.HYPOTHESIS:
+            rest = ranked[j:][:MAX_EVIDENCE]
+            return Assured(f.exploit_p, own, tuple(x.index for x in rest))
+    return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -253,6 +284,8 @@ def analyze(
         assurance: Assurance,
         evidence: Iterable[str],
         from_findings: Iterable[GraphFinding] = (),
+        missing: str | None = None,
+        assured: Assured | None = None,
     ) -> None:
         used = list(from_findings)
         finding_evidence = [e for f in used for e in f.evidence]
@@ -280,6 +313,8 @@ def analyze(
                 w=-math.log(p),
                 findings=list(rel.findings),
                 assurance=assurance,
+                missing=missing if assurance is Assurance.HYPOTHESIS else None,
+                assured=assured,
             )
 
     node(INTERNET, "internet", "Internet")
@@ -322,6 +357,7 @@ def analyze(
         # p comes from the most exploitable finding, and so does the edge's assurance: the
         # edge claims "p, because of that finding". The others are kept as evidence.
         exploit: dict[str, list[GraphFinding]] = {}
+        exploit_all: dict[str, list[GraphFinding]] = {}
         for s in manifest.services:
             code = [
                 f
@@ -334,17 +370,21 @@ def analyze(
             if code:
                 code.sort(key=lambda f: (-f.exploit_p, f.index))
                 exploit[s.name] = code[:MAX_EVIDENCE]
+                exploit_all[s.name] = code
 
         def exploit_edge(src: str, target: str, reason: str) -> None:
             top = exploit[target]
+            level = exploit_assurance(top[0].tier)
             edge(
                 src,
                 _svc(target),
                 "EXPLOIT",
                 top[0].exploit_p,
-                exploit_assurance(top[0].tier),
+                level,
                 [reason],
                 top,
+                exploit_missing(top[0]),
+                assured_alternative(level, exploit_all[target]),
             )
 
         verified = Assurance.VERIFIED
@@ -395,6 +435,7 @@ def analyze(
         for i in manifest.identities:
             for fam in i.credentials:
                 family_to_identity.setdefault(fam, []).append(i.name)
+    owners = [(i.name, link) for i in manifest.identities for link in i.owns] if manifest else []
     sources = [INTERNET]
     for f in findings:
         if f.source_type is not SourceType.SECRET:
@@ -423,7 +464,24 @@ def analyze(
             if REPOSITORY not in out.nodes:
                 node(REPOSITORY, "repository", "repository")  # no in-edges: not on any path
             edge(REPOSITORY, key, "CONTAINS_SECRET", 1.0, Assurance.VERIFIED, [], [f])
+        linked = []
+        for ident, link in owners:
+            if ident not in linked and link.matches(f.file, f.line, f.secret_family):
+                # the manifest names this very secret as the identity's (ADR-0020)
+                linked.append(ident)
+                ev = declared(identity=ident, owns=link.file, line=link.line, family=link.family)
+                edge(
+                    key,
+                    _idn(ident),
+                    "AUTHENTICATES_AS",
+                    f.credential_p,
+                    Assurance.VERIFIED,
+                    [ev],
+                    [f],
+                )
         for ident in family_to_identity.get(f.secret_family or "", []):
+            if ident in linked:
+                continue  # one edge per key and identity: the verified one
             # a family match: nothing links this key to the identity (ADR-0017)
             ev = declared(identity=ident, credentials=f.secret_family)
             edge(
@@ -434,6 +492,8 @@ def analyze(
                 Assurance.HYPOTHESIS,
                 [ev],
                 [f],
+                f"no manifest link proves this {f.secret_family} key authenticates as {ident}"
+                " (an `owns:` entry would)",
             )
         if f.public_secret:
             sources.append(key)
@@ -528,6 +588,8 @@ def _derive(
         candidates.sort(key=lambda c: (-c[1].rank, -c[0].exploit_p, c[0].index))
         top, level = candidates[0]
         used = list(dict.fromkeys(f for f, _ in candidates))[:MAX_EVIDENCE]
+        # candidates are ordered by assurance first, so a hypothesis top has no assured
+        # alternative to fall back on
         edge(
             INTERNET,
             key,
@@ -536,6 +598,7 @@ def _derive(
             min_assurance([level, Assurance.INFERRED]),
             [exposed],
             [top, *(f for f in used if f is not top)],
+            exploit_missing(top),
         )
     return services
 
@@ -575,38 +638,53 @@ def to_networkx(nodes: Iterable[_NodeRow], edges: Iterable[_EdgeRow]) -> nx.DiGr
     return g
 
 
+def assured_view(g: nx.DiGraph[str]) -> nx.DiGraph[str]:
+    """The graph of edges of at least ``inferred`` (ADR-0020): hypothesis edges are left
+    out, and a hypothesis EXPLOIT edge with an assured alternative takes that one's p."""
+    view: nx.DiGraph[str] = nx.DiGraph()
+    view.add_nodes_from(g)
+    for a, b, data in g.edges(data=True):
+        if data.get("assurance") is not Assurance.HYPOTHESIS:
+            view.add_edge(a, b, **data)
+        elif (alt := data.get("assured")) is not None:
+            view.add_edge(
+                a,
+                b,
+                **{
+                    **data,
+                    "p": alt.p,
+                    "w": -math.log(alt.p),
+                    "findings": list(alt.findings),
+                    "assurance": alt.assurance,
+                    "missing": None,
+                },
+            )
+    return view
+
+
 def _search(g: nx.DiGraph[str], out: AttackAnalysis, sinks: dict[str, float]) -> None:
-    # Hop pre-filter (blueprint §13.2: BFS kept as the reachable-set computation). A path
-    # of at most MAX_HOPS edges (plus the virtual edge) only visits nodes whose hop
-    # distance from the source plus to the sink fits the budget, so pruning the others is
-    # exact. Without it, Yen enumerates long candidates only to drop them afterwards.
-    budget = MAX_HOPS + 1
-    from_source = nx.single_source_shortest_path_length(g, _VIRTUAL, cutoff=budget)
-    reverse = g.reverse(copy=False)
-    for sink, impact in sorted(sinks.items()):
-        if sink not in from_source:
-            continue  # no path within the hop limit
-        to_sink = nx.single_source_shortest_path_length(reverse, sink, cutoff=budget)
-        keep = [n for n, d in to_sink.items() if n in from_source and from_source[n] + d <= budget]
-        bounded = g.subgraph(keep)
-        rank = 0
-        try:
-            candidates = nx.shortest_simple_paths(bounded, _VIRTUAL, sink, weight="w")
-            for raw in islice(candidates, MAX_CANDIDATES):
-                nodes = raw[1:]
-                if len(nodes) - 1 > MAX_HOPS or len(nodes) < 2:
-                    continue
-                hops = list(pairwise(nodes))
-                kinds = [bounded.edges[a, b]["kind"] for a, b in hops]
-                if not ATTACK_EDGES & set(kinds):
-                    out.exposed_by_design += 1
-                    continue
-                rank += 1
-                out.paths.append(_path(g, out, nodes, hops, sink, impact, rank))
-                if rank >= K_PATHS:
-                    break
-        except nx.NetworkXNoPath:
-            continue
+    """Two searches per sink (ADR-0020). The assured graph gives the paths that set
+    effective impact, so a cheaper hypothesis can never take an inferred path's slot. The
+    full graph adds the hypothesis paths among its k best, listed as paths to verify."""
+    assured = assured_view(g)
+    found: dict[str, list[tuple[list[str], nx.DiGraph[str]]]] = {}
+    for sink in sorted(sinks):
+        mine = [(nodes, assured) for nodes in _k_best(assured, sink, out, count=False)]
+        seen = {tuple(nodes) for nodes, _ in mine}
+        for nodes in _k_best(g, sink, out, count=True):
+            hops = list(pairwise(nodes))
+            hypothesis = any(g.edges[a, b]["assurance"] is Assurance.HYPOTHESIS for a, b in hops)
+            if hypothesis and tuple(nodes) not in seen:
+                mine.append((nodes, g))
+        found[sink] = mine
+    for sink, mine in found.items():
+        results = [
+            _path(graph, out, nodes, list(pairwise(nodes)), sink, sinks[sink], 0)
+            for nodes, graph in mine
+        ]
+        results.sort(key=lambda p: -p.probability)  # stable: search order breaks ties
+        for rank, path in enumerate(results, 1):
+            out.paths.append(replace(path, rank=rank))
     out.paths.sort(key=lambda p: (-p.score, p.sink, p.rank))
     for path in out.paths:
         if path.assurance is Assurance.HYPOTHESIS:
@@ -622,6 +700,44 @@ def _search(g: nx.DiGraph[str], out: AttackAnalysis, sinks: dict[str, float]) ->
                     out.effective[idx] = EffectiveImpact(
                         value, path.label, path.sink, path.probability
                     )
+
+
+def _k_best(g: nx.DiGraph[str], sink: str, out: AttackAnalysis, *, count: bool) -> list[list[str]]:
+    """The K_PATHS most probable attack paths to ``sink`` (without the virtual source).
+
+    Hop pre-filter (blueprint §13.2: BFS kept as the reachable-set computation). A path of
+    at most MAX_HOPS edges (plus the virtual edge) only visits nodes whose hop distance
+    from the source plus to the sink fits the budget, so pruning the others is exact.
+    Without it, Yen enumerates long candidates only to drop them afterwards.
+    """
+    budget = MAX_HOPS + 1
+    if _VIRTUAL not in g or sink not in g:
+        return []
+    from_source = nx.single_source_shortest_path_length(g, _VIRTUAL, cutoff=budget)
+    if sink not in from_source:
+        return []  # no path within the hop limit
+    to_sink = nx.single_source_shortest_path_length(g.reverse(copy=False), sink, cutoff=budget)
+    keep = [n for n, d in to_sink.items() if n in from_source and from_source[n] + d <= budget]
+    bounded = g.subgraph(keep)
+    found: list[list[str]] = []
+    try:
+        for raw in islice(
+            nx.shortest_simple_paths(bounded, _VIRTUAL, sink, weight="w"), MAX_CANDIDATES
+        ):
+            nodes = raw[1:]
+            if len(nodes) - 1 > MAX_HOPS or len(nodes) < 2:
+                continue
+            kinds = {bounded.edges[a, b]["kind"] for a, b in pairwise(nodes)}
+            if not ATTACK_EDGES & kinds:
+                if count:
+                    out.exposed_by_design += 1
+                continue
+            found.append(nodes)
+            if len(found) >= K_PATHS:
+                break
+    except nx.NetworkXNoPath:
+        pass
+    return found
 
 
 def _path(
@@ -649,6 +765,8 @@ def _path(
                 "assurance": data["assurance"].value,
             }
         )
+        if data.get("missing"):
+            edges[-1]["missing"] = data["missing"]
         if data["kind"] in ATTACK_EDGES:
             findings.extend(data["findings"])
     labels = [out.nodes[n]["label"] for n in nodes]
