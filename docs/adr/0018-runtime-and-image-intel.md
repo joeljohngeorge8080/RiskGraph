@@ -18,6 +18,17 @@ Gaps G4–G6: images were never scanned, runtime versions were never read, and a
 - `trivy image` runs on at most 5 allowed references per scan, each at most 2 GB. It uses the ADR-0014 runner with its existing `egress` network mode, as the git fetcher does.
   - *Amendment 2026-10-25:* the plan also named a Syft image SBOM. Syft is **not** given network: its image has no CA certificates (a registry pull fails TLS verification), and fixing that would widen a second tool's network access for no gain. `trivy image --list-all-pkgs` already lists every OS and language package with its PURL, so that report is the image inventory. One pull per image, not two. Recorded in `backend/tests/fixtures/images/`.
 - A pull failure, a rate limit or the size cap is recorded as a warning and never fails the scan.
+  - *Amendment 2026-10-26 (X2 part 2, how it runs):* a stage `scan_images` runs between `collect` and `analyze` on the scan queue, because it starts containers. It is idempotent: its `index.json` is written last, and a redelivered message does nothing.
+  - It needs a successful Trivy run in the same scan, for the vulnerability DB and freshness. Without one, every reference is skipped with a warning.
+  - References are taken sorted; the first 5 allowed ones are scanned, and the rest are listed as skipped.
+  - Each scan takes the Trivy lock and gets `timeout_trivy_image_s` (300 s). No image is started after a budget of 5 × 300 s plus one lock wait. A cancelled scan stops before the next image.
+  - Flags are those of `tests/fixtures/images/record.py`, plus `--max-image-size 2147MB` and `--timeout`. `Metadata.Size` is checked again on the report.
+  - Reports are redacted like Trivy's own and stored as `scan_output/<scan>/images/<k>.json`.
+  - Findings are `sca` with `package.image` and the declaring file as location (the image is the resource). They are fingerprinted and merged per image, so the same CVE in two images is two findings; repository packages keep their keys.
+  - Their evidence is `image_package`, with the Trivy DB date and no raw pointer, because the run's stored report is not where they came from.
+  - `Metadata.OS.EOSL` gives `runtime-eol:os:<family>:<name>`, dated by the report's creation time.
+  - An image finding becomes `fixed` only when its image was scanned again.
+  - Image packages are in `sbom_components` with a nullable `image` (migration `b8d3f1a6c2e9`; unique per scan, purl and image, NULLs not distinct). `GET /scans/{id}/sbom` adds `image` and an optional `origin` filter (default `all`).
 - Image package vulnerabilities keep `source_type = sca` and are marked with the image (target and reference). They are package-versus-advisory matches like today's SCA, so the EPSS, KEV and CVSS scoring already applies. Reachability is "not assessable" for image packages, because the code that uses an OS package is not analyzed. The plan's separate `container` source type was not adopted.
 
 **Runtimes and EOL.**
