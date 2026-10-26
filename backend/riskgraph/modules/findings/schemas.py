@@ -129,6 +129,15 @@ class ReachabilityOut(BaseModel):
     analyzer_version: str
 
 
+class MissingEvidenceOut(BaseModel):
+    """A hypothesis edge of a path and what would prove it (X3, ADR-0020)."""
+
+    source: str
+    target: str
+    kind: str
+    needed: str
+
+
 class AttackPathOut(BaseModel):
     id: uuid.UUID
     source: str
@@ -144,6 +153,9 @@ class AttackPathOut(BaseModel):
     # ADR-0017: the weakest edge's assurance; None for paths stored before X1. Only paths
     # of at least "inferred" raise a finding's effective impact.
     assurance: str | None = None
+    # ADR-0020: for a hypothesis path, each hypothesis edge and the artifact that would
+    # prove it; empty for verified and inferred paths
+    missing_evidence: list[MissingEvidenceOut] = []
 
 
 class EvidenceOut(BaseModel):

@@ -57,10 +57,13 @@ class GraphOut(BaseModel):
 
 @router.get("/scans/{scan_id}/attack-paths", response_model=list[AttackPathOut])
 def attack_paths(scan_id: uuid.UUID, session: SessionDep) -> list[AttackPathOut]:
+    """Grouped by assurance (verified, inferred, hypothesis, then paths stored before
+    X1), each group by score (plan §3.D: assurance is lexicographic, never a discount)."""
     require_scan(session, scan_id)
     paths = service.list_paths(session, scan_id)
     findings = service.path_findings(session, [p.id for p in paths])
-    return [path_out(p, findings.get(p.id, [])) for p in paths]
+    out = [path_out(p, findings.get(p.id, [])) for p in paths]
+    return sorted(out, key=lambda p: service.ASSURANCE_ORDER.get(p.assurance, 3))  # stable
 
 
 def _edges_out(session: Session, edges: list[Any]) -> list[GraphEdgeOut]:
