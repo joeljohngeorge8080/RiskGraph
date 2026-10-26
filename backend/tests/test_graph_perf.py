@@ -57,6 +57,7 @@ def _attack_graph(seed: int = 11):  # type: ignore[no-untyped-def]
     import math
 
     import networkx as nx
+    from riskgraph.modules.evidence import Assurance
     from riskgraph.modules.graph.attack import _VIRTUAL, INTERNET, AttackAnalysis
 
     rnd = random.Random(seed)  # noqa: S311 (seeded synthetic graph, not security)
@@ -72,11 +73,27 @@ def _attack_graph(seed: int = 11):  # type: ignore[no-untyped-def]
             continue
         kind = "EXPLOIT" if rnd.random() < 0.6 else "RUNS_AS"
         p = rnd.uniform(0.05, 0.95) if kind == "EXPLOIT" else 1.0
-        g.add_edge(a, b, kind=kind, p=p, w=-math.log(p), findings=[1] if kind == "EXPLOIT" else [])
+        g.add_edge(
+            a,
+            b,
+            kind=kind,
+            p=p,
+            w=-math.log(p),
+            findings=[1] if kind == "EXPLOIT" else [],
+            assurance=Assurance.INFERRED,  # every analysis edge carries one since X1
+        )
     for k in rnd.sample(keys[1:], 50):  # 1 % of services are internet-facing
         if not g.has_edge(INTERNET, k):
             p = rnd.uniform(0.05, 0.95)
-            g.add_edge(INTERNET, k, kind="EXPLOIT", p=p, w=-math.log(p), findings=[1])
+            g.add_edge(
+                INTERNET,
+                k,
+                kind="EXPLOIT",
+                p=p,
+                w=-math.log(p),
+                findings=[1],
+                assurance=Assurance.INFERRED,
+            )
     g.add_edge(_VIRTUAL, INTERNET, kind="VIRTUAL", p=1.0, w=0.0, findings=[])
     sinks = {k: 0.9 for k in rnd.sample(keys[1:], 10)}
     return g, out, sinks

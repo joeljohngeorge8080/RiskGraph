@@ -40,7 +40,7 @@ from riskgraph.modules.context import (
 from riskgraph.modules.evidence import Evidence, link_finding, persist_evidence
 from riskgraph.modules.evidence import clear as clear_evidence
 from riskgraph.modules.findings import apply_history, clear_scan, persist_merged
-from riskgraph.modules.graph import GraphFinding
+from riskgraph.modules.graph import GraphFinding, Topology, derive_topology
 from riskgraph.modules.graph import analyze as attack_analysis
 from riskgraph.modules.graph import clear as clear_graph
 from riskgraph.modules.graph import persist as persist_graph
@@ -67,6 +67,7 @@ from riskgraph.modules.runtime import (
     RUNTIME_ANALYZER,
     ImageRef,
     declarations,
+    dockerfile_refs,
     image_refs,
     load_feeds,
     os_eol_finding,
@@ -780,6 +781,17 @@ def _reachability(
     return run
 
 
+def _image_of(m: MergedFinding) -> str | None:
+    image = (m.representative.package or {}).get("image")
+    return str(image) if image and m.source_type is SourceType.SCA else None
+
+
+def _topology(deps: PipelineDeps, scan_id: uuid.UUID, iac: IacResult) -> Topology:
+    """Services from Compose and Kubernetes; the graph uses them only without a manifest."""
+    ws = _workspace(deps, scan_id)
+    return derive_topology(iac.assets, dockerfile_refs(ws.src) if ws.src.is_dir() else [])
+
+
 def _graph_label(m: MergedFinding) -> str:
     """Short node label: credentials read as '<family> credential · file:line'."""
     if m.source_type is SourceType.SECRET:
@@ -1016,11 +1028,18 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                     public_secret=x.merged.source_type is SourceType.SECRET,
                     title=_graph_label(x.merged),
                     evidence=tuple(e.id for e in evidence[i]),
+                    file=x.merged.location.file,
+                    image=_image_of(x.merged),
+                    kev=bool(
+                        (hit := intel.get(x.merged.representative.vulnerability_id or ""))
+                        and hit.kev
+                    ),
                 )
                 for i, x in enumerate(scored)
             ],
             manifest_file=manifest.file or "riskgraph.yaml",
             observed_at=now,
+            topology=_topology(deps, scan_id, iac),
         )
         for i, effective in analysis.effective.items():
             scored[i].result = rescore(scored[i].score_input, effective)
