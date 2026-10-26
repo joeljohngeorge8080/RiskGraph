@@ -60,6 +60,37 @@ class ServiceDecl(_Strict):
         return normalize_service_path(value)
 
 
+class SecretLink(_Strict):
+    """One committed secret that authenticates as the identity (ADR-0020): its file,
+    optionally its first line and family. A secret found there is a verified link."""
+
+    file: str = Field(min_length=1, max_length=512)
+    line: int | None = Field(default=None, ge=1)
+    family: str | None = None
+
+    @field_validator("file")
+    @classmethod
+    def _repo_file(cls, value: str) -> str:
+        cleaned = normalize_service_path(value).rstrip("/")
+        if not cleaned or value.strip().endswith(("/", "\\")):
+            raise ValueError("file must name a file inside the repository")
+        return cleaned
+
+    @field_validator("family")
+    @classmethod
+    def _known_family(cls, value: str | None) -> str | None:
+        if value is not None and value not in SECRET_FAMILIES:
+            raise ValueError(f"unknown credential family {value!r}")
+        return value
+
+    def matches(self, file: str | None, line: int | None, family: str | None) -> bool:
+        return (
+            file == self.file
+            and (self.line is None or line == self.line)
+            and (self.family is None or family == self.family)
+        )
+
+
 class IdentityDecl(_Strict):
     name: str = Field(pattern=_NAME)
     privilege: Privilege | None = None
@@ -76,6 +107,10 @@ class IdentityDecl(_Strict):
             known = ", ".join(sorted(SECRET_FAMILIES))
             raise ValueError(f"unknown credential family {unknown[0]!r} (known: {known})")
         return value
+
+    # exact secrets that authenticate as this identity (ADR-0020); a family listed in
+    # ``credentials`` alone stays a hypothesis
+    owns: tuple[SecretLink, ...] = Field(default=(), max_length=32)
 
 
 class DataStoreDecl(_Strict):

@@ -95,7 +95,10 @@ def test_k_paths_per_sink_and_hop_limit() -> None:
     a = analyze(_manifest(), FINDINGS)
     for sink in {p.sink for p in a.paths}:
         ranks = [p.rank for p in a.paths if p.sink == sink]
-        assert sorted(ranks) == list(range(1, len(ranks) + 1)) and len(ranks) <= 3
+        assert sorted(ranks) == list(range(1, len(ranks) + 1))
+        # k assured paths, plus up to k hypotheses to verify (ADR-0020)
+        hyp = [p for p in a.paths if p.sink == sink and p.assurance is Assurance.HYPOTHESIS]
+        assert len(ranks) - len(hyp) <= 3 and len(hyp) <= 3
     assert all(p.hops <= MAX_HOPS for p in a.paths)
     for p in a.paths:
         weights = sum(-math.log(e["p"]) for e in p.edges)
