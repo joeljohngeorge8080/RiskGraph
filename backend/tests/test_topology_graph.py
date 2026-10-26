@@ -283,3 +283,27 @@ def test_derived_services_without_a_sink_make_no_paths(
     topo = derive(extract_iac(root).assets)
     a = analyze(None, findings, topology=topo)
     assert a.paths == [] and a.effective == {}
+
+
+def test_hostile_long_names_still_fit_the_node_key_column(tmp_path: Path) -> None:
+    # Compose and Kubernetes names are capped at 160 by the extractor; the graph's keys
+    # add a prefix and are stored in a 160-character column
+    long = "s" * 160
+    sa = "a" * 160
+    k8s = (
+        "apiVersion: apps/v1\nkind: Deployment\n"
+        f"metadata: {{name: {long}}}\n"
+        "spec:\n  template:\n    spec:\n"
+        f"      serviceAccountName: {sa}\n"
+        f"      containers: [{{name: c, image: 'ghcr.io/acme/{'x' * 200}:1'}}]\n"
+        "---\napiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRoleBinding\n"
+        "metadata: {name: b}\nroleRef: {kind: ClusterRole, name: cluster-admin}\n"
+        f"subjects: [{{kind: ServiceAccount, name: {sa}}}]\n"
+    )
+    compose = f"services:\n  {long}:\n    build: ./api\n    ports: ['80:80']\n"
+    topo = _repo(tmp_path, k8s=k8s, compose=compose)
+    a = analyze(None, [_code(0, "api/app.py")], topology=topo)
+    assert a.paths  # still a path, and nothing is too long to store
+    assert all(len(k) <= 160 for k in a.nodes)
+    assert all(len(e.source) <= 160 and len(e.target) <= 160 for e in a.edges)
+    assert all(len(n["label"]) <= 200 for n in a.nodes.values())
