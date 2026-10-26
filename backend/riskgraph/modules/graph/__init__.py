@@ -18,6 +18,8 @@ from riskgraph.modules.graph.service import (
     persist,
     reach,
 )
+from riskgraph.modules.graph.topology import Topology
+from riskgraph.modules.graph.topology import derive as derive_topology
 
 __all__ = [
     "AttackAnalysis",
@@ -27,8 +29,10 @@ __all__ = [
     "GraphFinding",
     "GraphNode",
     "PathResult",
+    "Topology",
     "analyze",
     "clear",
+    "derive_topology",
     "list_paths",
     "load_graph",
     "path_assurance",

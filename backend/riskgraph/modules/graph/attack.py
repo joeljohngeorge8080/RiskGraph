@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import datetime as dt
 import math
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from itertools import islice, pairwise
 from typing import Any, Protocol
@@ -52,7 +52,9 @@ from riskgraph.modules.evidence import (
     make_evidence,
     min_assurance,
 )
+from riskgraph.modules.graph.topology import Declared, DerivedService, Topology
 from riskgraph.modules.normalization import Location
+from riskgraph.modules.normalization.fingerprint import stable_hash
 from riskgraph.modules.risk import EffectiveImpact
 from riskgraph.modules.risk.tables import C_VALUES, D_VALUES, P_VALUES
 from riskgraph.shared.vocabulary import SourceType
@@ -68,6 +70,7 @@ _VIRTUAL = "@source"
 ATTACK_EDGES = frozenset({"EXPLOIT", "AUTHENTICATES_AS"})
 FINDING_EDGES = ATTACK_EDGES | {"CONTAINS_SECRET"}  # must rest on a finding's evidence
 MANIFEST_PRODUCER = "riskgraph.manifest@1"
+IAC_PRODUCER = "riskgraph.iac@1"  # X3: facts stated by Compose and Kubernetes files
 SINK_SENSITIVITY = frozenset({"confidential", "pii", "financial", "credentials"})
 SINK_PRIVILEGE = frozenset({"elevated", "admin"})
 
@@ -113,6 +116,9 @@ class GraphFinding:
     public_secret: bool = False
     title: str = ""
     evidence: tuple[str, ...] = ()  # ids of the finding's own evidence (ADR-0017)
+    file: str | None = None  # the finding's file: maps it to a derived service (X3)
+    image: str | None = None  # a package installed in this image (X2)
+    kev: bool = False  # listed as exploited in the wild
 
 
 def exploit_assurance(tier: str | None) -> Assurance:
@@ -185,12 +191,24 @@ def _ds(name: str) -> str:
     return f"data_store:{name}"
 
 
+def image_assurance(f: GraphFinding) -> Assurance:
+    """An image package's reachability is not assessable (X2): a hypothesis, unless the
+    advisory is known to be exploited in the wild, which is still only an inference."""
+    return Assurance.INFERRED if f.kev else Assurance.HYPOTHESIS
+
+
+def _image_key(ref: str) -> str:
+    key = f"container_image:{ref}"
+    return key if len(key) <= 160 else f"container_image:{stable_hash(ref)[:32]}"
+
+
 def analyze(
     manifest: Manifest | None,
     findings: list[GraphFinding],
     *,
     manifest_file: str = "riskgraph.yaml",
     observed_at: dt.datetime | None = None,
+    topology: Topology | None = None,
 ) -> AttackAnalysis:
     out = AttackAnalysis()
     g: nx.DiGraph[str] = nx.DiGraph()
@@ -208,6 +226,20 @@ def analyze(
             confidence="high",
             locations=(Location(manifest_file),),
             facts=facts,
+            observed_at=now,
+        )
+        out.evidence[e.id] = e
+        return e.id
+
+    def stated(d: Declared) -> str:
+        """Evidence that an IaC file states ``d`` (X3): the file says so, verified."""
+        e = make_evidence(
+            producer=IAC_PRODUCER,
+            kind=d.kind,
+            assurance=Assurance.VERIFIED,
+            confidence="high",
+            locations=(Location(d.file, d.line, d.line),),
+            facts=d.facts,
             observed_at=now,
         )
         out.evidence[e.id] = e
@@ -295,6 +327,7 @@ def analyze(
                 f
                 for f in by_service.get(s.name, [])
                 if f.source_type in (SourceType.SCA, SourceType.SAST)
+                and f.image is None  # image packages only reach derived services (X3)
                 and f.tier != "L0"
                 and f.exploit_p > 0
             ]
@@ -353,6 +386,10 @@ def analyze(
                 ev = declared(identity=i.name, can_access=target)
                 edge(_idn(i.name), key, "CAN_ACCESS", 1.0, verified, [ev])
 
+    derived: dict[str, DerivedService] = {}
+    if topology is not None and (manifest is None or not manifest.services):
+        derived = _derive(out, node, edge, stated, topology, findings, sinks)
+
     family_to_identity: dict[str, list[str]] = {}
     if manifest is not None:
         for i in manifest.identities:
@@ -371,10 +408,17 @@ def analyze(
             public=f.public_secret,
             finding=f.index,
         )
+        home = topology.service_for(f.file) if derived and topology is not None else None
         if f.service and _svc(f.service) in out.nodes and manifest is not None:
             path = next((s.path for s in manifest.services if s.name == f.service), "")
             ev = declared(service=f.service, path=path or "/")
             edge(_svc(f.service), key, "CONTAINS_SECRET", 1.0, Assurance.VERIFIED, [ev], [f])
+        elif home is not None and home in derived:
+            # the file is inside the service's build context, which the Compose file states
+            ds = derived[home]
+            path = ds.path_prefix or "/"
+            ev = stated(Declared(ds.declared.file, {"service": home, "path": path}))
+            edge(_svc(home), key, "CONTAINS_SECRET", 1.0, Assurance.VERIFIED, [ev], [f])
         else:
             if REPOSITORY not in out.nodes:
                 node(REPOSITORY, "repository", "repository")  # no in-edges: not on any path
@@ -401,6 +445,99 @@ def analyze(
         g.add_edge(_VIRTUAL, src, kind="VIRTUAL", p=1.0, w=0.0, findings=[])
     _search(g, out, sinks)
     return out
+
+
+def _derive(
+    out: AttackAnalysis,
+    node: Callable[..., None],
+    edge: Callable[..., None],
+    stated: Callable[[Declared], str],
+    topology: Topology,
+    findings: list[GraphFinding],
+    sinks: dict[str, float],
+) -> dict[str, DerivedService]:
+    """Services from Compose and Kubernetes when the manifest declares none (ADR-0019).
+
+    Edges: EXPOSES and EXPLOIT from the internet only where a file claims exposure
+    (inferred); RUNS_IMAGE (not traversable); RUNS_AS to the ServiceAccount (verified when
+    the pod spec names it, else inferred) or to the unknown identity; RBAC privilege makes
+    the account a sink. Nothing connects two findings unless one of these rules does.
+    """
+    services = {s.name: s for s in topology.services}
+    code: dict[str, list[GraphFinding]] = {}
+    images: dict[str, list[GraphFinding]] = {}
+    for f in findings:
+        if f.source_type not in (SourceType.SCA, SourceType.SAST) or f.exploit_p <= 0:
+            continue
+        if f.image is not None:
+            images.setdefault(f.image, []).append(f)
+        elif f.tier != "L0" and (home := topology.service_for(f.file)) is not None:
+            code.setdefault(home, []).append(f)
+
+    for s in topology.services:
+        key = _svc(s.name)
+        node(
+            key,
+            "service",
+            s.name,
+            path=s.path_prefix if s.path_prefix is not None else None,
+            exposure="internet" if s.exposure else None,
+            derived_from=list(s.sources),
+            findings=len(code.get(s.name, [])),
+        )
+        for img in s.images:
+            ikey = _image_key(img.ref)
+            if ikey not in out.nodes:
+                node(ikey, "container_image", img.ref[:200], ref=img.ref)
+            edge(key, ikey, "RUNS_IMAGE", None, img.assurance, [stated(img.declared)])
+
+        if s.identity is not None and s.identity_declared is not None:
+            ikey = f"identity:sa:{s.identity}"
+            if ikey not in out.nodes:
+                node(
+                    ikey,
+                    "identity",
+                    f"service account {s.identity}",
+                    privilege=s.privilege,
+                    service_account=s.identity,
+                )
+                if s.privilege in SINK_PRIVILEGE:
+                    sinks[ikey] = P_VALUES[s.privilege]
+            ev = [stated(s.identity_declared), *(stated(b) for b in s.bindings)]
+            edge(key, ikey, "RUNS_AS", 1.0, s.identity_assurance, ev)
+        else:
+            if UNKNOWN_IDENTITY not in out.nodes:
+                node(
+                    UNKNOWN_IDENTITY, "identity", "unknown identity", privilege=None, synthetic=True
+                )
+            ev = [stated(Declared(s.declared.file, {"service": s.name, "runs_as": None}))]
+            edge(key, UNKNOWN_IDENTITY, "RUNS_AS", 1.0, Assurance.INFERRED, ev)
+
+        if s.exposure is None:
+            continue
+        exposed = stated(s.exposure)
+        edge(INTERNET, key, "EXPOSES", None, Assurance.INFERRED, [exposed])
+        # the edge rests on its best-assured finding first, then the most exploitable;
+        # it is never more assured than the exposure it starts from
+        candidates = [
+            *((f, exploit_assurance(f.tier)) for f in code.get(s.name, [])),
+            *((f, image_assurance(f)) for img in s.images for f in images.get(img.ref, [])),
+        ]
+        if not candidates:
+            continue
+        candidates.sort(key=lambda c: (-c[1].rank, -c[0].exploit_p, c[0].index))
+        top, level = candidates[0]
+        used = list(dict.fromkeys(f for f, _ in candidates))[:MAX_EVIDENCE]
+        edge(
+            INTERNET,
+            key,
+            "EXPLOIT",
+            top.exploit_p,
+            min_assurance([level, Assurance.INFERRED]),
+            [exposed],
+            [top, *(f for f in used if f is not top)],
+        )
+    return services
 
 
 class _NodeRow(Protocol):
