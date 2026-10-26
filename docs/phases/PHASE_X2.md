@@ -1,6 +1,6 @@
 # PHASE X2: runtime and image intelligence (expansion plan)
 
-**Status:** part 1 done (2026-10-25); part 2 (image scanning) next. Decision: ADR-0018. Migration `a7c2e9f4b1d6`. Plan: `docs/proposals/EXPANSION_A-D.md` §3.C, §4 (X2).
+**Status:** part 1 done (2026-10-25); part 2 (image scanning) built and tested with recorded fixtures on 2026-10-26. The real container run and the overhead measurement are the owner's (L-3, L-8). Decision: ADR-0018 (amended 2026-10-26). Migrations `a7c2e9f4b1d6`, `b8d3f1a6c2e9`. Plan: `docs/proposals/EXPANSION_A-D.md` §3.C, §4 (X2).
 
 ## A. Objective
 X2 row of the plan:
@@ -12,9 +12,9 @@ X2 row of the plan:
 
 Exit criteria:
 1. A fixture repository with `FROM python:3.8-slim` + `node:14` gives EOL findings with dates. **Done (part 1).**
-2. A recorded `trivy image` fixture is parsed (OS and runtime packages, fixed versions). **Part 2.**
-3. Every C finding has an advisory id, a range, a matched version and `data_as_of`. **Done for runtime EOL; part 2 for image packages.**
-4. Scan overhead is at most +90 s per image with a warm cache, measured. **Part 2.**
+2. A recorded `trivy image` fixture is parsed (OS and runtime packages, fixed versions). **Done (part 2).**
+3. Every C finding has an advisory id, a range, a matched version and `data_as_of`. **Done** (runtime EOL in part 1, image packages and the base OS in part 2).
+4. Scan overhead is at most +90 s per image with a warm cache, measured. **Not measurable in the cloud: L-3.**
 
 The work is split in two so that the network-facing half (image pulls) is reviewed on its own.
 
@@ -129,11 +129,88 @@ alembic upgrade/downgrade/upgrade; alembic check → a7c2e9f4b1d6 (head) · no d
 X0 evaluation re-run     → same 59 findings; only C's AWS key differs from BASELINE.md (X1's change)
 ```
 
-## Part 2 (next): image scanning
-- Input recorded 2026-10-25 (`backend/tests/fixtures/images/`, `record.py`): `trivy image --list-all-pkgs` for `python:3.8-slim` and `node:14` in the hardened egress profile. Syft is not used for images (ADR-0018 amendment).
-- A new stage after the scanner chord: for each allowed reference (at most 5), run `trivy image` in the egress container profile, with the size cap and per-reference caching. Warnings on failure.
-- Parse into `sca` findings marked with the image; reachability not assessable; image packages into the SBOM; `EOSL` base OS becomes an EOL finding.
-- Exit criteria 2–4: a recorded `trivy image` fixture, and overhead measured with a warm cache.
+## Part 2: image scanning (2026-10-26)
+
+### C. Architecture
+```
+collect ─▶ scan_images (scan queue; needs a SUCCEEDED trivy run)
+             image_refs ∩ allowed, sorted, first 5 ─▶ trivy image --image-src remote --list-all-pkgs
+             egress network, Trivy lock, 300 s each, size cap (flag + Metadata.Size)
+             redacted report ─▶ scan_output/<scan>/images/<k>.json ; index.json last (idempotent)
+             warnings only: pull failure, cap, no DB, cancelled, out of time
+analyze ─▶ parse_image: sca findings (package.image, location = declaring file, resource = ref)
+           fingerprint + merge key scoped by image; reachability n_a; evidence image_package
+           EOSL base OS ─▶ runtime-eol:os:<family>:<name> (riskgraph producer, data_as_of = CreatedAt)
+           SBOM: image inventory (sbom_components.image); history: fixed only if the image was rescanned
+```
+
+### D. Components
+| Component | File |
+|---|---|
+| `trivy image` command | `modules/scanners/trivy/adapter.py` (`image_command`) |
+| Image report parser, inventory | `modules/scanners/trivy/parser.py` (`parse_image`, `ImageReport`) |
+| Base-OS EOL finding | `modules/runtime/eol.py` (`os_eol_finding`) |
+| Stage, analysis of the results | `modules/scans/pipeline.py` (`scan_images`, `_image_results`) |
+| Canvas, task | `modules/scans/orchestration.py`, `tasks.py` |
+| Report storage | `modules/scans/storage.py` (image reports and index) |
+| Image scoping of keys | `modules/normalization/{fingerprint,merge}.py` |
+| Fixed detection per image | `modules/findings/history.py` |
+| SBOM `image`, `origin` filter | `modules/sbom/{models,service,router}.py` |
+| Settings | `image_scan_max_refs` (5), `image_scan_max_bytes` (2 GiB), `timeout_trivy_image_s` (300) |
+| Fake runner for images | `tests/pipeline_support.py` (`FixtureRunner.images`, `IMAGE_FIXTURES`) |
+
+### E. Technical decisions
+See the ADR-0018 amendment. In short:
+- The stage needs a clean Trivy run. Without the DB, an image scan would download one or fail, and freshness would be unknown.
+- The location is the file that names the image, and the image is the resource. Context (exposure from Compose) then applies to the image's findings.
+- Image keys are scoped by the image **only when there is one**. Repository findings keep their fingerprints and merge keys (test).
+- Image evidence has no raw pointer. It is not in the Trivy run's stored report, and pointing there would be false provenance.
+- Downgrading the migration refuses while image packages exist (the old key cannot hold them), as `a7c2e9f4b1d6` does.
+
+**Found and fixed on the way:** `TRIVY_CACHE_DIR` (X2 part 1) was not on the container env allow-list, so Trivy failed under the docker runner (`1f6f069`; test over every adapter; L-9 to confirm live).
+
+### G. Database
+Migration `b8d3f1a6c2e9`, by hand:
+- adds `sbom_components.image VARCHAR(255) NULL`;
+- replaces `uq_sbom_components_scan_purl` with `uq_sbom_components_scan_purl_image` (scan, purl, image; NULLS NOT DISTINCT).
+
+Up/down/up clean; `alembic check`: no new operations.
+
+### H. API
+- `GET /scans/{id}/sbom`: each component has `image` (null for repository packages); optional `origin=all|repository|image` (default `all`). The other fields are unchanged.
+- Scan detail: `summary.images` (`scanned`, per-reference `results` with status and warning, `warnings`, `findings`, `eol_findings`) and `summary.sbom.image_packages`.
+- Image findings are in the findings list, with `package.image` and `image_package` evidence.
+
+### M. Testing
+- `test_image_scan.py` (17, unit):
+  - command flags and the reference last;
+  - option-shaped references refused, both by the command and by `parse_ref`;
+  - both fixtures parsed: OS and language packages, fixed versions, purls, size, EOSL;
+  - malformed reports;
+  - image scoping of fingerprint and merge key, with repository keys unchanged;
+  - the OS EOL finding;
+  - image evidence data dates.
+- `test_image_scan_db.py` (9, db):
+  - stage and warnings (the internal registry is never pulled);
+  - findings, evidence and n/a reachability;
+  - the EOSL finding;
+  - the SBOM endpoint;
+  - the cap of 5 (set to 1);
+  - no clean Trivy run means no pull;
+  - a failed pull does not mark findings fixed. A mutation check showed this test fails without the guard;
+  - idempotency;
+  - a cancelled scan stops pulling.
+- `test_containers.py` (+5): every adapter's command passes the container profile.
+- `test_canvas.py`: changed for the new stage.
+
+### O. Validation
+See `docs/auto/DAY_1_REPORT.md` for the commands and output: lint, types, 421 unit, 77 db (2 skipped), migrations, X0 identical.
+
+### Q. Known limits (part 2)
+- Not run against a real registry or container here (L-3), and `--max-image-size` is unconfirmed on 0.76.0 (L-8).
+- The image's findings attach to the first file that names it (references are deduplicated).
+- Image packages score with the SCA model and unknown reachability (R 0.6) until X6 gives "not assessable" its own factor (R 0.5).
+- No digest cache across scans: each scan pulls again (Trivy's layer cache is in memory).
 
 ## Q. Known limits (part 1)
 - The runtime EOL score is interim (X6).

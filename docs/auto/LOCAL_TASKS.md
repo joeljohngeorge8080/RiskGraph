@@ -11,5 +11,7 @@ The cloud runs have no Docker daemon, no real scanners, no Ollama, and cannot re
 | L-5 | Run the Joern container for real through the runner (`deep` profile, one slot); check RAM and time on NodeGoat | after Day 3 | TODO |
 | L-6 | Live-model check (`make test-llm`) of the explanation prompt after the new path and taint evidence | after Day 6 | TODO |
 | L-7 | `make dev`: apply the new migrations to the dev database and click through the new API fields | after Day 6 | TODO |
+| L-8 | Check that Trivy 0.76.0 accepts `--max-image-size 2147MB` with `--image-src remote`. If it rejects the flag, every image run fails with a warning: take the flag out of `TrivyScanner.image_command` (the `Metadata.Size` check stays). Same run as L-3 | Day 1 follow-up (with L-3) | TODO |
+| L-9 | Run one normal scan with `RISKGRAPH_SCANNER_RUNNER=docker` and check that the Trivy run SUCCEEDED. Before `1f6f069`, every Trivy run in a container failed: `TRIVY_CACHE_DIR` was not on the container env allow-list. Only the subprocess runner was tested, and still is in the cloud | Day 1 follow-up | TODO |
 
-The cloud runs may append rows (next id L-8, …). Do not edit another row's status.
+The cloud runs may append rows (next id L-10, …). Do not edit another row's status.

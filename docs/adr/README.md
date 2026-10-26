@@ -20,3 +20,4 @@
 | [0016](0016-ai-explanation.md) | Evidence-grounded explanations with a local model and a template fallback | accepted |
 | [0017](0017-evidence-and-assurance.md) | One evidence and assurance contract; no edge without evidence | accepted |
 | [0018](0018-runtime-and-image-intel.md) | Runtime and image intelligence: EOL from a stored feed, image scans behind an allow-list | accepted |
+| [0019](0019-graph-from-compose-and-kubernetes.md) | A graph from Compose and Kubernetes when the manifest declares no services | accepted (owner review pending) |

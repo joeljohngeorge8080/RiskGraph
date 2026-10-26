@@ -1,4 +1,26 @@
-# HANDOFF: resume here (updated 2026-10-25, session 8: X0, X1 and X2 part 1 done; next X2 part 2, see todo1150.md)
+# HANDOFF: resume here (updated 2026-10-26, auto session day 1: X2 part 2 and X3 part 1 done; next X3 part 2 + X4 part 1, see docs/auto/SCHEDULE.md)
+
+## Auto session day 1 (2026-10-26, cloud, branch `extended_phase_auto`)
+- **Verdict COMPLETE.** Report: `docs/auto/DAY_1_REPORT.md`; plan: `DAY_1_PLAN.md`.
+- **X2 part 2 (image scanning)** (`PHASE_X2.md` part 2, ADR-0018 amendment, migration `b8d3f1a6c2e9`):
+  - a `scan_images` stage between collect and analyze runs `trivy image` on up to 5 allowed references (warnings only);
+  - image packages become `sca` findings marked with the image, with n/a reachability and `image_package` evidence;
+  - an end-of-support base OS becomes `runtime-eol:os:*`;
+  - the SBOM has `image`, and `GET /scans/{id}/sbom` has `origin`;
+  - an image finding is only marked fixed when its image is rescanned.
+- **Bug fixed:** Trivy failed in every docker-runner scan since X2 part 1 (`TRIVY_CACHE_DIR` was not on the container env allow-list). Please confirm live (L-9).
+- **X3 part 1** (`PHASE_X3.md`, ADR-0019):
+  - without manifest services, the graph comes from Compose and Kubernetes: services, images, ServiceAccounts, RBAC sinks;
+  - inferred exposure;
+  - EXPLOIT is capped at inferred, and image findings are hypotheses unless they are in KEV;
+  - manifest graphs are unchanged.
+- Verified: lint/types clean; 421 unit; 77 db, 2 skipped; perf 2 passed; migration up/down/up and `alembic check` clean; X0 re-run byte-identical to the start of the day (pooled table = `BASELINE.md`).
+- **For the owner:**
+  - flags F-1-1 (data stores from Compose: NodeGoat needs it) and F-1-2 (CAN_ACCESS from RBAC), in `docs/auto/FLAGS.md`;
+  - local tasks L-3, L-8, L-9 in `docs/auto/LOCAL_TASKS.md`;
+  - the dev DB needs `make dev` for `b8d3f1a6c2e9`;
+  - commit `d701718` (the day-1 plan) has the sandbox's default author; later commits use the run book's identity.
+
 
 ## Session 8, part 3: X2 part 1, runtime EOL and freshness (2026-10-25, local)
 - **Owner decisions (2026-10-25), recorded in ADR-0018:** image package CVEs stay `sca` (marked with the image); image pulls only from a public registry allow-list (5 images, 2 GB each, never fail the scan); runtime EOL gets an interim score until X6.
