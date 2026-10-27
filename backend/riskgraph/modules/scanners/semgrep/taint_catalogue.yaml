@@ -1,0 +1,171 @@
+# RiskGraph taint catalogue, tier 1 (expansion plan §3.A, ADR-0021).
+# Written for RiskGraph from the documented APIs of each library; Apache-2.0, like the rest
+# of the repository. It is the single source of the Semgrep taint rules in
+# taint_rules.yaml (regenerate with `python -m riskgraph.modules.scanners.semgrep.taint`)
+# and, from X4 part 2, of the deep profile's source and sink lists.
+#
+# Sources: data an HTTP client controls. Sinks: the argument that must not carry it, marked
+# $SINK (without $SINK the whole call is the sink). Sanitizers: calls whose result no
+# longer carries the taint for that class. Extend by adding entries; keep sinks to calls
+# whose tainted argument is the vulnerability.
+version: 1
+
+sources:
+  python:
+    - id: flask-request
+      patterns:
+        - flask.request.args
+        - flask.request.form
+        - flask.request.values
+        - flask.request.json
+        - flask.request.data
+        - flask.request.files
+        - flask.request.cookies
+        - flask.request.headers
+        - flask.request.get_json(...)
+    - id: django-request
+      patterns:
+        - request.GET
+        - request.POST
+        - request.body
+        - request.COOKIES
+        - request.headers
+    - id: fastapi-parameter
+      # every parameter of a function decorated as a route of an app or router
+      handler_parameter:
+        decorator: "@$APP.$VERB(...)"
+        verbs: [get, post, put, patch, delete]
+  javascript:
+    - id: express-request
+      patterns:
+        - req.query
+        - req.body
+        - req.params
+        - req.cookies
+        - req.headers
+
+classes:
+  - id: sql-injection
+    cwe: "CWE-89: SQL injection"
+    title: SQL query built from request data
+    python:
+      confidence: high
+      sinks:
+        - $CURSOR.execute($SINK, ...)
+        - $CURSOR.executemany($SINK, ...)
+        - $SESSION.execute(sqlalchemy.text($SINK), ...)
+        - sqlalchemy.text($SINK)
+        - $MODEL.objects.raw($SINK, ...)
+      sanitizers:
+        - int(...)
+        - float(...)
+    javascript:
+      confidence: medium
+      sinks:
+        - $DB.query($SINK, ...)
+        - $DB.raw($SINK, ...)
+        - $DB.execute($SINK, ...)
+      sanitizers:
+        - parseInt(...)
+        - Number(...)
+
+  - id: os-command-injection
+    cwe: "CWE-78: OS command injection"
+    title: Shell command built from request data
+    python:
+      confidence: high
+      sinks:
+        - os.system($SINK)
+        - os.popen($SINK, ...)
+        - subprocess.getoutput($SINK)
+        - subprocess.getstatusoutput($SINK)
+        - subprocess.run($SINK, ..., shell=True, ...)
+        - subprocess.call($SINK, ..., shell=True, ...)
+        - subprocess.check_call($SINK, ..., shell=True, ...)
+        - subprocess.check_output($SINK, ..., shell=True, ...)
+        - subprocess.Popen($SINK, ..., shell=True, ...)
+      sanitizers:
+        - shlex.quote(...)
+    javascript:
+      confidence: high
+      sinks:
+        - child_process.exec($SINK, ...)
+        - child_process.execSync($SINK, ...)
+        - require('child_process').exec($SINK, ...)
+        - require('child_process').execSync($SINK, ...)
+      sanitizers: []
+
+  - id: path-traversal
+    cwe: "CWE-22: Path traversal"
+    title: File path built from request data
+    python:
+      confidence: high
+      sinks:
+        - open($SINK, ...)
+        - io.open($SINK, ...)
+        - flask.send_file($SINK, ...)
+        - os.remove($SINK)
+        - os.unlink($SINK)
+      sanitizers:
+        - os.path.basename(...)
+        - werkzeug.utils.secure_filename(...)
+    javascript:
+      confidence: high
+      sinks:
+        - fs.readFile($SINK, ...)
+        - fs.readFileSync($SINK, ...)
+        - fs.createReadStream($SINK, ...)
+        - fs.writeFile($SINK, ...)
+        - fs.writeFileSync($SINK, ...)
+        - fs.unlink($SINK, ...)
+        - $RES.sendFile($SINK, ...)
+      sanitizers:
+        - path.basename(...)
+
+  - id: unsafe-deserialization
+    cwe: "CWE-502: Deserialization of untrusted data"
+    title: Untrusted request data deserialized
+    python:
+      confidence: high
+      sinks:
+        - pickle.loads($SINK, ...)
+        - pickle.load($SINK, ...)
+        - marshal.loads($SINK)
+        - yaml.load($SINK)
+        - yaml.load($SINK, Loader=yaml.Loader)
+        - yaml.load($SINK, Loader=yaml.UnsafeLoader)
+        - yaml.unsafe_load($SINK)
+      sanitizers: []
+    javascript:
+      confidence: medium
+      sinks:
+        - $SERIALIZER.unserialize($SINK, ...)
+        - require('node-serialize').unserialize($SINK, ...)
+      sanitizers: []
+
+  - id: server-side-request-forgery
+    cwe: "CWE-918: Server-side request forgery"
+    title: Outbound request to a URL taken from request data
+    python:
+      confidence: high
+      sinks:
+        - requests.get($SINK, ...)
+        - requests.post($SINK, ...)
+        - requests.put($SINK, ...)
+        - requests.patch($SINK, ...)
+        - requests.delete($SINK, ...)
+        - requests.head($SINK, ...)
+        - urllib.request.urlopen($SINK, ...)
+        - httpx.get($SINK, ...)
+        - httpx.post($SINK, ...)
+      sanitizers: []
+    javascript:
+      confidence: high
+      sinks:
+        - axios.get($SINK, ...)
+        - axios.post($SINK, ...)
+        - axios($SINK, ...)
+        - fetch($SINK, ...)
+        - http.get($SINK, ...)
+        - https.get($SINK, ...)
+      sanitizers: []

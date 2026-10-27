@@ -12,6 +12,10 @@ feed's fetch time. Scanner matches carry their advisory data date when it is kno
 (Trivy's DB build time). Packages found in an image (X2 part 2) are ``image_package``
 records with the image named; their report is stored apart from the run's report.
 
+A hit of RiskGraph's own tier-1 taint rules (X4, ADR-0021) is a ``taint_flow`` record with
+the trace's ordered steps (file and line only). It is inferred: a rule applied to parsed
+code inside one function, with a catalogue that can miss sanitizers.
+
 Facts are small and display-safe: rule, severity, package coordinates, secret family.
 Never a snippet, a secret or the scanner's free-form evidence.
 """
@@ -23,8 +27,8 @@ import uuid
 from collections.abc import Mapping
 from typing import Any
 
-from riskgraph.modules.evidence import Assurance, Evidence, RawRef, make_evidence
-from riskgraph.modules.normalization import MergedFinding, RawFinding
+from riskgraph.modules.evidence import Assurance, Evidence, FlowStep, RawRef, make_evidence
+from riskgraph.modules.normalization import Location, MergedFinding, RawFinding
 from riskgraph.modules.reachability import ANALYZER_VERSION, Verdict
 from riskgraph.shared.vocabulary import ReachabilityTier, SourceType
 
@@ -109,14 +113,24 @@ def _match(
     # an image's report is stored on its own, not as the run's report: no raw pointer
     own_report = run_id and f.source_type is not SourceType.RUNTIME and not image
     kind = "image_package" if image and f.source_type is SourceType.SCA else _KIND[f.source_type]
+    assurance = Assurance.VERIFIED
+    steps: list[FlowStep] = []
+    if f.attrs.get("analysis") == "intraprocedural":
+        kind, assurance = "taint_flow", Assurance.INFERRED
+        facts["analysis"] = "intraprocedural"
+        steps = [
+            FlowStep(Location(s["file"], s["line"], s["line"]), s["role"])
+            for s in f.attrs.get("taint_steps") or []
+        ]
     return make_evidence(
         producer=f"{scanner}@{versions.get(scanner) or 'unknown'}",
         kind=kind,
-        assurance=Assurance.VERIFIED,
+        assurance=assurance,
         confidence=confidence,  # type: ignore[arg-type]
         observed_at=now,
         locations=(f.location,),
         facts={k: v for k, v in facts.items() if v is not None},
+        steps=steps,
         raw=RawRef(run_id, "") if own_report and run_id else None,
         data_as_of=as_of,
     )

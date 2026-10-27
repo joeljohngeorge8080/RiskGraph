@@ -3,7 +3,9 @@
 Merge keys:
 - sca:    vulnerability id + package + manifest file (+ the image, for image packages)
 - sast:   file + line + primary CWE (several rules flagging the same line for the same
-          weakness are one problem)
+          weakness are one problem). A hit of RiskGraph's tier-1 taint rules joins a
+          generic finding at the same line whose primary CWE is in its family (CWE-943 is
+          a CWE-89); the generic finding keeps its key, so its identity is unchanged
 - secret: file + credential family + overlapping line range (Gitleaks and Trivy report
           the same key with slightly different ranges)
 - iac:    file + curated topic + resource; unmapped checks keep a scanner-specific key
@@ -20,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from riskgraph.modules.normalization.canonical import Location, RawFinding
+from riskgraph.modules.normalization.families import TAINT_RULE_PREFIX, taint_family
 from riskgraph.modules.normalization.fingerprint import stable_hash
 from riskgraph.shared.vocabulary import ScannerName, Severity, SourceType
 
@@ -84,6 +87,7 @@ def merge(findings: list[RawFinding]) -> list[MergedFinding]:
                 key = (f.source_type.value, f.scanner.value, f.rule_id, loc.file, anchor_x)
                 groups[key].append(f)
 
+    _join_taint_hits(groups)
     for (file, family), members in secrets.items():
         for cluster in _overlap_clusters(members):
             start = min(m.location.line_start or 0 for m in cluster)
@@ -92,6 +96,31 @@ def merge(findings: list[RawFinding]) -> list[MergedFinding]:
     merged = [_build(key, members) for key, members in groups.items()]
     merged.sort(key=lambda m: m.merge_key)
     return merged
+
+
+def _is_taint(f: RawFinding) -> bool:
+    return f.rule_id.startswith(TAINT_RULE_PREFIX)
+
+
+def _join_taint_hits(groups: dict[tuple[object, ...], list[RawFinding]]) -> None:
+    """Move a tier-1 taint group into a generic group at the same file and line whose
+    primary CWE is in the same family (X4, ADR-0021). Groups are visited in key order."""
+    sast = sorted((k for k in groups if k[0] == "sast"), key=repr)
+    for key in sast:
+        members = groups.get(key)
+        if not members or not all(_is_taint(m) for m in members):
+            continue
+        family = taint_family(str(key[3]))
+        if family is None:
+            continue
+        for other in sast:
+            if other == key or other[1:3] != key[1:3] or other not in groups:
+                continue
+            if taint_family(str(other[3])) == family and not all(
+                _is_taint(m) for m in groups[other]
+            ):
+                groups[other].extend(groups.pop(key))
+                break
 
 
 def _overlap_clusters(members: list[RawFinding]) -> list[list[RawFinding]]:
