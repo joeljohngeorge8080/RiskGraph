@@ -1,4 +1,26 @@
-# HANDOFF: resume here (updated 2026-10-26, auto session day 1: X2 part 2 and X3 part 1 done; next X3 part 2 + X4 part 1, see docs/auto/SCHEDULE.md)
+# HANDOFF: resume here (updated 2026-10-27, auto session day 2: X3 part 2 and X4 part 1 done; next X4 part 2 (Joern, gated by the owner's spike L-2), see docs/auto/SCHEDULE.md)
+
+## Auto session day 2 (2026-10-27, cloud, branch `extended_phase_auto`)
+- **Verdict COMPLETE.** Report: `docs/auto/DAY_2_REPORT.md`; plan: `DAY_2_PLAN.md`.
+- **X3 part 2** (`PHASE_X3.md` part 2, ADR-0020, no migration):
+  - **bug found by the new property test:** hypothesis paths could lower other findings' scores, by crowding inferred paths out of the top 3 or by taking over an EXPLOIT edge;
+  - I\* now comes from a search over the edges of at least inferred; hypotheses are only listed;
+  - `/attack-paths` is grouped by assurance, then score, and every path has `missing_evidence[]`;
+  - a manifest identity can declare `owns: [{file, line?, family?}]`, which makes that key's credential edge verified;
+  - perf: build + search 0.63 s at 5k/20k.
+- **X4 part 1** (`PHASE_X4.md`, ADR-0021, no migration):
+  - RiskGraph's own taint catalogue, from which 10 Semgrep taint rules are generated (committed, drift-tested);
+  - taint traces are kept as location-only steps;
+  - a tier-1 hit is `taint_flow` evidence, inferred, and it merges with a generic finding at the same sink;
+  - the 40-case suite and its scorer are built.
+  - **Tier 1 is off by default** (F-2-1) until the rules have run on the real Semgrep (L-4).
+- Verified: lint/types clean; 472 unit; 78 db, 2 skipped; perf 4 passed; migration round trip and `alembic check` clean; the X0 re-run differs from `BASELINE.md` only by the day-1 differences already recorded (the pooled table is identical).
+- **For the owner:**
+  - flags F-1-1, F-1-2 (day 1) and F-2-1 (tier 1 default) in `docs/auto/FLAGS.md`;
+  - L-4 has exact steps;
+  - **the Joern spike (L-2) is needed before day 3**, otherwise day 3 flags F-3-1 and moves to X5;
+  - one commit (`ea5a710`) was pushed with a db test pinning the old order; it was fixed in the next commit (`eb26c3b`).
+
 
 ## Auto session day 1 (2026-10-26, cloud, branch `extended_phase_auto`)
 - **Verdict COMPLETE.** Report: `docs/auto/DAY_1_REPORT.md`; plan: `DAY_1_PLAN.md`.
