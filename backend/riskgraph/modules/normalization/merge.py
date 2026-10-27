@@ -105,22 +105,25 @@ def _is_taint(f: RawFinding) -> bool:
 def _join_taint_hits(groups: dict[tuple[object, ...], list[RawFinding]]) -> None:
     """Move a tier-1 taint group into a generic group at the same file and line whose
     primary CWE is in the same family (X4, ADR-0021). Groups are visited in key order."""
-    sast = sorted((k for k in groups if k[0] == "sast"), key=repr)
-    for key in sast:
-        members = groups.get(key)
-        if not members or not all(_is_taint(m) for m in members):
+    at: dict[tuple[object, ...], list[tuple[object, ...]]] = defaultdict(list)
+    for key in sorted((k for k in groups if k[0] == "sast"), key=repr):
+        at[key[1:3]].append(key)  # one index by (file, line): no pairwise scan
+    for keys in at.values():
+        if len(keys) < 2:
             continue
-        family = taint_family(str(key[3]))
-        if family is None:
-            continue
-        for other in sast:
-            if other == key or other[1:3] != key[1:3] or other not in groups:
+        for key in keys:
+            members = groups.get(key)
+            family = taint_family(str(key[3]))
+            if not members or family is None or not all(_is_taint(m) for m in members):
                 continue
-            if taint_family(str(other[3])) == family and not all(
-                _is_taint(m) for m in groups[other]
-            ):
-                groups[other].extend(groups.pop(key))
-                break
+            for other in keys:
+                if other == key or other not in groups:
+                    continue
+                if taint_family(str(other[3])) == family and not all(
+                    _is_taint(m) for m in groups[other]
+                ):
+                    groups[other].extend(groups.pop(key))
+                    break
 
 
 def _overlap_clusters(members: list[RawFinding]) -> list[list[RawFinding]]:

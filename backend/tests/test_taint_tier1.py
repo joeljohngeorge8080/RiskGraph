@@ -245,3 +245,29 @@ def test_generic_merge_keys_do_not_change() -> None:
         stable_hash("sast", "app.py", 9, "CWE-943"),
         stable_hash("sast", "web/server.js", 20, "CWE-78"),
     }
+
+
+def test_joining_scales_with_many_sast_findings() -> None:
+    import time
+
+    from riskgraph.modules.normalization import Location, RawFinding
+    from riskgraph.shared.vocabulary import ScannerName, Severity, SourceType
+
+    def hit(rule: str, line: int, cwe: str) -> RawFinding:
+        return RawFinding(
+            scanner=ScannerName.SEMGREP,
+            source_type=SourceType.SAST,
+            rule_id=rule,
+            title="t",
+            severity=Severity.MEDIUM,
+            location=Location("big.py", line, line),
+            category="injection",
+            cwe_ids=(cwe,),
+        )
+
+    many = [hit("generic.rule", i, "CWE-943") for i in range(1, 4001)]
+    many += [hit("riskgraph.taint.python.sql-injection", i, "CWE-89") for i in range(1, 4001, 2)]
+    start = time.perf_counter()
+    merged = merge(many)
+    assert time.perf_counter() - start < 2.0
+    assert len(merged) == 4000  # every taint hit joined its generic finding
