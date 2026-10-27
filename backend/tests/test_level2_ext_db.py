@@ -94,7 +94,9 @@ def test_attack_paths_and_effective_impact(api: TestClient, settings: Settings) 
     labels = {" → ".join(n["label"] for n in p["nodes"]) for p in paths}
     assert "Internet → app → users-db" in labels  # exploit of reachable code in app
     assert "aws credential · main.tf:3 → app-role → users-db" in labels
-    assert paths == sorted(paths, key=lambda p: -p["score"])
+    # grouped by assurance, then by score (X3 part 2)
+    group = {"verified": 0, "inferred": 1, "hypothesis": 2}
+    assert paths == sorted(paths, key=lambda p: (group[p["assurance"]], -p["score"]))
     assert api.get(f"/api/v1/scans/{plain}/attack-paths").json() == []  # no manifest, no paths
 
     graph = api.get(f"/api/v1/scans/{sid}/graph").json()
