@@ -72,6 +72,30 @@ def secret_family(rule_id: str) -> str:
     return "generic"
 
 
+# --- taint (X4, ADR-0021) -------------------------------------------------------------
+# RiskGraph's own tier-1 taint rules carry this id prefix; the scanner adds path segments
+# in front of it, so it is searched for, not only matched at the start.
+TAINT_RULE_PREFIX = "riskgraph.taint."
+
+# A weakness and its narrower variants. A tier-1 hit and a generic rule's finding at the
+# same line whose primary CWEs share a family are one problem (merge.py).
+_TAINT_FAMILIES: dict[str, frozenset[str]] = {
+    "CWE-89": frozenset({"CWE-89", "CWE-564", "CWE-943"}),
+    "CWE-78": frozenset({"CWE-78", "CWE-77"}),
+    "CWE-22": frozenset({"CWE-22", "CWE-23", "CWE-36", "CWE-73"}),
+    "CWE-502": frozenset({"CWE-502"}),
+    "CWE-918": frozenset({"CWE-918"}),
+}
+
+
+def taint_family(cwe: str | None) -> str | None:
+    """The tier-1 class a CWE belongs to (``CWE-943`` → ``CWE-89``), else None."""
+    for family, members in _TAINT_FAMILIES.items():
+        if cwe in members:
+            return family
+    return None
+
+
 # --- IaC -----------------------------------------------------------------------------
 
 

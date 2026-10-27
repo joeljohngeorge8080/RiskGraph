@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     )
     scanner_bin_dir: Path = Path("/opt/scanners/bin")
     semgrep_rules_path: Path = Path("/opt/scanners/semgrep-rules")
+    # RiskGraph's tier-1 taint rules (ADR-0021), a second --config when set. Off until they
+    # are checked against the real Semgrep (docs/auto F-2-1, L-4). With the subprocess
+    # runner, point it at riskgraph/modules/scanners/semgrep/taint_rules.yaml.
+    semgrep_taint_rules_path: Path | None = None
     trivy_cache_dir: Path = Path("/var/cache/riskgraph/trivy")
     timeout_trivy_s: int = 600
     timeout_semgrep_s: int = 900

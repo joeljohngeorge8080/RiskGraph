@@ -28,11 +28,13 @@ class SemgrepScanner:
         return settings.timeout_semgrep_s
 
     def command(self, paths: ScanPaths, settings: Settings) -> Command:
+        taint = settings.semgrep_taint_rules_path
         argv = (
             "semgrep",
             "scan",
             "--config",
             str(settings.semgrep_rules_path),
+            *(("--config", str(taint)) if taint is not None else ()),
             "--json",
             "--output",
             str(paths.out / self.output_name),
@@ -61,7 +63,8 @@ class SemgrepScanner:
         return ("semgrep", "--version")
 
     def redact(self, doc: Any, key: bytes) -> tuple[Any, set[str]]:
-        return drop_keys(doc, _SNIPPET_KEYS), set()
+        # a taint trace keeps its locations, never its code (ADR-0021)
+        return drop_keys(parser.keep_taint_steps(doc), _SNIPPET_KEYS), set()
 
     def count(self, doc: Any) -> int:
         return parser.count(doc)

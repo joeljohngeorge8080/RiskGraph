@@ -1,0 +1,75 @@
+{
+  "version": "1.182.0",
+  "errors": [],
+  "paths": {"scanned": ["app.py", "web/server.js"]},
+  "results": [
+    {
+      "check_id": "tmp.rules.riskgraph.taint.python.sql-injection",
+      "path": "app.py",
+      "start": {"line": 9, "col": 5, "offset": 210},
+      "end": {"line": 9, "col": 23, "offset": 228},
+      "extra": {
+        "message": "SQL query built from request data: data from an HTTP request reaches this call",
+        "severity": "ERROR",
+        "metadata": {
+          "cwe": ["CWE-89: SQL injection"],
+          "confidence": "HIGH",
+          "impact": "HIGH",
+          "likelihood": "MEDIUM",
+          "source": "riskgraph",
+          "analysis": "intraprocedural"
+        },
+        "lines": "    cur.execute(query)",
+        "dataflow_trace": {
+          "taint_source": ["CliLoc", [{"path": "app.py", "start": {"line": 6, "col": 13, "offset": 120}, "end": {"line": 6, "col": 37, "offset": 144}}, "flask.request.args.get('name')"]],
+          "intermediate_vars": [
+            {"location": {"path": "app.py", "start": {"line": 6, "col": 5, "offset": 112}, "end": {"line": 6, "col": 9, "offset": 116}}, "content": "name"},
+            {"location": {"path": "app.py", "start": {"line": 7, "col": 5, "offset": 150}, "end": {"line": 7, "col": 10, "offset": 155}}, "content": "query"}
+          ],
+          "taint_sink": ["CliLoc", [{"path": "app.py", "start": {"line": 9, "col": 17, "offset": 222}, "end": {"line": 9, "col": 22, "offset": 227}}, "query"]]
+        }
+      }
+    },
+    {
+      "check_id": "opt.scanners.semgrep-rules.python.lang.security.audit.formatted-sql-query",
+      "path": "app.py",
+      "start": {"line": 9, "col": 5, "offset": 210},
+      "end": {"line": 9, "col": 23, "offset": 228},
+      "extra": {
+        "message": "Formatted SQL query",
+        "severity": "WARNING",
+        "metadata": {"cwe": ["CWE-943: Improper Neutralization of Special Elements in Data Query Logic"], "confidence": "LOW"},
+        "lines": "    cur.execute(query)"
+      }
+    },
+    {
+      "check_id": "riskgraph.taint.javascript.os-command-injection",
+      "path": "web/server.js",
+      "start": {"line": 14, "col": 3, "offset": 300},
+      "end": {"line": 14, "col": 30, "offset": 327},
+      "extra": {
+        "message": "Shell command built from request data: data from an HTTP request reaches this call",
+        "severity": "ERROR",
+        "metadata": {"cwe": ["CWE-78: OS command injection"], "confidence": "HIGH"},
+        "lines": "  child_process.exec(cmd)",
+        "dataflow_trace": {
+          "taint_source": ["CliCall", [[{"path": "web/server.js", "start": {"line": 12, "col": 15, "offset": 250}, "end": {"line": 12, "col": 26, "offset": 261}}, "req.query.c"], [], ["CliLoc", [{"path": "web/server.js", "start": {"line": 12, "col": 15, "offset": 250}, "end": {"line": 12, "col": 26, "offset": 261}}, "req.query.c"]]]],
+          "intermediate_vars": [],
+          "taint_sink": ["CliLoc", [{"path": "web/server.js", "start": {"line": 14, "col": 22, "offset": 319}, "end": {"line": 14, "col": 25, "offset": 322}}, "cmd"]]
+        }
+      }
+    },
+    {
+      "check_id": "opt.scanners.semgrep-rules.javascript.lang.security.detect-child-process",
+      "path": "web/server.js",
+      "start": {"line": 20, "col": 3, "offset": 400},
+      "end": {"line": 20, "col": 30, "offset": 427},
+      "extra": {
+        "message": "Child process with non-literal argument",
+        "severity": "WARNING",
+        "metadata": {"cwe": ["CWE-78: Improper Neutralization of Special Elements used in an OS Command"], "confidence": "LOW"},
+        "lines": "  child_process.exec(other)"
+      }
+    }
+  ]
+}

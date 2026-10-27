@@ -1,0 +1,510 @@
+# GENERATED from taint_catalogue.yaml by
+#   uv run python -m riskgraph.modules.scanners.semgrep.taint
+# Do not edit by hand. RiskGraph-authored rules, Apache-2.0 (ADR-0021).
+rules:
+- id: riskgraph.taint.python.sql-injection
+  mode: taint
+  languages:
+  - python
+  severity: ERROR
+  message: 'SQL query built from request data: data from an HTTP request reaches this call'
+  metadata:
+    cwe:
+    - 'CWE-89: SQL injection'
+    category: security
+    confidence: HIGH
+    likelihood: MEDIUM
+    impact: HIGH
+    source: riskgraph
+    license: Apache-2.0
+    analysis: intraprocedural
+    riskgraph_class: sql-injection
+  pattern-sources:
+  - pattern: flask.request.args
+  - pattern: flask.request.form
+  - pattern: flask.request.values
+  - pattern: flask.request.json
+  - pattern: flask.request.data
+  - pattern: flask.request.files
+  - pattern: flask.request.cookies
+  - pattern: flask.request.headers
+  - pattern: flask.request.get_json(...)
+  - pattern: request.GET
+  - pattern: request.POST
+  - pattern: request.body
+  - pattern: request.COOKIES
+  - pattern: request.headers
+  - patterns:
+    - pattern: "@$APP.$VERB(...)\ndef $HANDLER(..., $PARAM, ...):\n  ...\n"
+    - focus-metavariable: $PARAM
+    - metavariable-regex:
+        metavariable: $VERB
+        regex: ^(get|post|put|patch|delete)$
+  pattern-sinks:
+  - patterns:
+    - pattern: $CURSOR.execute($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: $CURSOR.executemany($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: $SESSION.execute(sqlalchemy.text($SINK), ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: sqlalchemy.text($SINK)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: $MODEL.objects.raw($SINK, ...)
+    - focus-metavariable: $SINK
+  pattern-sanitizers:
+  - pattern: int(...)
+  - pattern: float(...)
+- id: riskgraph.taint.python.os-command-injection
+  mode: taint
+  languages:
+  - python
+  severity: ERROR
+  message: 'Shell command built from request data: data from an HTTP request reaches this call'
+  metadata:
+    cwe:
+    - 'CWE-78: OS command injection'
+    category: security
+    confidence: HIGH
+    likelihood: MEDIUM
+    impact: HIGH
+    source: riskgraph
+    license: Apache-2.0
+    analysis: intraprocedural
+    riskgraph_class: os-command-injection
+  pattern-sources:
+  - pattern: flask.request.args
+  - pattern: flask.request.form
+  - pattern: flask.request.values
+  - pattern: flask.request.json
+  - pattern: flask.request.data
+  - pattern: flask.request.files
+  - pattern: flask.request.cookies
+  - pattern: flask.request.headers
+  - pattern: flask.request.get_json(...)
+  - pattern: request.GET
+  - pattern: request.POST
+  - pattern: request.body
+  - pattern: request.COOKIES
+  - pattern: request.headers
+  - patterns:
+    - pattern: "@$APP.$VERB(...)\ndef $HANDLER(..., $PARAM, ...):\n  ...\n"
+    - focus-metavariable: $PARAM
+    - metavariable-regex:
+        metavariable: $VERB
+        regex: ^(get|post|put|patch|delete)$
+  pattern-sinks:
+  - patterns:
+    - pattern: os.system($SINK)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: os.popen($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: subprocess.getoutput($SINK)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: subprocess.getstatusoutput($SINK)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: subprocess.run($SINK, ..., shell=True, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: subprocess.call($SINK, ..., shell=True, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: subprocess.check_call($SINK, ..., shell=True, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: subprocess.check_output($SINK, ..., shell=True, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: subprocess.Popen($SINK, ..., shell=True, ...)
+    - focus-metavariable: $SINK
+  pattern-sanitizers:
+  - pattern: shlex.quote(...)
+- id: riskgraph.taint.python.path-traversal
+  mode: taint
+  languages:
+  - python
+  severity: ERROR
+  message: 'File path built from request data: data from an HTTP request reaches this call'
+  metadata:
+    cwe:
+    - 'CWE-22: Path traversal'
+    category: security
+    confidence: HIGH
+    likelihood: MEDIUM
+    impact: HIGH
+    source: riskgraph
+    license: Apache-2.0
+    analysis: intraprocedural
+    riskgraph_class: path-traversal
+  pattern-sources:
+  - pattern: flask.request.args
+  - pattern: flask.request.form
+  - pattern: flask.request.values
+  - pattern: flask.request.json
+  - pattern: flask.request.data
+  - pattern: flask.request.files
+  - pattern: flask.request.cookies
+  - pattern: flask.request.headers
+  - pattern: flask.request.get_json(...)
+  - pattern: request.GET
+  - pattern: request.POST
+  - pattern: request.body
+  - pattern: request.COOKIES
+  - pattern: request.headers
+  - patterns:
+    - pattern: "@$APP.$VERB(...)\ndef $HANDLER(..., $PARAM, ...):\n  ...\n"
+    - focus-metavariable: $PARAM
+    - metavariable-regex:
+        metavariable: $VERB
+        regex: ^(get|post|put|patch|delete)$
+  pattern-sinks:
+  - patterns:
+    - pattern: open($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: io.open($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: flask.send_file($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: os.remove($SINK)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: os.unlink($SINK)
+    - focus-metavariable: $SINK
+  pattern-sanitizers:
+  - pattern: os.path.basename(...)
+  - pattern: werkzeug.utils.secure_filename(...)
+- id: riskgraph.taint.python.unsafe-deserialization
+  mode: taint
+  languages:
+  - python
+  severity: ERROR
+  message: 'Untrusted request data deserialized: data from an HTTP request reaches this call'
+  metadata:
+    cwe:
+    - 'CWE-502: Deserialization of untrusted data'
+    category: security
+    confidence: HIGH
+    likelihood: MEDIUM
+    impact: HIGH
+    source: riskgraph
+    license: Apache-2.0
+    analysis: intraprocedural
+    riskgraph_class: unsafe-deserialization
+  pattern-sources:
+  - pattern: flask.request.args
+  - pattern: flask.request.form
+  - pattern: flask.request.values
+  - pattern: flask.request.json
+  - pattern: flask.request.data
+  - pattern: flask.request.files
+  - pattern: flask.request.cookies
+  - pattern: flask.request.headers
+  - pattern: flask.request.get_json(...)
+  - pattern: request.GET
+  - pattern: request.POST
+  - pattern: request.body
+  - pattern: request.COOKIES
+  - pattern: request.headers
+  - patterns:
+    - pattern: "@$APP.$VERB(...)\ndef $HANDLER(..., $PARAM, ...):\n  ...\n"
+    - focus-metavariable: $PARAM
+    - metavariable-regex:
+        metavariable: $VERB
+        regex: ^(get|post|put|patch|delete)$
+  pattern-sinks:
+  - patterns:
+    - pattern: pickle.loads($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: pickle.load($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: marshal.loads($SINK)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: yaml.load($SINK)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: yaml.load($SINK, Loader=yaml.Loader)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: yaml.load($SINK, Loader=yaml.UnsafeLoader)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: yaml.unsafe_load($SINK)
+    - focus-metavariable: $SINK
+- id: riskgraph.taint.python.server-side-request-forgery
+  mode: taint
+  languages:
+  - python
+  severity: ERROR
+  message: 'Outbound request to a URL taken from request data: data from an HTTP request reaches this
+    call'
+  metadata:
+    cwe:
+    - 'CWE-918: Server-side request forgery'
+    category: security
+    confidence: HIGH
+    likelihood: MEDIUM
+    impact: HIGH
+    source: riskgraph
+    license: Apache-2.0
+    analysis: intraprocedural
+    riskgraph_class: server-side-request-forgery
+  pattern-sources:
+  - pattern: flask.request.args
+  - pattern: flask.request.form
+  - pattern: flask.request.values
+  - pattern: flask.request.json
+  - pattern: flask.request.data
+  - pattern: flask.request.files
+  - pattern: flask.request.cookies
+  - pattern: flask.request.headers
+  - pattern: flask.request.get_json(...)
+  - pattern: request.GET
+  - pattern: request.POST
+  - pattern: request.body
+  - pattern: request.COOKIES
+  - pattern: request.headers
+  - patterns:
+    - pattern: "@$APP.$VERB(...)\ndef $HANDLER(..., $PARAM, ...):\n  ...\n"
+    - focus-metavariable: $PARAM
+    - metavariable-regex:
+        metavariable: $VERB
+        regex: ^(get|post|put|patch|delete)$
+  pattern-sinks:
+  - patterns:
+    - pattern: requests.get($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: requests.post($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: requests.put($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: requests.patch($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: requests.delete($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: requests.head($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: urllib.request.urlopen($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: httpx.get($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: httpx.post($SINK, ...)
+    - focus-metavariable: $SINK
+- id: riskgraph.taint.javascript.sql-injection
+  mode: taint
+  languages:
+  - javascript
+  - typescript
+  severity: ERROR
+  message: 'SQL query built from request data: data from an HTTP request reaches this call'
+  metadata:
+    cwe:
+    - 'CWE-89: SQL injection'
+    category: security
+    confidence: MEDIUM
+    likelihood: MEDIUM
+    impact: HIGH
+    source: riskgraph
+    license: Apache-2.0
+    analysis: intraprocedural
+    riskgraph_class: sql-injection
+  pattern-sources:
+  - pattern: req.query
+  - pattern: req.body
+  - pattern: req.params
+  - pattern: req.cookies
+  - pattern: req.headers
+  pattern-sinks:
+  - patterns:
+    - pattern: $DB.query($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: $DB.raw($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: $DB.execute($SINK, ...)
+    - focus-metavariable: $SINK
+  pattern-sanitizers:
+  - pattern: parseInt(...)
+  - pattern: Number(...)
+- id: riskgraph.taint.javascript.os-command-injection
+  mode: taint
+  languages:
+  - javascript
+  - typescript
+  severity: ERROR
+  message: 'Shell command built from request data: data from an HTTP request reaches this call'
+  metadata:
+    cwe:
+    - 'CWE-78: OS command injection'
+    category: security
+    confidence: HIGH
+    likelihood: MEDIUM
+    impact: HIGH
+    source: riskgraph
+    license: Apache-2.0
+    analysis: intraprocedural
+    riskgraph_class: os-command-injection
+  pattern-sources:
+  - pattern: req.query
+  - pattern: req.body
+  - pattern: req.params
+  - pattern: req.cookies
+  - pattern: req.headers
+  pattern-sinks:
+  - patterns:
+    - pattern: child_process.exec($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: child_process.execSync($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: require('child_process').exec($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: require('child_process').execSync($SINK, ...)
+    - focus-metavariable: $SINK
+- id: riskgraph.taint.javascript.path-traversal
+  mode: taint
+  languages:
+  - javascript
+  - typescript
+  severity: ERROR
+  message: 'File path built from request data: data from an HTTP request reaches this call'
+  metadata:
+    cwe:
+    - 'CWE-22: Path traversal'
+    category: security
+    confidence: HIGH
+    likelihood: MEDIUM
+    impact: HIGH
+    source: riskgraph
+    license: Apache-2.0
+    analysis: intraprocedural
+    riskgraph_class: path-traversal
+  pattern-sources:
+  - pattern: req.query
+  - pattern: req.body
+  - pattern: req.params
+  - pattern: req.cookies
+  - pattern: req.headers
+  pattern-sinks:
+  - patterns:
+    - pattern: fs.readFile($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: fs.readFileSync($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: fs.createReadStream($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: fs.writeFile($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: fs.writeFileSync($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: fs.unlink($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: $RES.sendFile($SINK, ...)
+    - focus-metavariable: $SINK
+  pattern-sanitizers:
+  - pattern: path.basename(...)
+- id: riskgraph.taint.javascript.unsafe-deserialization
+  mode: taint
+  languages:
+  - javascript
+  - typescript
+  severity: ERROR
+  message: 'Untrusted request data deserialized: data from an HTTP request reaches this call'
+  metadata:
+    cwe:
+    - 'CWE-502: Deserialization of untrusted data'
+    category: security
+    confidence: MEDIUM
+    likelihood: MEDIUM
+    impact: HIGH
+    source: riskgraph
+    license: Apache-2.0
+    analysis: intraprocedural
+    riskgraph_class: unsafe-deserialization
+  pattern-sources:
+  - pattern: req.query
+  - pattern: req.body
+  - pattern: req.params
+  - pattern: req.cookies
+  - pattern: req.headers
+  pattern-sinks:
+  - patterns:
+    - pattern: $SERIALIZER.unserialize($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: require('node-serialize').unserialize($SINK, ...)
+    - focus-metavariable: $SINK
+- id: riskgraph.taint.javascript.server-side-request-forgery
+  mode: taint
+  languages:
+  - javascript
+  - typescript
+  severity: ERROR
+  message: 'Outbound request to a URL taken from request data: data from an HTTP request reaches this
+    call'
+  metadata:
+    cwe:
+    - 'CWE-918: Server-side request forgery'
+    category: security
+    confidence: HIGH
+    likelihood: MEDIUM
+    impact: HIGH
+    source: riskgraph
+    license: Apache-2.0
+    analysis: intraprocedural
+    riskgraph_class: server-side-request-forgery
+  pattern-sources:
+  - pattern: req.query
+  - pattern: req.body
+  - pattern: req.params
+  - pattern: req.cookies
+  - pattern: req.headers
+  pattern-sinks:
+  - patterns:
+    - pattern: axios.get($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: axios.post($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: axios($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: fetch($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: http.get($SINK, ...)
+    - focus-metavariable: $SINK
+  - patterns:
+    - pattern: https.get($SINK, ...)
+    - focus-metavariable: $SINK
