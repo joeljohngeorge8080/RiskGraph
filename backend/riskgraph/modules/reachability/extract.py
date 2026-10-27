@@ -11,7 +11,8 @@ Output (JSON):
 
     {"version": 1, "files": {"app.py": {"lang": "python",
         "imports": [{"module": "yaml", "names": [], "level": 0}],
-        "entry": ["route decorator"]}},
+        "entry": ["route decorator"],
+        "http": {"routes": [...], "assigns": {...}, ...}}},   # routes.py, X5
      "package_json": {"web/package.json": {"main": "server.js", "bin": [...]}},
      "skipped": 3, "truncated": false}
 """
@@ -22,11 +23,16 @@ import json
 import os
 import re
 import sys
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-ANALYZER_VERSION = "ts-imports.3"
+from riskgraph.modules.reachability.routes import js_routes, python_routes
+from riskgraph.modules.reachability.syntax import dotted as _dotted
+from riskgraph.modules.reachability.syntax import string_value as _string_value
+from riskgraph.modules.reachability.syntax import text as _text
+from riskgraph.modules.reachability.syntax import walk as _walk
+
+ANALYZER_VERSION = "ts-imports.4"
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_SPANS_PER_NAME = 8  # a name defined in several classes keeps a few spans
 MAX_FILES = 50_000
@@ -82,32 +88,6 @@ def _parsers() -> dict[str, Any]:
     }
 
 
-def _walk(node: Any) -> Iterator[Any]:
-    """Pre-order traversal without recursion (hostile files can nest very deeply)."""
-    cursor = node.walk()
-    while True:
-        yield cursor.node
-        if cursor.goto_first_child():
-            continue
-        while not cursor.goto_next_sibling():
-            if not cursor.goto_parent():
-                return
-
-
-def _text(node: Any) -> str:
-    return bytes(node.text or b"").decode("utf-8", "replace")
-
-
-def _string_value(node: Any) -> str | None:
-    if node is None or node.type not in ("string", "template_string"):
-        return None
-    raw = _text(node)
-    if len(raw) >= 2 and raw[0] in "'\"`" and raw[-1] == raw[0]:
-        inner = raw[1:-1]
-        return None if "${" in inner else inner
-    return None
-
-
 def _python(tree: Any, rel: str) -> tuple[list[dict[str, Any]], list[str]]:
     imports: list[dict[str, Any]] = []
     entry: set[str] = set()
@@ -158,20 +138,6 @@ def _python(tree: Any, rel: str) -> tuple[list[dict[str, Any]], list[str]]:
 MAX_CALLS_PER_FUNCTION = 500
 MAX_FUNCTIONS_PER_FILE = 2_000
 MODULE = "<module>"  # the pseudo-function for code that runs when the module is imported
-
-
-def _dotted(node: Any) -> str | None:
-    """``a.b.c`` for an identifier chain; None for anything dynamic (subscripts, calls)."""
-    if node is None:
-        return None
-    if node.type == "identifier":
-        return _text(node)
-    if node.type == "attribute":
-        head = _dotted(node.child_by_field_name("object"))
-        attr = node.child_by_field_name("attribute")
-        if head and attr is not None and attr.type == "identifier":
-            return f"{head}.{_text(attr)}"
-    return None
 
 
 def _python_calls(tree: Any) -> dict[str, Any]:
@@ -382,6 +348,9 @@ def extract(src: Path) -> dict[str, Any]:
             }
             if lang == "python":
                 files[rel]["calls"] = _python_calls(tree)
+            http = python_routes(tree) if lang == "python" else js_routes(tree)
+            if http:
+                files[rel]["http"] = http
         if truncated:
             break
     return {
