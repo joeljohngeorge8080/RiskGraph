@@ -21,3 +21,5 @@
 | [0017](0017-evidence-and-assurance.md) | One evidence and assurance contract; no edge without evidence | accepted |
 | [0018](0018-runtime-and-image-intel.md) | Runtime and image intelligence: EOL from a stored feed, image scans behind an allow-list | accepted |
 | [0019](0019-graph-from-compose-and-kubernetes.md) | A graph from Compose and Kubernetes when the manifest declares no services | accepted (owner review pending) |
+| [0020](0020-assurance-aware-paths-and-credential-links.md) | Assurance-aware path search, missing evidence, and manifest credential links | accepted |
+| [0021](0021-tier1-taint-catalogue.md) | Tier-1 taint rules from one RiskGraph catalogue; the taint evidence contract | accepted (off by default until F-2-1) |

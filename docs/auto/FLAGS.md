@@ -45,3 +45,20 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   - Recommendation: (a) for now. It gives the same paths without inventing a target; (c) is closer to the real risk but is X5/X6-sized work.
 - Resume: (a) close the flag. (b) Add the node and the edges in `_derive`, the sink impact in `tables.py` (an ADR note), and tests. (c) Plan it as its own phase item.
 - Answer:
+
+### F-2-1: Turn the tier-1 taint rules on by default?
+- Status: OPEN
+- Phase / step: X4 part 1, step 7 (wiring)
+- Blocked: tier 1 in the default scan profile, as plan §3.A puts it.
+- Why it needs the owner: it contradicts the plan for now. The generated rules were only checked for structure here; the real Semgrep is not available in the cloud runs. If Semgrep refuses one rule, the whole Semgrep run fails, and every scan loses all its SAST findings. Checking needs the owner's machine (L-4), and the scanner image must carry the rules file.
+- Done meanwhile: everything is built and tested: catalogue, generator, the committed rules, the parser and evidence contract, correlation, and the suite with its scorer. The adapter adds the rules only when `RISKGRAPH_SEMGREP_TAINT_RULES_PATH` is set; it is unset by default, so a default scan is unchanged.
+- Question: once L-4 shows that Semgrep 1.182 accepts `taint_rules.yaml` and gives sensible numbers on the suite, should tier 1 be on by default? Options:
+  - (a) Yes: copy the rules into the Semgrep scanner image and set the default path.
+  - (b) Opt-in per deployment (keep the setting unset by default).
+  - Recommendation: (a) after L-4 passes, which is what the plan intends.
+- Resume:
+  1. Add `COPY backend/riskgraph/modules/scanners/semgrep/taint_rules.yaml /opt/scanners/riskgraph-taint/taint_rules.yaml` to `scanners/semgrep/Dockerfile`, and the same path to `infrastructure/scripts/install-scanners.sh` for host tools.
+  2. Set `semgrep_taint_rules_path: Path | None = Path("/opt/scanners/riskgraph-taint/taint_rules.yaml")` in `shared/config.py`, plus `RISKGRAPH_SEMGREP_TAINT_RULES_PATH` in `docker/backend.Dockerfile`.
+  3. Update `test_the_rules_are_a_second_config_only_when_configured`.
+  4. Re-run the X0 evaluation: the recorded Semgrep fixtures have no tier-1 hits, so no change is expected.
+- Answer:
