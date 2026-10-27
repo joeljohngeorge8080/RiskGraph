@@ -18,6 +18,7 @@ from riskgraph.modules.evidence import Assurance
 from riskgraph.modules.normalization import merge
 from riskgraph.modules.normalization.families import taint_family
 from riskgraph.modules.normalization.fingerprint import stable_hash
+from riskgraph.modules.normalization.merge import SINK_SPAN_LINES
 from riskgraph.modules.scanners.semgrep import SemgrepScanner, parser, taint
 from riskgraph.modules.scans.finding_evidence import finding_evidence
 from riskgraph.shared.config import Settings
@@ -247,27 +248,72 @@ def test_generic_merge_keys_do_not_change() -> None:
     }
 
 
-def test_joining_scales_with_many_sast_findings() -> None:
-    import time
+TAINT_SQL = "riskgraph.taint.python.sql-injection"
 
+
+def _hit(rule: str, line: int, cwe: str, end: int | None = None, file: str = "big.py") -> Any:
     from riskgraph.modules.normalization import Location, RawFinding
     from riskgraph.shared.vocabulary import ScannerName, Severity, SourceType
 
-    def hit(rule: str, line: int, cwe: str) -> RawFinding:
-        return RawFinding(
-            scanner=ScannerName.SEMGREP,
-            source_type=SourceType.SAST,
-            rule_id=rule,
-            title="t",
-            severity=Severity.MEDIUM,
-            location=Location("big.py", line, line),
-            category="injection",
-            cwe_ids=(cwe,),
-        )
+    return RawFinding(
+        scanner=ScannerName.SEMGREP,
+        source_type=SourceType.SAST,
+        rule_id=rule,
+        title="t",
+        severity=Severity.MEDIUM,
+        location=Location(file, line, end or line),
+        category="injection",
+        cwe_ids=(cwe,),
+    )
 
-    many = [hit("generic.rule", i, "CWE-943") for i in range(1, 4001)]
-    many += [hit("riskgraph.taint.python.sql-injection", i, "CWE-89") for i in range(1, 4001, 2)]
+
+def test_a_tier1_hit_inside_a_multiline_call_joins_the_generic_finding() -> None:
+    # cursor.execute(          <- line 10, the generic rule matches the whole call
+    #     "SELECT " + name     <- line 11, the tier-1 rule focuses on the argument
+    # )                        <- line 12
+    generic = _hit("generic.sqli", 10, "CWE-943", end=12)
+    [joined] = merge([generic, _hit(TAINT_SQL, 11, "CWE-89", end=11)])
+    assert len(joined.members) == 2
+    assert joined.merge_key == stable_hash("sast", "big.py", 10, "CWE-943")
+
+
+def test_a_tier1_hit_below_the_span_or_of_another_family_stays_apart() -> None:
+    generic = _hit("generic.sqli", 10, "CWE-943", end=12)
+    assert len(merge([generic, _hit(TAINT_SQL, 13, "CWE-89")])) == 2
+    other = _hit("generic.cmd", 10, "CWE-78", end=12)
+    assert len(merge([other, _hit(TAINT_SQL, 11, "CWE-89")])) == 2
+    # a generic finding starting more than SINK_SPAN_LINES above is not this sink
+    far = _hit("generic.sqli", 10, "CWE-943", end=100)
+    assert len(merge([far, _hit(TAINT_SQL, 10 + SINK_SPAN_LINES + 1, "CWE-89")])) == 2
+
+
+def test_the_exact_line_wins_over_a_covering_span_and_the_nearest_start_wins() -> None:
+    outer = _hit("generic.outer", 10, "CWE-943", end=20)
+    inner = _hit("generic.inner", 14, "CWE-89", end=16)
+    exact = _hit("generic.exact", 15, "CWE-89", end=15)
+    merged = merge([outer, inner, exact, _hit(TAINT_SQL, 15, "CWE-89")])
+    by_rule = {m.members[0].rule_id: m for m in merged}
+    assert len(by_rule["generic.exact"].members) == 2
+    merged = merge([outer, inner, _hit(TAINT_SQL, 15, "CWE-89")])
+    by_rule = {m.members[0].rule_id: m for m in merged}
+    assert len(by_rule["generic.inner"].members) == 2
+    assert len(by_rule["generic.outer"].members) == 1
+
+
+def test_two_taint_hits_never_join_each_other() -> None:
+    a = _hit(TAINT_SQL, 10, "CWE-89", end=12)
+    b = _hit("riskgraph.taint.python.sql-injection-2", 11, "CWE-89")
+    assert len(merge([a, b])) == 2
+
+
+def test_joining_scales_with_many_sast_findings() -> None:
+    import time
+
+    many = [_hit("generic.rule", i, "CWE-943") for i in range(1, 4001)]
+    many += [_hit(TAINT_SQL, i, "CWE-89") for i in range(1, 4001, 2)]
+    # taint hits with no generic finding on their line take the look-back path
+    many += [_hit(TAINT_SQL, i, "CWE-89", file="other.py") for i in range(1, 4001, 2)]
     start = time.perf_counter()
     merged = merge(many)
     assert time.perf_counter() - start < 2.0
-    assert len(merged) == 4000  # every taint hit joined its generic finding
+    assert len(merged) == 4000 + 2000  # every taint hit in big.py joined its generic finding

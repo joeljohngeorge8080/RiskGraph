@@ -4,8 +4,9 @@ Merge keys:
 - sca:    vulnerability id + package + manifest file (+ the image, for image packages)
 - sast:   file + line + primary CWE (several rules flagging the same line for the same
           weakness are one problem). A hit of RiskGraph's tier-1 taint rules joins a
-          generic finding at the same line whose primary CWE is in its family (CWE-943 is
-          a CWE-89); the generic finding keeps its key, so its identity is unchanged
+          generic finding at the same line, or one whose multi-line span covers it, whose
+          primary CWE is in its family (CWE-943 is a CWE-89); the generic finding keeps
+          its key, so its identity is unchanged
 - secret: file + credential family + overlapping line range (Gitleaks and Trivy report
           the same key with slightly different ranges)
 - iac:    file + curated topic + resource; unmapped checks keep a scanner-specific key
@@ -35,6 +36,7 @@ _PREFERENCE: dict[SourceType, tuple[ScannerName, ...]] = {
     SourceType.AUTHZ: (),
 }
 _CONFIDENCE_RANK = {"LOW": 1, "MEDIUM": 2, "HIGH": 3}
+SINK_SPAN_LINES = 30  # a generic hit starting further above a taint hit is not its sink
 
 
 @dataclass(slots=True)
@@ -103,27 +105,59 @@ def _is_taint(f: RawFinding) -> bool:
 
 
 def _join_taint_hits(groups: dict[tuple[object, ...], list[RawFinding]]) -> None:
-    """Move a tier-1 taint group into a generic group at the same file and line whose
-    primary CWE is in the same family (X4, ADR-0021). Groups are visited in key order."""
+    """Move a tier-1 taint group into a generic group in the same file whose primary CWE is
+    in the same family (X4, ADR-0021). Groups are visited in key order.
+
+    The tier-1 rules point at the tainted argument, a generic rule usually at the whole
+    call, so for a call written over several lines the two start on different lines. The
+    exact line is tried first, then a generic group that starts at most ``SINK_SPAN_LINES``
+    above the taint hit and whose span still covers it (the nearest start wins)."""
     at: dict[tuple[object, ...], list[tuple[object, ...]]] = defaultdict(list)
     for key in sorted((k for k in groups if k[0] == "sast"), key=repr):
         at[key[1:3]].append(key)  # one index by (file, line): no pairwise scan
+
+    def taint_only(key: tuple[object, ...]) -> str | None:
+        members = groups.get(key)
+        if not members or not all(_is_taint(m) for m in members):
+            return None
+        return taint_family(str(key[3]))
+
+    def join(key: tuple[object, ...], family: str, candidates: list[tuple[object, ...]]) -> bool:
+        for other in candidates:
+            if other == key or other not in groups:
+                continue
+            if taint_family(str(other[3])) == family and not all(
+                _is_taint(m) for m in groups[other]
+            ):
+                groups[other].extend(groups.pop(key))
+                return True
+        return False
+
     for keys in at.values():
         if len(keys) < 2:
             continue
         for key in keys:
-            members = groups.get(key)
-            family = taint_family(str(key[3]))
-            if not members or family is None or not all(_is_taint(m) for m in members):
-                continue
-            for other in keys:
-                if other == key or other not in groups:
-                    continue
-                if taint_family(str(other[3])) == family and not all(
-                    _is_taint(m) for m in groups[other]
-                ):
-                    groups[other].extend(groups.pop(key))
-                    break
+            family = taint_only(key)
+            if family is not None:
+                join(key, family, keys)
+
+    for key in sorted((k for k in groups if k[0] == "sast"), key=repr):
+        family = taint_only(key)
+        line = key[2]
+        if family is None or not isinstance(line, int):
+            continue
+        for start in range(line - 1, max(line - SINK_SPAN_LINES, 0) - 1, -1):
+            covering = [
+                k
+                for k in at.get((key[1], start), [])
+                if k in groups and _span_end(groups[k]) >= line
+            ]
+            if covering and join(key, family, covering):
+                break
+
+
+def _span_end(members: list[RawFinding]) -> int:
+    return max(m.location.line_end or m.location.line_start or 0 for m in members)
 
 
 def _overlap_clusters(members: list[RawFinding]) -> list[list[RawFinding]]:
