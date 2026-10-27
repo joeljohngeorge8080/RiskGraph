@@ -62,3 +62,16 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   3. Update `test_the_rules_are_a_second_config_only_when_configured`.
   4. Re-run the X0 evaluation: the recorded Semgrep fixtures have no tier-1 hits, so no change is expected.
 - Answer:
+
+### F-3-1: Joern spike not run, so no Joern adapter
+- Status: OPEN
+- Phase / step: X4 part 2 (all of it: adapter, parser, `deep` profile, tier-1 + tier-2 correlation, ADR with the spike numbers)
+- Blocked: the Joern adapter. SCHEDULE day 3 makes it conditional on `docs/auto/spikes/joern/RESULT.md` saying `GO`, with recorded Joern output under `backend/tests/fixtures/joern/` (L-2).
+- Why it needs the owner: at the start of the day-3 run (2026-10-28, 05:00 IST) `RESULT.md` still said "Not run yet" and `backend/tests/fixtures/joern/` did not exist. The spike needs Docker and a JVM container, which the cloud runs do not have. Building a parser without recorded output would mean inventing Joern's output format.
+- Done meanwhile: nothing of the adapter. Day 3 did the fallback SCHEDULE names: tier-1 hardening (multi-line sinks now join their generic finding) and X5 part 1 early (extractor `ts-imports.4`, `modules/authz` route inventory and guards, `GET /scans/{id}/routes`).
+- Question: will you run the spike (L-2)? Options:
+  - (a) Run L-2, write `RESULT.md` with `GO` or `NO-GO` and the numbers (recall, precision, peak RAM, time), and commit the fixtures. A later run builds the adapter (or, on `NO-GO`, records the fallback ADR the plan asks for).
+  - (b) Skip Joern for this six-day block: the remaining days keep the schedule's order (X5, X6), and X4 part 2 goes back to the plan's queue.
+  - Recommendation: (a) when you have the machine time, because X4's gate in the plan needs measured numbers; until then (b) costs nothing, since X5 and X6 do not depend on tier 2 (X6's taint factor table reads `analysis`, which tier 1 already sets).
+- Resume: once `RESULT.md` says `GO` and the fixtures exist, do SCHEDULE day 3 as written (adapter in `modules/scanners/joern/`, parser golden tests on the fixtures, `deep` opt-in with one slot, correlation through `merge._join_taint_hits`, ADR with the spike numbers), before that day's own work. On `NO-GO`: an ADR recording the fallback (custom Python summaries, plan §3.A) and no adapter.
+- Answer:
