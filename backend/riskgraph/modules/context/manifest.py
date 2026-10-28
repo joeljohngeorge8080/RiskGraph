@@ -15,6 +15,7 @@ object graph (billion laughs).
 from __future__ import annotations
 
 import posixpath
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Protocol
@@ -31,6 +32,9 @@ MAX_DEPTH = 8  # the v1 schema needs 4 levels
 MAX_WARNINGS = 20
 MAX_WARNING_CHARS = 200
 _NAME = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+_GUARD = r"^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$"  # a decorator, dependency or middleware
+_ROUTE_SEGMENT = re.compile(r"^(\*|\*\*|[A-Za-z0-9._~:<>{}@!$&'()+,;=-]+)$")
+HTTP_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"})
 
 Exposure = Literal["internet", "internal", "isolated"]
 Auth = Literal["none", "required"]
@@ -119,12 +123,98 @@ class DataStoreDecl(_Strict):
     sensitivity: Sensitivity | None = None
 
 
+class AuthzRule(_Strict):
+    """A route policy (X5, ADR-0023): routes under ``path`` need a guard. ``path`` matches
+    a route's full path segment by segment; ``*`` is one segment, ``**`` any number.
+    ``require`` is ``authenticated`` (any guard found) or the guard names one of which
+    must be found. ``methods`` empty means every method."""
+
+    path: str = Field(min_length=1, max_length=300)
+    methods: tuple[str, ...] = Field(default=(), max_length=len(HTTP_METHODS))
+    require: Literal["authenticated"] | tuple[str, ...]
+
+    @field_validator("path")
+    @classmethod
+    def _route_pattern(cls, value: str) -> str:
+        if value == "/":
+            return value
+        parts = value.split("/")
+        if parts[0] != "" or not all(_ROUTE_SEGMENT.match(p) for p in parts[1:] if p):
+            raise ValueError("path must start with / and use plain segments, * or **")
+        return "/" + "/".join(p for p in parts[1:] if p)
+
+    @field_validator("methods")
+    @classmethod
+    def _known_methods(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        upper = tuple(dict.fromkeys(m.upper() for m in value))
+        unknown = sorted(set(upper) - HTTP_METHODS)
+        if unknown:
+            raise ValueError(f"unknown HTTP method {unknown[0]!r}")
+        return upper
+
+    @field_validator("require")
+    @classmethod
+    def _guard_names(cls, value: object) -> object:
+        if isinstance(value, tuple):
+            if not value or len(value) > 20:
+                raise ValueError("require lists 1 to 20 guard names")
+            bad = [v for v in value if not re.match(_GUARD, v) or len(v) > 200]
+            if bad:
+                raise ValueError(f"require: {bad[0]!r} is not a guard name")
+        return value
+
+    def matches(self, full_path: str | None, methods: tuple[str, ...]) -> bool:
+        if full_path is None:
+            return False
+        if self.methods and not set(self.methods) & set(methods):
+            return False
+        return _segments_match(self.path.strip("/").split("/"), full_path.strip("/").split("/"))
+
+
+def _segments_match(pattern: list[str], path: list[str]) -> bool:
+    """Iterative glob over segments: ``*`` one, ``**`` zero or more."""
+    pattern = [p for p in pattern if p]
+    path = [p for p in path if p]
+    i = j = 0
+    star_i, star_j = -1, 0
+    while j < len(path):
+        if i < len(pattern) and pattern[i] == "**":
+            star_i, star_j = i, j
+            i += 1
+        elif i < len(pattern) and pattern[i] in ("*", path[j]):
+            i += 1
+            j += 1
+        elif star_i >= 0:
+            star_j += 1
+            i, j = star_i + 1, star_j
+        else:
+            return False
+    return all(p == "**" for p in pattern[i:])
+
+
+class AuthzDecl(_Strict):
+    """Additive and optional (X5, ADR-0023). ``guards`` are this repository's own guard
+    names, counted like catalogued ones; ``rules`` are route policies."""
+
+    guards: tuple[str, ...] = Field(default=(), max_length=50)
+    rules: tuple[AuthzRule, ...] = Field(default=(), max_length=MAX_ITEMS)
+
+    @field_validator("guards")
+    @classmethod
+    def _guard_names(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        bad = [v for v in value if not re.match(_GUARD, v) or len(v) > 200]
+        if bad:
+            raise ValueError(f"guards: {bad[0]!r} is not a guard name")
+        return value
+
+
 class Manifest(_Strict):
     version: Literal[1]
     services: tuple[ServiceDecl, ...] = Field(default=(), max_length=MAX_ITEMS)
     identities: tuple[IdentityDecl, ...] = Field(default=(), max_length=MAX_ITEMS)
     data_stores: tuple[DataStoreDecl, ...] = Field(default=(), max_length=MAX_ITEMS)
     criticality: dict[str, Criticality] = Field(default_factory=dict, max_length=MAX_ITEMS)
+    authz: AuthzDecl | None = None
 
     @model_validator(mode="after")
     def _names_resolve(self) -> Manifest:

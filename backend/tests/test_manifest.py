@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 
 import pytest
-from riskgraph.modules.context import load_manifest, parse_manifest
+from riskgraph.modules.context import AuthzRule, load_manifest, parse_manifest
 from riskgraph.modules.context.manifest import MAX_MANIFEST_BYTES, normalize_service_path
 from riskgraph.modules.scans.workspace import ScanWorkspace
 
@@ -63,6 +63,20 @@ def test_valid_manifest_parses_and_normalizes_paths() -> None:
         ("version: 1\nservices:\n  - name: api\n    path: ../etc\n", "inside"),
         ("version: 1\nservices:\n  - name: api\n    path: /etc\n", "relative"),
         ("version: 1\nservices:\n  - name: '../x'\n", "name"),
+        # authz (X5, ADR-0023)
+        ("version: 1\nauthz:\n  rules:\n    - path: admin\n      require: authenticated\n", "/"),
+        ("version: 1\nauthz:\n  rules:\n    - path: /a b\n      require: authenticated\n", "/"),
+        ("version: 1\nauthz:\n  rules:\n    - path: /a\n      require: admin\n", "require"),
+        ("version: 1\nauthz:\n  rules:\n    - path: /a\n      require: []\n", "1 to 20"),
+        ("version: 1\nauthz:\n  rules:\n    - path: /a\n      require: ['x;y']\n", "guard"),
+        (
+            "version: 1\nauthz:\n  rules:\n    - path: /a\n      methods: [FETCH]\n"
+            "      require: authenticated\n",
+            "FETCH",
+        ),
+        ("version: 1\nauthz:\n  rules:\n    - path: /a\n", "require"),
+        ("version: 1\nauthz:\n  guards: ['rm -rf']\n", "guard name"),
+        ("version: 1\nauthz:\n  roles: [admin]\n", "roles"),
     ],
 )
 def test_strict_validation_rejects_with_a_reason(text: str, needle: str) -> None:
@@ -149,3 +163,63 @@ def test_symlink_out_of_the_checkout_is_ignored(tmp_path: Path) -> None:
     outside.write_text(VALID)
     os.symlink(outside, ws.src / "riskgraph.yaml")
     assert load_manifest(ws).status == "absent"
+
+
+AUTHZ = """
+version: 1
+authz:
+  guards: [team_member_required, auth.verify]
+  rules:
+    - path: /admin/**
+      require: [require_admin, admin_required]
+    - path: /api/*/orders
+      methods: [post, DELETE]
+      require: authenticated
+"""
+
+
+def test_the_authz_section_is_optional_and_strict() -> None:
+    assert parse_manifest(VALID).manifest.authz is None  # type: ignore[union-attr]
+    r = parse_manifest(AUTHZ)
+    assert r.status == "valid", r.warnings
+    authz = r.manifest.authz  # type: ignore[union-attr]
+    assert authz is not None and authz.guards == ("team_member_required", "auth.verify")
+    admin, orders = authz.rules
+    assert admin.require == ("require_admin", "admin_required") and admin.methods == ()
+    assert orders.require == "authenticated" and orders.methods == ("POST", "DELETE")
+
+
+@pytest.mark.parametrize(
+    ("pattern", "path", "expected"),
+    [
+        ("/admin/**", "/admin", True),
+        ("/admin/**", "/admin/users/:id", True),
+        ("/admin/**", "/administer", False),
+        ("/api/*/orders", "/api/v1/orders", True),
+        ("/api/*/orders", "/api/orders", False),
+        ("/api/*/orders", "/api/v1/x/orders", False),
+        ("/**/delete", "/a/b/delete", True),
+        ("/**/delete", "/delete", True),
+        ("/**", "/", True),
+        ("/", "/", True),
+        ("/", "/x", False),
+        ("/users/{id}", "/users/{id}", True),
+        ("/a/**/b/**/c", "/a/x/b/y/z/c", True),
+        ("/a/**/b/**/c", "/a/x/c", False),
+    ],
+)
+def test_authz_paths_match_segment_by_segment(pattern: str, path: str, expected: bool) -> None:
+    rule = AuthzRule(path=pattern, require="authenticated")
+    assert rule.matches(path, ("GET",)) is expected
+
+
+def test_authz_rules_filter_methods_and_skip_unknown_paths() -> None:
+    rule = AuthzRule(path="/x", methods=("delete",), require=("a",))
+    assert rule.matches("/x", ("DELETE",)) and not rule.matches("/x", ("GET",))
+    assert not rule.matches(None, ("DELETE",))
+
+
+def test_a_hostile_authz_pattern_matches_in_linear_time() -> None:
+    rule = AuthzRule(path="/" + "/".join(["**", "a"] * 40), require="authenticated")
+    assert rule.matches("/" + "/".join(["a"] * 40), ("GET",))
+    assert not rule.matches("/" + "/".join(["b"] * 300), ("GET",))
