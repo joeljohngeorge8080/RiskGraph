@@ -1,0 +1,95 @@
+# RiskGraph guard catalogue (expansion plan §3.B, ADR-0022).
+# Written for RiskGraph from the documented APIs of each library; Apache-2.0, like the rest
+# of the repository. Extend by adding entries; a manifest extension (`authz.guards:`) is
+# planned for X5 part 2.
+#
+# frameworks: how a receiver is recognised. A name in `app`/`router` is the callee of the
+#   call that creates it (`app = Flask(__name__)`, `const r = express.Router()`); `imports`
+#   are the module names that make a file belong to the framework.
+# guards: library guards only. A route with one of them is "guarded", which is still only
+#   `inferred`: a catalogued name says nothing about how the guard is configured. A name
+#   without a dot matches the last part of a dotted name (`login_required` matches
+#   `auth.login_required`); with `module`, the name must be bound from that module in the
+#   same file (Express only, where the names are short and generic).
+# fastapi_schemes: FastAPI security classes. A dependency on an instance of one of them, or
+#   on a function that (transitively) depends on one, is a guard.
+# custom_hints: words that make an uncatalogued decorator, dependency, middleware or hook
+#   look like authentication. Such a route is "custom" (a possible guard, named in the
+#   inventory), never "none_found". Matched against the words of a name (`isLoggedIn` is
+#   is/logged/in) by prefix; a two-word hint must match two consecutive words.
+version: 1
+
+frameworks:
+  flask:
+    language: python
+    app: [Flask]
+    router: [Blueprint]
+    imports: [flask]
+  fastapi:
+    language: python
+    app: [FastAPI]
+    router: [APIRouter]
+    imports: [fastapi]
+  express:
+    language: js
+    app: [express]
+    router: [express.Router, Router]
+    imports: [express]
+
+guards:
+  flask:
+    - name: login_required        # Flask-Login; also Flask-HTTPAuth's auth.login_required
+    - name: fresh_login_required  # Flask-Login
+    - name: jwt_required          # Flask-JWT-Extended
+    - name: fresh_jwt_required    # Flask-JWT-Extended (before 4.0)
+    - name: auth_required         # Flask-Security
+    - name: http_auth_required    # Flask-Security
+    - name: auth_token_required   # Flask-Security
+    - name: roles_required        # Flask-Security, Flask-User
+    - name: roles_accepted        # Flask-Security, Flask-User
+    - name: permissions_required  # Flask-Security
+    - name: permissions_accepted  # Flask-Security
+  fastapi: []                     # FastAPI guards are dependencies; see fastapi_schemes
+  express:
+    - name: passport.authenticate
+    - name: ensureLoggedIn
+      module: connect-ensure-login
+    - name: requiresAuth
+      module: express-openid-connect
+    - name: expressjwt
+      module: express-jwt
+    - name: jwt
+      module: express-jwt
+    - name: auth
+      module: express-oauth2-jwt-bearer
+    - name: basicAuth
+      module: express-basic-auth
+
+fastapi_schemes:
+  - OAuth2PasswordBearer
+  - OAuth2AuthorizationCodeBearer
+  - OAuth2
+  - HTTPBearer
+  - HTTPBasic
+  - HTTPDigest
+  - APIKeyHeader
+  - APIKeyQuery
+  - APIKeyCookie
+  - OpenIdConnect
+
+custom_hints:
+  - auth
+  - login
+  - logged
+  - signin
+  - jwt
+  - token
+  - permission
+  - role
+  - admin
+  - guard
+  - protect
+  - acl
+  - verify
+  - require          # require_admin, requireLogin, team_member_required
+  - current user

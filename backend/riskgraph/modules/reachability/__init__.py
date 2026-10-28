@@ -1,6 +1,11 @@
 """Reachability: is the vulnerable code imported and reachable (blueprint §11.3, ADR-0012)."""
 
 from riskgraph.modules.reachability.extract import ANALYZER_VERSION
+from riskgraph.modules.reachability.graph import (
+    python_module_index,
+    resolve_js_module,
+    resolve_python_name,
+)
 from riskgraph.modules.reachability.models import ReachabilityResult
 from riskgraph.modules.reachability.service import (
     ReachabilityRun,
@@ -19,5 +24,8 @@ __all__ = [
     "Verdict",
     "clear",
     "persist_verdict",
+    "python_module_index",
+    "resolve_js_module",
+    "resolve_python_name",
     "run_extractor",
 ]

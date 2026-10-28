@@ -151,7 +151,7 @@ def python_routes(tree: Any) -> dict[str, Any]:
     mounts: list[dict[str, Any]] = []
     hooks: list[dict[str, Any]] = []
     depends: dict[str, list[dict[str, str]]] = {}
-    decorated: dict[str, list[str]] = {}  # function -> its decorators, for add_url_rule
+    decorated: dict[str, list[str]] = {}  # function -> its decorators, for add_*_rule
     url_rules: list[dict[str, Any]] = []
 
     for node in walk(tree.root_node):
@@ -202,12 +202,18 @@ def python_routes(tree: Any) -> dict[str, Any]:
                         "line": node.start_point[0] + 1,
                     }
                 )
-            elif verb == "add_url_rule" and positional:
-                view = keywords.get("view_func") or (positional[2] if len(positional) > 2 else None)
+            elif (
+                verb in ("add_url_rule", "add_api_route")
+                and positional
+                and len(url_rules) < MAX_ROUTES_PER_FILE
+            ):
+                # Flask: (rule, endpoint, view_func); FastAPI: (path, endpoint)
+                at, kw = (2, "view_func") if verb == "add_url_rule" else (1, "endpoint")
+                view = keywords.get(kw) or (positional[at] if len(positional) > at else None)
                 url_rules.append(
                     {
                         "receiver": _name(receiver),
-                        "verb": "add_url_rule",
+                        "verb": verb,
                         "methods": _strings(keywords.get("methods")) or ["GET"],
                         "path": _path(positional[0]),
                         "handler": _name(dotted(view)),
@@ -219,8 +225,9 @@ def python_routes(tree: Any) -> dict[str, Any]:
                 )
         if len(routes) >= MAX_ROUTES_PER_FILE:
             break
-    for rule in url_rules:  # the view function's own decorators run for the route
+    for rule in url_rules:  # the view function's own decorators and dependencies apply
         rule["decorators"] = decorated.get(rule["handler"] or "", [])
+        rule["dependencies"] = depends.get(rule["handler"] or "", [])
         if len(routes) < MAX_ROUTES_PER_FILE:
             routes.append(rule)
     return _non_empty(

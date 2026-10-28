@@ -123,6 +123,37 @@ def _resolve_js(file: str, spec: str, files: set[str]) -> tuple[list[str], str |
     return [], name
 
 
+def python_module_index(files: set[str]) -> dict[str, str]:
+    """Dotted module name -> repository file, for every import root."""
+    return _python_module_index(files)
+
+
+def resolve_python_name(
+    file: str, module: str, name: str | None, level: int, index: dict[str, str]
+) -> tuple[str | None, str | None]:
+    """What ``from <module> import <name>`` (or ``import <module>``) in ``file`` binds:
+    (the module file ``module.name``, None) when ``name`` is itself a module, else (the
+    file of ``module``, ``name``). (None, None) when it is not a repository file."""
+    base = module
+    if level:
+        own = next((m for m, f in index.items() if f == file), None)
+        parts = own.split(".") if own else []
+        package = parts if file.endswith("__init__.py") else parts[:-1]
+        package = package[: max(0, len(package) - (level - 1))]
+        base = ".".join([*package, *([module] if module else [])])
+    if name and (f"{base}.{name}" if base else name) in index:
+        return index[f"{base}.{name}" if base else name], None
+    if base in index:
+        return index[base], name
+    return None, None
+
+
+def resolve_js_module(file: str, spec: str, files: set[str]) -> str | None:
+    """The repository file a relative ``require``/``import`` in ``file`` refers to."""
+    hits, _ = _resolve_js(file, spec, files)
+    return hits[0] if hits else None
+
+
 def build(extracted: dict[str, Any], manifest_entrypoints: list[str] | None = None) -> ModuleGraph:
     files = {k: v for k, v in (extracted.get("files") or {}).items() if isinstance(v, dict)}
     graph = ModuleGraph(files=files)
