@@ -9,7 +9,10 @@ imports) and every place a guard can come from:
 - FastAPI: ``Depends``/``Security`` in the handler, in the route's ``dependencies=``, on the
   router, on ``include_router`` and on the app, resolved transitively by name;
 - Express: route middleware, then ``use()`` middleware registered earlier on the same
-  receiver, then the middleware of every mount up to the app.
+  receiver, then the middleware of every mount up to the app. A route registered on a
+  parameter of an exported function (``module.exports = (app, db) => {…}``) is bound to the
+  receiver the caller passes in that position (``routes(app, db)``); the caller's ``use()``
+  calls before that call count (ts-imports.5).
 
 A guard from the catalogue makes a route ``guarded``; an uncatalogued name that looks like
 authentication makes it ``custom``. ``none_found`` is said only when the framework is known
@@ -83,6 +86,9 @@ class _Mount:
     guards: list[Guard]
     file: str
     line: int
+    # where the parent's earlier use() calls are counted up to: the mount itself, or the
+    # call that passed the parent into this module
+    order: tuple[str, int] | None = None
 
 
 @dataclass
@@ -94,12 +100,17 @@ class _Inventory:
     # use() calls with middleware, per receiver (at most 500 per file, the extractor's cap)
     uses: dict[Key, list[dict[str, Any]]] = field(default_factory=lambda: defaultdict(list))
     by_file: dict[str, list[Key]] = field(default_factory=lambda: defaultdict(list))
+    # JS file -> the call sites in other files that call it: (caller file, call)
+    calls_to: dict[str, list[tuple[str, dict[str, Any]]]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
     app_hooks: list[Guard] = field(default_factory=list)
     router_hooks: dict[Key, list[Guard]] = field(default_factory=lambda: defaultdict(list))
     index: dict[str, str] = field(default_factory=dict)
     modules: dict[str, str] = field(default_factory=dict)  # file -> dotted module
     names: set[str] = field(default_factory=set)
     _py_cache: dict[tuple[str, str], Key | None] = field(default_factory=dict)
+    _bound_cache: dict[Key, tuple[Key, str, int, int] | None] = field(default_factory=dict)
 
     def http(self, file: str) -> dict[str, Any]:
         info = self.files.get(file) or {}
@@ -142,6 +153,7 @@ def route_inventory(extracted: dict[str, Any], catalogue: Catalogue | None = Non
     inv.index = python_module_index({f for f in files if f.endswith(".py")})
     inv.modules = module_of_file(inv.index)
     _collect_receivers(inv)
+    _collect_calls(inv)
     _collect_mounts(inv)
     detected = _detected_frameworks(inv)
     routes: list[Route] = []
@@ -284,6 +296,9 @@ def _collect_mounts(inv: _Inventory) -> None:
                 continue
             receiver = str(use.get("receiver"))
             parent = _resolve_js(inv, file, {"name": receiver}) or (file, receiver)
+            bound = _bound(inv, file, receiver) if parent not in inv.receivers else None
+            if bound is not None:
+                parent = bound[0]
             line = int(use.get("line") or 0)
             middleware: list[dict[str, Any]] = []
             children: list[Key] = []
@@ -302,9 +317,77 @@ def _collect_mounts(inv: _Inventory) -> None:
             for child in children:
                 inv.mounts[child].append(
                     _Mount(
-                        parent, use.get("prefix"), _js_guards(middleware, file, line), file, line
+                        parent,
+                        use.get("prefix"),
+                        _js_guards(middleware, file, line),
+                        file,
+                        line,
+                        (bound[1], bound[2]) if bound is not None else None,
                     )
                 )
+
+
+def _collect_calls(inv: _Inventory) -> None:
+    """``routes(app, db)`` and ``require("./routes")(app)``: which file each call reaches."""
+    for file in sorted(inv.files):
+        if _lang(inv, file) != "js":
+            continue
+        bindings = inv.http(file).get("bindings") or {}
+        for call in inv.http(file).get("calls") or []:
+            if not isinstance(call, dict) or not isinstance(call.get("args"), list):
+                continue
+            spec = call.get("module") or bindings.get(call.get("callee"))
+            if not isinstance(spec, str) or not spec.startswith("."):
+                continue
+            target = resolve_js_module(file, spec, inv.names)
+            if target is not None and target != file:
+                inv.calls_to[target].append((file, call))
+
+
+def _bound(inv: _Inventory, file: str, receiver: str) -> tuple[Key, str, int, int] | None:
+    """The receiver a caller passes into the exported function whose parameter ``receiver``
+    is, the call's file and line, and how many call sites pass one. The first call site
+    (by file and line) is used."""
+    if (file, receiver) not in inv._bound_cache:
+        inv._bound_cache[(file, receiver)] = _bind(inv, file, receiver)
+    return inv._bound_cache[(file, receiver)]
+
+
+def _bind(inv: _Inventory, file: str, receiver: str) -> tuple[Key, str, int, int] | None:
+    if not receiver or "." in receiver:
+        return None
+    http = inv.http(file)
+    params = http.get("params") or {}
+    position = None
+    for name in http.get("exports") or []:
+        names = params.get(name) if isinstance(params, dict) else None
+        if isinstance(names, list) and receiver in names:
+            position = names.index(receiver)
+            break
+    if position is None:
+        return None
+    found: list[tuple[Key, str, int]] = []
+    for caller, call in sorted(inv.calls_to.get(file, []), key=lambda c: (c[0], c[1]["line"])):
+        args = call["args"]
+        arg = args[position] if position < len(args) else None
+        if not isinstance(arg, str):
+            continue
+        key = _resolve_js(inv, caller, {"name": arg}) or (caller, arg)
+        if key in inv.receivers:
+            found.append((key, caller, int(call.get("line") or 0)))
+    if not found:
+        return None
+    key, caller, line = found[0]
+    return key, caller, line, len(found)
+
+
+def _earlier(use: dict[str, Any], at: tuple[str, int], call: tuple[str, int] | None) -> bool:
+    """A ``use()`` runs before a registration at ``at`` when it comes earlier in the same
+    file, or, for a receiver passed into this module, earlier than the passing ``call``."""
+    here = (use["file"], use["line"])
+    return (here[0] == at[0] and here[1] < at[1]) or (
+        call is not None and here[0] == call[0] and here[1] < call[1]
+    )
 
 
 def _js_guards(
@@ -348,6 +431,14 @@ def _route(inv: _Inventory, file: str, raw: dict[str, Any], detected: dict[str, 
     lang = _lang(inv, file)
     receiver_name = str(raw.get("receiver") or "")
     key = _resolve(inv, file, receiver_name) or (file, receiver_name)
+    notes: list[str] = []
+    order: tuple[str, int] | None = None  # the call that passed the receiver in, if any
+    if key not in inv.receivers and lang == "js" and (bound := _bound(inv, file, receiver_name)):
+        key, caller, call_line, sites = bound
+        order = (caller, call_line)
+        notes.append(f"{receiver_name} is the app passed in at {caller}:{call_line}")
+        if sites > 1:
+            notes.append(f"{sites} call sites pass a receiver; the first is used")
     receiver = inv.receivers.get(key)
     framework, basis = (receiver.framework, "constructor") if receiver else (None, "unknown")
     if framework is None and (fw := _by_import(inv, file)):
@@ -356,7 +447,6 @@ def _route(inv: _Inventory, file: str, raw: dict[str, Any], detected: dict[str, 
         framework, basis = next(iter(detected[lang])), "repository"
     line = int(raw.get("line") or 0)
     path = raw.get("path") if isinstance(raw.get("path"), str) else None
-    notes: list[str] = []
     guards: list[Guard] = []
 
     # mount chain, innermost first: each level adds its mount's prefix, its own prefix
@@ -387,7 +477,7 @@ def _route(inv: _Inventory, file: str, raw: dict[str, Any], detected: dict[str, 
         guards += mount.guards
         below = _join(*_flat(levels), path)  # the route's path as the parent sees it
         for use in inv.uses.get(mount.parent, []):
-            earlier = use["file"] == mount.file and use["line"] < mount.line
+            earlier = _earlier(use, (mount.file, mount.line), mount.order)
             if earlier and _under(below, use["prefix"]):
                 guards += _js_guards(use["middleware"], use["file"], use["line"], "app")
         if mount.parent in seen:
@@ -402,7 +492,7 @@ def _route(inv: _Inventory, file: str, raw: dict[str, Any], detected: dict[str, 
     if lang == "python":
         guards += _python_guards(inv, file, raw, line, key, framework, notes)
     else:
-        guards += _express_guards(inv, file, raw, line, key, path, notes)
+        guards += _express_guards(inv, file, raw, line, key, path, notes, order)
 
     classified = [_classify(inv, framework, g) for g in guards]
     status = _status(inv, framework, classified, mounted or framework == "flask")
@@ -469,6 +559,7 @@ def _express_guards(
     key: Key,
     path: str | None,
     notes: list[str],
+    order: tuple[str, int] | None,
 ) -> list[Guard]:
     guards: list[Guard] = []
     for name in raw.get("middleware") or []:
@@ -477,10 +568,10 @@ def _express_guards(
         elif isinstance(name, str) and not name.startswith("require:"):
             guards.append(Guard(name, "middleware", False, file, line))
     for use in inv.uses.get(key, []):
-        if use["file"] != file or use["line"] >= line:
-            continue  # only earlier use() on the same receiver in the same file runs first
+        if not _earlier(use, (file, line), order):
+            continue  # only earlier use() on the same receiver runs first
         if _under(path, use["prefix"]):
-            guards += _js_guards(use["middleware"], file, use["line"], "router")
+            guards += _js_guards(use["middleware"], use["file"], use["line"], "router")
             if _inline(use["middleware"]):
                 notes.append("inline middleware registered before the route is not classified")
     return guards
