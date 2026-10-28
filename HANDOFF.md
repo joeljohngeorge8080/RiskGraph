@@ -1,4 +1,21 @@
-# HANDOFF: resume here (updated 2026-10-27, auto session day 2: X3 part 2 and X4 part 1 done; next X4 part 2 (Joern, gated by the owner's spike L-2), see docs/auto/SCHEDULE.md)
+# HANDOFF: resume here (updated 2026-10-28, auto session day 3: X4 part 2 gated by the Joern spike (F-3-1); tier-1 hardening and X5 part 1 done; next X5 part 2, see docs/auto/SCHEDULE.md)
+
+## Auto session day 3 (2026-10-28, cloud, branch `extended_phase_auto`)
+- **Verdict COMPLETE.** Report: `docs/auto/DAY_3_REPORT.md`; plan: `DAY_3_PLAN.md`.
+- **X4 part 2 not built:** the Joern spike (L-2) had not run, so there were no `RESULT.md` and no fixtures. Flag **F-3-1** (OPEN) has the resume steps for `GO` and `NO-GO`.
+- **Tier-1 hardening** (`PHASE_X4.md` part 2): a taint hit now joins the generic finding whose multi-line call covers its line (bounded look-back, still linear).
+- **X5 part 1, a day early** (`PHASE_X5.md`, ADR-0022, no migration):
+  - extractor `ts-imports.4` records routes and every guard source for Flask, FastAPI and Express;
+  - new `modules/authz`: a strict `guards.yaml` catalogue and a route inventory that resolves mounts across files;
+  - status per route: guarded, custom, none_found, unresolved or unknown_framework. A catalogued guard is inferred, never verified;
+  - routes stored as `route`/`auth_guard` evidence; `GET /scans/{id}/routes`; `summary.routes`;
+  - labelled suite recall 30/31 = 0.968, every status as labelled;
+  - OWASP NodeGoat (`c5cb68a`): all 20 routes found.
+- Verified: lint/types clean; 528 unit; 80 db, 2 skipped; perf 4 passed; migration round trip and `alembic check` clean; the X0 re-run differs from `BASELINE.md` only by the differences recorded on day 1 (the pooled table is identical).
+- **For the owner:**
+  - F-3-1 (Joern spike), plus the open F-1-1, F-1-2, F-2-1 in `docs/auto/FLAGS.md`;
+  - no new local tasks; L-7 now also covers `/scans/{id}/routes`.
+
 
 ## Auto session day 2 (2026-10-27, cloud, branch `extended_phase_auto`)
 - **Verdict COMPLETE.** Report: `docs/auto/DAY_2_REPORT.md`; plan: `DAY_2_PLAN.md`.
