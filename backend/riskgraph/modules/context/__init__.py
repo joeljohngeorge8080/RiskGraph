@@ -11,6 +11,8 @@ from riskgraph.modules.context.environment import ContextResolver, FindingContex
 from riskgraph.modules.context.iac import IacAsset, IacResult, KubeContext, kubernetes_context
 from riskgraph.modules.context.iac import extract as extract_iac
 from riskgraph.modules.context.manifest import (
+    AuthzDecl,
+    AuthzRule,
     Manifest,
     ManifestResult,
     load_manifest,
@@ -26,6 +28,8 @@ from riskgraph.modules.context.service import (
 )
 
 __all__ = [
+    "AuthzDecl",
+    "AuthzRule",
     "ContextResolver",
     "CvssSubscores",
     "FindingContext",

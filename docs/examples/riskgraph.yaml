@@ -30,3 +30,11 @@ data_stores:
     sensitivity: credentials
 criticality:
   api: high                   # low | medium | high
+authz:                        # optional (X5, ADR-0023)
+  guards: [team_member_required]   # this repository's own guards, counted like catalogued ones
+  rules:                      # routes under path need a guard; * = one segment, ** = any
+    - path: /admin/**
+      require: [require_admin]     # one of these guards, or: authenticated (any guard)
+    - path: /api/**
+      methods: [POST, PUT, PATCH, DELETE]   # empty = every method
+      require: authenticated
