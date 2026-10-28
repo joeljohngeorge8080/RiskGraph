@@ -33,6 +33,8 @@ class ReachabilityRun:
     classifier: TierClassifier | None = None
     detail: str | None = None
     stats: dict[str, Any] = field(default_factory=dict)
+    # the extractor's JSON, for consumers of its other sections (authz reads ``http``)
+    extracted: dict[str, Any] = field(default_factory=dict)
 
     def classify(
         self,
@@ -105,7 +107,9 @@ def run_extractor(
         "skipped_files": int(extracted.get("skipped") or 0),
         "truncated": bool(extracted.get("truncated")),
     }
-    return ReachabilityRun("ok", graph, TierClassifier(graph, deps), stats=stats)
+    return ReachabilityRun(
+        "ok", graph, TierClassifier(graph, deps), stats=stats, extracted=extracted
+    )
 
 
 def clear(session: Session, scan_id: uuid.UUID) -> None:

@@ -25,6 +25,8 @@ import redis
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
+from riskgraph.modules.authz import Route, route_evidence, route_inventory
+from riskgraph.modules.authz import summary as routes_summary
 from riskgraph.modules.context import (
     ContextResolver,
     FindingContext,
@@ -781,6 +783,19 @@ def _reachability(
     return run
 
 
+def _routes(scan_id: uuid.UUID, reach: ReachabilityRun) -> tuple[list[Route], dict[str, Any]]:
+    """The route inventory from the extractor's output (X5, ADR-0022). Pure and capped; a
+    failure here is logged and reported in the summary, and the scan goes on without it."""
+    if reach.status != "ok":
+        return [], {"status": "unavailable", "routes": 0}
+    try:
+        routes = route_inventory(reach.extracted)
+    except Exception:
+        log.exception("route_inventory_crashed", scan_id=str(scan_id))
+        return [], {"status": "failed", "routes": 0}
+    return routes, {"status": "ok", **routes_summary(routes)}
+
+
 def _image_of(m: MergedFinding) -> str | None:
     image = (m.representative.package or {}).get("image")
     return str(image) if image and m.source_type is SourceType.SCA else None
@@ -1008,6 +1023,8 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
 
         # Each finding's own evidence (ADR-0017): edges built from a finding rest on it.
         now = _now()
+        routes, routes_info = _routes(scan_id, reach)
+        routes_ev = route_evidence(routes, now)
         evidence: list[list[Evidence]] = [
             finding_evidence(x.merged, x.verdict, run_ids, versions, now, {"trivy": trivy_db})
             for x in scored
@@ -1056,6 +1073,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
             clear_graph(s, scan_id)
             clear_evidence(s, scan_id)
             clear_reachability(s, scan_id)
+            persist_evidence(s, scan_id, routes_ev)
             finding_ids: dict[int, uuid.UUID] = {}
             for i, x in enumerate(scored):
                 m, result = x.merged, x.result
@@ -1110,6 +1128,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                 },
                 "context": resolver.summary(),
                 "reachability": reach.summary(tiers),
+                "routes": routes_info,
                 "graph": analysis.summary(),
                 "sbom": sbom_summary,
                 "iac": {

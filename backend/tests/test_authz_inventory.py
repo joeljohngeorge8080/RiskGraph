@@ -430,3 +430,26 @@ def test_a_repository_inferred_framework_gives_inferred_route_evidence(tmp_path:
     assert route.assurance is Assurance.INFERRED and route.confidence == "medium"
     assert route.facts["custom_guards"] == ("admin_required",)
     assert guard.confidence == "low" and guard.facts["catalogued"] is False
+
+
+def test_the_pipeline_step_reports_instead_of_failing_the_scan(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import uuid
+
+    from riskgraph.modules.reachability import ReachabilityRun
+    from riskgraph.modules.scans import pipeline
+
+    sid = uuid.uuid4()
+    assert pipeline._routes(sid, ReachabilityRun("failed")) == (
+        [],
+        {"status": "unavailable", "routes": 0},
+    )
+    ok = ReachabilityRun("ok", extracted={"files": {}})
+    assert pipeline._routes(sid, ok) == ([], {"status": "ok", **summary([])})
+
+    def boom(_: object) -> list[Route]:
+        raise RuntimeError("bug")
+
+    monkeypatch.setattr(pipeline, "route_inventory", boom)
+    assert pipeline._routes(sid, ok) == ([], {"status": "failed", "routes": 0})
