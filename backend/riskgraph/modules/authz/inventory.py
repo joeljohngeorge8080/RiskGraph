@@ -1,6 +1,6 @@
 """Route inventory and guards from the extractor's ``http`` sections (X5, ADR-0022).
 
-Pure: input is the extractor's JSON (``ts-imports.4``), output a sorted list of ``Route``.
+Pure: input is the extractor's JSON (``ts-imports.4`` or later), output a sorted list of ``Route``.
 For every route it resolves where it is mounted (prefixes, cross-file through relative
 imports) and every place a guard can come from:
 
