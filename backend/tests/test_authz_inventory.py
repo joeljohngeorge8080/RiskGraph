@@ -344,6 +344,102 @@ def test_express_order_prefixes_and_mounts(tmp_path: Path) -> None:
     assert _at(routes, "/passed-guarded").status == "custom"
 
 
+NODEGOAT_SHAPED = {
+    # OWASP NodeGoat's layout: server.js builds the app, adds middleware, then hands the app
+    # to a routes module that registers every route on its parameter
+    "server.js": """
+        const express = require("express");
+        const session = require("express-session");
+        const passport = require("passport");
+        const routes = require("./app/routes");
+        const app = express();
+        app.use(session({ secret: s }));
+        app.get("/before", h);
+        routes(app, db);
+        app.use(passport.authenticate("session"));
+        """,
+    "app/routes/index.js": """
+        const tutorial = require("./tutorial");
+        const index = (app, db) => {
+          app.get("/login", login);
+          app.get("/dashboard", isLoggedIn, dash);
+          app.use("/tutorial", tutorial);
+          app.use(requireAdmin);
+          app.get("/admin", admin);
+        };
+        module.exports = index;
+        """,
+    "app/routes/tutorial.js": """
+        const express = require("express");
+        const router = express.Router();
+        router.get("/", page);
+        module.exports = router;
+        """,
+    "app/routes/unused.js": """
+        module.exports = function (app) { app.get("/never", h); };
+        """,
+}
+
+
+def test_an_express_app_passed_into_a_routes_module_is_bound_to_the_caller(
+    tmp_path: Path,
+) -> None:
+    routes = _inventory(tmp_path, NODEGOAT_SHAPED)
+    login = _at(routes, "/login")
+    assert login.status == "none_found" and login.mounted and login.basis == "constructor"
+    assert "app is the app passed in at server.js:9" in login.notes
+    # the caller's use() before the call counts; the one after it does not
+    assert [g.name for g in login.guards] == ["session"]
+    assert _at(routes, "/dashboard").status == "custom"
+    # a router mounted on the passed-in app reaches the real app
+    tutorial = _at(routes, "/tutorial")
+    assert tutorial.status == "none_found" and tutorial.mounted
+    # use() inside the module, before the route, applies too
+    assert _at(routes, "/admin").status == "custom"
+    # an export nobody calls stays unresolved
+    assert _at(routes, "/never").status == "unresolved"
+
+
+def test_several_call_sites_use_the_first_and_say_so(tmp_path: Path) -> None:
+    routes = _inventory(
+        tmp_path,
+        {
+            "a.js": """
+                const express = require("express");
+                const app = express();
+                app.use(requireLogin);
+                require("./routes")(app);
+                """,
+            "b.js": """
+                const express = require("express");
+                const app = express();
+                require("./routes")(app);
+                """,
+            "routes.js": "module.exports = (app) => { app.get('/x', h); };",
+        },
+    )
+    x = _at(routes, "/x")
+    assert x.status == "custom"  # a.js comes first
+    assert "2 call sites pass a receiver; the first is used" in x.notes
+
+
+def test_a_call_that_passes_no_receiver_binds_nothing(tmp_path: Path) -> None:
+    routes = _inventory(
+        tmp_path,
+        {
+            "server.js": """
+                const express = require("express");
+                const routes = require("./routes");
+                const app = express();
+                routes(config, app);
+                routes(undefinedThing);
+                """,
+            "routes.js": "module.exports = (app) => { app.get('/x', h); };",
+        },
+    )
+    assert _at(routes, "/x").status == "unresolved"
+
+
 def test_express_inline_middleware_is_noted_not_guessed(tmp_path: Path) -> None:
     routes = _inventory(
         tmp_path,
