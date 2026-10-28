@@ -23,3 +23,4 @@
 | [0019](0019-graph-from-compose-and-kubernetes.md) | A graph from Compose and Kubernetes when the manifest declares no services | accepted (owner review pending) |
 | [0020](0020-assurance-aware-paths-and-credential-links.md) | Assurance-aware path search, missing evidence, and manifest credential links | accepted |
 | [0021](0021-tier1-taint-catalogue.md) | Tier-1 taint rules from one RiskGraph catalogue; the taint evidence contract | accepted (off by default until F-2-1) |
+| [0022](0022-route-inventory-and-guards.md) | Route inventory and guard detection, stored as evidence, with an honest guard status | accepted |

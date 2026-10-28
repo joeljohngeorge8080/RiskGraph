@@ -1,6 +1,6 @@
 # PHASE X4: deep code analysis (expansion plan)
 
-**Status:** part 1 (tier-1 taint catalogue, generated Semgrep rules, the taint evidence contract, correlation, the 40-case suite) done on 2026-10-27. **Tier 1 is off by default** until the owner runs it against the real Semgrep (F-2-1, L-4). Part 2 (the Joern adapter) is day 3; it is gated by the owner's spike (L-2). Decision: ADR-0021. No migration. Plan: `docs/proposals/EXPANSION_A-D.md` §3.A, §4 (X4), §6.
+**Status:** part 1 (tier-1 taint catalogue, generated Semgrep rules, the taint evidence contract, correlation, the 40-case suite) done on 2026-10-27. **Tier 1 is off by default** until the owner runs it against the real Semgrep (F-2-1, L-4). Part 2 (the Joern adapter) is **gated**: the owner's spike (L-2) had not run by day 3, so nothing of it is built (F-3-1). Day 3 hardened tier 1 instead (multi-line sinks, below). Decision: ADR-0021. No migration. Plan: `docs/proposals/EXPANSION_A-D.md` §3.A, §4 (X4), §6.
 
 ## A. Objective
 X4 row of the plan: interprocedural taint with evidence. Tier 1 comes from Semgrep CE with RiskGraph's own rules; tier 2 from Joern, if its spike passes. Part 1 is tier 1 and the contract both tiers share.
@@ -58,7 +58,7 @@ No new fields. A tier-1 finding's `evidence[]` (finding detail) shows a `taint_f
 - set to the rules file: tier 1 on. For the subprocess runner, that is `backend/riskgraph/modules/scanners/semgrep/taint_rules.yaml`. For the docker runner, the scanner image must contain the file (L-4).
 
 ## M. Testing
-- `test_taint_tier1.py` (27, unit):
+- `test_taint_tier1.py` (27 on day 2, 31 after day 3; unit):
   - catalogue coverage;
   - a broken catalogue is refused (7 cases);
   - rule shape, and every catalogue entry reaches a rule;
@@ -87,3 +87,14 @@ See `docs/auto/DAY_2_REPORT.md`.
 - Sources are matched by name (`request`, `req`).
 - JS SQL sinks match any `$DB.query`, so their confidence is `medium`.
 - Tier 1 cannot see across functions or files; that is tier 2's job.
+
+## Part 2 (2026-10-28): gated, and tier-1 hardening instead
+- **Joern adapter: not built.** At the start of day 3, `docs/auto/spikes/joern/RESULT.md` said "Not run yet", and there were no fixtures under `backend/tests/fixtures/joern/` (F-3-1). Building a parser without recorded output would mean inventing Joern's format. The resume steps are in F-3-1.
+- **Multi-line sinks** (`merge.py::_join_taint_hits`, `SINK_SPAN_LINES = 30`).
+  - The tier-1 rules focus on `$SINK`, so a hit starts at the tainted argument. A generic rule that matches the whole call starts at the call.
+  - For a call written over several lines, the two hits used to stay two findings.
+  - Now, after the exact-line join, a taint-only group joins a generic group of the same family in the same file. That group must start at most 30 lines above the hit and still cover its line; the nearest start wins, and the exact line wins over a covering span.
+  - The look-back is bounded, so merging stays linear.
+  - Tests (4 new): the multi-line join; a hit below the span, of another family, or too far below; exact line and nearest start win; two taint hits never join each other. The scaling test now also covers the look-back path.
+  - A mutation check (look-back switched off) fails 2 of them.
+  - That Semgrep reports the argument's line for a focused sink: BELIEVE, from the documented `focus-metavariable` semantics. It is checked with L-4.
