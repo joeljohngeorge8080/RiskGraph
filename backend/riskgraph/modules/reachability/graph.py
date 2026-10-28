@@ -128,15 +128,32 @@ def python_module_index(files: set[str]) -> dict[str, str]:
     return _python_module_index(files)
 
 
+def module_of_file(index: dict[str, str]) -> dict[str, str]:
+    """Repository file -> its dotted module name (the first one, as the index has it)."""
+    out: dict[str, str] = {}
+    for module, file in index.items():
+        out.setdefault(file, module)
+    return out
+
+
 def resolve_python_name(
-    file: str, module: str, name: str | None, level: int, index: dict[str, str]
+    file: str,
+    module: str,
+    name: str | None,
+    level: int,
+    index: dict[str, str],
+    modules: dict[str, str] | None = None,
 ) -> tuple[str | None, str | None]:
     """What ``from <module> import <name>`` (or ``import <module>``) in ``file`` binds:
     (the module file ``module.name``, None) when ``name`` is itself a module, else (the
-    file of ``module``, ``name``). (None, None) when it is not a repository file."""
+    file of ``module``, ``name``). (None, None) when it is not a repository file.
+    ``modules`` is ``module_of_file(index)``; pass it when resolving many names."""
     base = module
     if level:
-        own = next((m for m, f in index.items() if f == file), None)
+        if modules is not None:
+            own = modules.get(file)
+        else:
+            own = next((m for m, f in index.items() if f == file), None)
         parts = own.split(".") if own else []
         package = parts if file.endswith("__init__.py") else parts[:-1]
         package = package[: max(0, len(package) - (level - 1))]

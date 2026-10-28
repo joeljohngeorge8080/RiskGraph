@@ -453,3 +453,67 @@ def test_the_pipeline_step_reports_instead_of_failing_the_scan(
 
     monkeypatch.setattr(pipeline, "route_inventory", boom)
     assert pipeline._routes(sid, ok) == ([], {"status": "failed", "routes": 0})
+
+
+# --- scale (self-attack, day 3): both cases were quadratic before the fix ---------------
+def _route_doc(receiver: str, deps: list[dict[str, str]] | None = None) -> dict[str, Any]:
+    return {
+        "receiver": receiver,
+        "verb": "get",
+        "methods": ["GET"],
+        "path": "/x",
+        "handler": "h",
+        "line": 3,
+        "decorators": [],
+        "outer": [],
+        "middleware": [],
+        "dependencies": deps or [],
+        "handler_params": [],
+    }
+
+
+def test_relative_bindings_in_a_large_python_repository_stay_linear() -> None:
+    import time
+
+    files: dict[str, Any] = {f"pkg/f{i}.py": {"lang": "python"} for i in range(40_000)}
+    files["pkg/__init__.py"] = {"lang": "python"}
+    files["pkg/deps.py"] = {"lang": "python", "http": {"assigns": {"s": {"call": "HTTPBearer"}}}}
+    for i in range(5_000):
+        files[f"pkg/r{i}.py"] = {
+            "lang": "python",
+            "http": {
+                "assigns": {"app": {"call": "FastAPI"}},
+                "bindings": {"s": {"module": "deps", "name": "s", "level": 1}},
+                "routes": [_route_doc("app", [{"name": "s", "kind": "Depends"}])],
+            },
+        }
+    start = time.perf_counter()
+    routes = route_inventory({"files": files})
+    assert time.perf_counter() - start < 2.0  # 5.2 s before module_of_file
+    assert len(routes) == 5_000 and {r.status for r in routes} == {"guarded"}
+
+
+def test_many_express_mounts_stay_linear() -> None:
+    import time
+
+    files: dict[str, Any] = {}
+    uses, bindings = [], {}
+    for i in range(5_000):
+        files[f"routes/r{i}.js"] = {
+            "lang": "js",
+            "http": {
+                "assigns": {"router": {"call": "express.Router"}},
+                "exports": ["router"],
+                "routes": [_route_doc("router")],
+            },
+        }
+        bindings[f"r{i}"] = f"./routes/r{i}"
+        uses.append({"receiver": "app", "prefix": f"/r{i}", "args": [{"name": f"r{i}"}], "line": i})
+    files["server.js"] = {
+        "lang": "js",
+        "http": {"assigns": {"app": {"call": "express"}}, "bindings": bindings, "uses": uses},
+    }
+    start = time.perf_counter()
+    routes = route_inventory({"files": files})
+    assert time.perf_counter() - start < 2.0  # 3.6 s before the per-file receiver index
+    assert len(routes) == 5_000 and all(r.mounted for r in routes)

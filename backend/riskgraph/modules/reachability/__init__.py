@@ -2,6 +2,7 @@
 
 from riskgraph.modules.reachability.extract import ANALYZER_VERSION
 from riskgraph.modules.reachability.graph import (
+    module_of_file,
     python_module_index,
     resolve_js_module,
     resolve_python_name,
@@ -23,6 +24,7 @@ __all__ = [
     "ReachabilityRun",
     "Verdict",
     "clear",
+    "module_of_file",
     "persist_verdict",
     "python_module_index",
     "resolve_js_module",
