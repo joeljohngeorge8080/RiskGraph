@@ -27,6 +27,7 @@ from typing import Any
 
 from riskgraph.modules.authz.guards import Catalogue, load_catalogue
 from riskgraph.modules.reachability import (
+    module_of_file,
     python_module_index,
     resolve_js_module,
     resolve_python_name,
@@ -90,10 +91,13 @@ class _Inventory:
     catalogue: Catalogue
     receivers: dict[Key, _Receiver] = field(default_factory=dict)
     mounts: dict[Key, list[_Mount]] = field(default_factory=lambda: defaultdict(list))
+    # use() calls with middleware, per receiver (at most 500 per file, the extractor's cap)
     uses: dict[Key, list[dict[str, Any]]] = field(default_factory=lambda: defaultdict(list))
+    by_file: dict[str, list[Key]] = field(default_factory=lambda: defaultdict(list))
     app_hooks: list[Guard] = field(default_factory=list)
     router_hooks: dict[Key, list[Guard]] = field(default_factory=lambda: defaultdict(list))
     index: dict[str, str] = field(default_factory=dict)
+    modules: dict[str, str] = field(default_factory=dict)  # file -> dotted module
     names: set[str] = field(default_factory=set)
     _py_cache: dict[tuple[str, str], Key | None] = field(default_factory=dict)
 
@@ -136,6 +140,7 @@ def route_inventory(extracted: dict[str, Any], catalogue: Catalogue | None = Non
     inv = _Inventory(files=files, catalogue=catalogue or load_catalogue())
     inv.names = set(files)
     inv.index = python_module_index({f for f in files if f.endswith(".py")})
+    inv.modules = module_of_file(inv.index)
     _collect_receivers(inv)
     _collect_mounts(inv)
     detected = _detected_frameworks(inv)
@@ -167,6 +172,7 @@ def _collect_receivers(inv: _Inventory) -> None:
             if kind is None or inv.catalogue.frameworks[kind[0]].language != _lang(inv, file):
                 continue
             deps = assign.get("dependencies") or []
+            inv.by_file[file].append((file, name))
             inv.receivers[(file, name)] = _Receiver(
                 framework=kind[0],
                 role=kind[1],
@@ -201,6 +207,7 @@ def _resolve_python(inv: _Inventory, file: str, name: str) -> Key | None:
             binding.get("name") if isinstance(binding.get("name"), str) else None,
             int(binding.get("level") or 0),
             inv.index,
+            inv.modules,
         )
         if target is not None:
             if attr is None and rest and "." not in rest:
@@ -215,7 +222,7 @@ def _resolve_python(inv: _Inventory, file: str, name: str) -> Key | None:
 
 def _routers_in(inv: _Inventory, target: str) -> list[Key]:
     """The router a module exports: its exported routers, else its only router."""
-    local = [k for k in inv.receivers if k[0] == target and inv.receivers[k].role == "router"]
+    local = [k for k in inv.by_file.get(target, []) if inv.receivers[k].role == "router"]
     exported = set(inv.http(target).get("exports") or [])
     picked = [k for k in local if k[1] in exported]
     if picked:
@@ -289,8 +296,9 @@ def _collect_mounts(inv: _Inventory) -> None:
                     children.append(child)
                 else:
                     middleware.append(arg)
-            entry = {"prefix": use.get("prefix"), "middleware": middleware, "file": file}
-            inv.uses[parent].append({**entry, "line": line, "children": children})
+            if middleware:  # a use() that only mounts routers guards nothing by itself
+                entry = {"prefix": use.get("prefix"), "middleware": middleware, "file": file}
+                inv.uses[parent].append({**entry, "line": line})
             for child in children:
                 inv.mounts[child].append(
                     _Mount(
