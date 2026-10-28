@@ -7,7 +7,7 @@ extractor needs no catalogue and a catalogue change needs no re-extraction.
 
 Python (Flask, FastAPI) per file:
     routes:  [{receiver, verb, methods, path, handler, line, decorators, outer, dependencies,
-               handler_params}]
+               handler_params, body}]
              ``decorators`` are applied to the handler before the route registers it (below
              the route decorator); ``outer`` ones are above it and never run for the route.
     assigns: {name: {call, prefix, dependencies}}   module names bound to a call result
@@ -16,13 +16,21 @@ Python (Flask, FastAPI) per file:
     hooks:   [{receiver, kind, name, line}]         before_request and friends
     depends: {function: [{name, kind}]}             Depends/Security in a function's parameters
 JavaScript/TypeScript (Express) per file:
-    routes:  [{receiver, verb, methods, path, handler, middleware, line}]
+    routes:  [{receiver, verb, methods, path, handler, middleware, line, body}]
     uses:    [{receiver, prefix, args: [{name} | {module} | {inline}], line}]
     assigns: {name: {call}}, bindings: {name: module spec}, exports: [names]
+    calls:   [{callee | module, args: [name | None], line}]   f(app, db), require("./r")(app)
+    params:  {exported function: [parameter names]}          "<module>" for an anonymous one
+
+``body`` (ts-imports.5) describes the handler when its code is in the same file: its
+``span`` [first, last line], the route parameters it passes into a call (``loads``) and
+whether a comparison or keyword argument in it mentions an owner or the current user
+(``ownership``). Words, not semantics: X5's BOLA hypothesis reads it, nothing else.
 """
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from riskgraph.modules.reachability.syntax import dotted, string_value, text, walk
@@ -32,6 +40,49 @@ MAX_ENTRIES_PER_KIND = 500  # assigns, bindings, mounts, uses, hooks, depends
 MAX_NAMES = 20  # decorators, middleware, dependencies, params per route
 MAX_NAME = 200
 MAX_PATH = 300
+
+MAX_BODY_NODES = 20_000  # nodes of one handler body looked at for its facts
+# names that make a comparison an ownership check: owner_id, user_id, current_user, req.user
+OWNERSHIP = re.compile(
+    r"owner|user_?id|current_?user|request\.user|req\.user|req\.session|\bg\.user|"
+    r"author|created_?by|tenant|account_?id",
+    re.IGNORECASE,
+)
+# calls that format or answer, not load: an id passed to them is not a lookup
+NOT_LOADS = frozenset(
+    {
+        "int",
+        "str",
+        "float",
+        "bool",
+        "len",
+        "print",
+        "repr",
+        "format",
+        "abort",
+        "jsonify",
+        "render_template",
+        "redirect",
+        "url_for",
+        "parseInt",
+        "Number",
+        "String",
+        "send",
+        "json",
+        "render",
+        "status",
+        "log",
+        "info",
+        "debug",
+        "warn",
+        "error",
+    }
+)
+_JS_PARAM = re.compile(r":(\w+)")
+_PY_COMPARE = frozenset({"comparison_operator", "keyword_argument"})
+_JS_COMPARE = frozenset({"binary_expression", "pair"})
+_JS_FUNCTIONS = frozenset({"arrow_function", "function_expression", "function"})
+ANONYMOUS_EXPORT = "<module>"
 
 PY_VERBS = frozenset({"get", "post", "put", "delete", "patch", "head", "options"})
 PY_ROUTE = PY_VERBS | {"route", "api_route"}
@@ -144,6 +195,54 @@ def _route_decorator(dec: Any) -> dict[str, Any] | None:
     }
 
 
+def _body(fn: Any, ids: list[str], lang: str) -> dict[str, Any]:
+    """What a handler's code says about its ids: its span, the ids it passes into a call
+    (a lookup, unless the callee only formats), and whether a comparison or keyword
+    argument mentions an owner or the current user."""
+    wanted = set(ids)
+    loads: list[str] = []
+    ownership = False
+    compare = _PY_COMPARE if lang == "python" else _JS_COMPARE
+    call = "call" if lang == "python" else "call_expression"
+    for seen, node in enumerate(walk(fn)):
+        if seen >= MAX_BODY_NODES:
+            break
+        if node.type in compare and not ownership:
+            if node.type != "binary_expression" or any(
+                text(c) in ("==", "===", "!=", "!==") for c in node.children
+            ):
+                ownership = bool(OWNERSHIP.search(text(node)[:500]))
+        elif node.type == call and wanted - set(loads):
+            callee = text(node.child_by_field_name("function") or node).rsplit(".", 1)[-1]
+            args = node.child_by_field_name("arguments")
+            if args is None or callee in NOT_LOADS:
+                continue
+            for sub in walk(args):
+                name = _id_used(sub, lang)
+                if name in wanted and name not in loads:
+                    loads.append(name)
+    return {
+        "span": [fn.start_point[0] + 1, fn.end_point[0] + 1],
+        "loads": loads[:MAX_NAMES],
+        "ownership": ownership,
+    }
+
+
+def _id_used(node: Any, lang: str) -> str | None:
+    """A route parameter used here: a bare name, or ``req.params.id`` in JavaScript."""
+    if node.type == "identifier":
+        parent = node.parent
+        # `x.id` names the attribute, not a variable called id
+        attribute = parent is not None and parent.type in ("attribute", "member_expression")
+        return None if attribute and node != parent.named_children[0] else text(node)
+    if lang == "js" and node.type == "member_expression":
+        obj = node.child_by_field_name("object")
+        prop = node.child_by_field_name("property")
+        if obj is not None and prop is not None and text(obj).endswith(".params"):
+            return text(prop)
+    return None
+
+
 def python_routes(tree: Any) -> dict[str, Any]:
     routes: list[dict[str, Any]] = []
     assigns: dict[str, dict[str, Any]] = {}
@@ -152,6 +251,7 @@ def python_routes(tree: Any) -> dict[str, Any]:
     hooks: list[dict[str, Any]] = []
     depends: dict[str, list[dict[str, str]]] = {}
     decorated: dict[str, list[str]] = {}  # function -> its decorators, for add_*_rule
+    defined: dict[str, Any] = {}  # function -> its node, for add_*_rule
     url_rules: list[dict[str, Any]] = []
 
     for node in walk(tree.root_node):
@@ -173,6 +273,8 @@ def python_routes(tree: Any) -> dict[str, Any]:
                 }
         elif kind == "function_definition":
             _python_function(node, routes, hooks, depends, decorated)
+            if len(defined) < MAX_ENTRIES_PER_KIND:
+                defined.setdefault(text(node.child_by_field_name("name"))[:MAX_NAME], node)
         elif kind == "call":
             callee = _callee(node)
             verb = _last(callee)
@@ -228,6 +330,11 @@ def python_routes(tree: Any) -> dict[str, Any]:
     for rule in url_rules:  # the view function's own decorators and dependencies apply
         rule["decorators"] = decorated.get(rule["handler"] or "", [])
         rule["dependencies"] = depends.get(rule["handler"] or "", [])
+        fn = defined.get(rule["handler"] or "")
+        if fn is not None:
+            ids = _param_names(fn.child_by_field_name("parameters"))
+            rule["handler_params"] = ids
+            rule["body"] = _body(fn, ids, "python")
         if len(routes) < MAX_ROUTES_PER_FILE:
             routes.append(rule)
     return _non_empty(
@@ -318,6 +425,7 @@ def _python_function(
                 "outer": [n for j, n in names if j < i][:MAX_NAMES],
                 "dependencies": [*route["dependencies"], *deps][:MAX_NAMES],
                 "handler_params": _param_names(params),
+                "body": _body(node, _param_names(params), "python"),
             }
         )
 
@@ -378,11 +486,28 @@ def js_routes(tree: Any) -> dict[str, Any]:
     assigns: dict[str, dict[str, Any]] = {}
     bindings: dict[str, str] = {}
     exports: list[str] = []
+    calls: list[dict[str, Any]] = []
+    functions: dict[str, Any] = {}  # name -> function node: handlers and exported functions
+    handlers: list[tuple[dict[str, Any], Any]] = []  # route -> its handler argument node
 
     for node in walk(tree.root_node):
         kind = node.type
         if kind == "variable_declarator":
             _js_declarator(node, assigns, bindings)
+            value = node.child_by_field_name("value")
+            name = node.child_by_field_name("name")
+            if (
+                value is not None
+                and value.type in _JS_FUNCTIONS
+                and name is not None
+                and name.type == "identifier"
+                and len(functions) < MAX_ENTRIES_PER_KIND
+            ):
+                functions.setdefault(text(name)[:MAX_NAME], value)
+        elif kind == "function_declaration" and len(functions) < MAX_ENTRIES_PER_KIND:
+            name = node.child_by_field_name("name")
+            if name is not None:
+                functions.setdefault(text(name)[:MAX_NAME], node)
         elif kind == "import_statement" and len(bindings) < MAX_ENTRIES_PER_KIND:
             spec = string_value(node.child_by_field_name("source"))
             if spec is None:
@@ -405,17 +530,83 @@ def js_routes(tree: Any) -> dict[str, Any]:
             right = node.child_by_field_name("right")
             if left in ("module.exports", "exports.default") and right is not None:
                 exported = _js_dotted(right)
+                if right.type in _JS_FUNCTIONS:  # module.exports = function (app) {…}
+                    functions[ANONYMOUS_EXPORT] = right
+                    exported = ANONYMOUS_EXPORT
                 if exported and len(exports) < MAX_NAMES:
                     exports.append(exported[:MAX_NAME])
         elif kind == "export_statement":
             value = node.child_by_field_name("value")
+            decl = node.child_by_field_name("declaration")
             if value is not None and value.type == "identifier" and len(exports) < MAX_NAMES:
                 exports.append(text(value)[:MAX_NAME])
+            elif value is not None and value.type in _JS_FUNCTIONS:
+                functions[ANONYMOUS_EXPORT] = value  # export default (app) => {…}
+                exports.append(ANONYMOUS_EXPORT)
+            elif decl is not None and decl.type == "function_declaration":
+                name = decl.child_by_field_name("name")
+                if name is not None and len(exports) < MAX_NAMES:
+                    exports.append(text(name)[:MAX_NAME])
         elif kind == "call_expression":
-            _js_call(node, routes, uses)
+            _js_call(node, routes, uses, handlers)
+            _js_call_site(node, calls)
         if len(routes) >= MAX_ROUTES_PER_FILE:
             break
-    return _non_empty(routes=routes, uses=uses, assigns=assigns, bindings=bindings, exports=exports)
+    for route, handler in handlers:
+        fn = handler if handler.type in _JS_FUNCTIONS else functions.get(text(handler))
+        if fn is not None:
+            route["body"] = _body(fn, _JS_PARAM.findall(route["path"] or ""), "js")
+    params = {name: _js_params(functions[name]) for name in exports if name in functions}
+    return _non_empty(
+        routes=routes,
+        uses=uses,
+        assigns=assigns,
+        bindings=bindings,
+        exports=exports,
+        calls=calls,
+        params=params,
+    )
+
+
+def _js_params(fn: Any) -> list[str]:
+    params = fn.child_by_field_name("parameters") or fn.child_by_field_name("parameter")
+    if params is None:
+        return []
+    if params.type == "identifier":  # app => {…}
+        return [text(params)[:MAX_NAME]]
+    names: list[str] = []
+    for p in params.named_children[:MAX_NAMES]:
+        node = p.child_by_field_name("pattern") if p.type != "identifier" else p
+        names.append(
+            text(node)[:MAX_NAME] if node is not None and node.type == "identifier" else ""
+        )
+    return names
+
+
+def _js_call_site(node: Any, calls: list[dict[str, Any]]) -> None:
+    """``routes(app, db)`` or ``require("./routes")(app, db)``: a plain function (not a
+    method) called with at least one plain name, so a module that registers its routes on
+    a passed-in app can be bound to the caller's app."""
+    if len(calls) >= MAX_ENTRIES_PER_KIND:
+        return
+    fn = node.child_by_field_name("function")
+    args_node = node.child_by_field_name("arguments")
+    if fn is None or args_node is None:
+        return
+    site: dict[str, Any]
+    if fn.type == "identifier" and text(fn) != "require":
+        site = {"callee": text(fn)[:MAX_NAME]}
+    elif (spec := _require_spec(fn)) is not None:
+        site = {"module": spec[:MAX_PATH]}
+    else:
+        return
+    args = [
+        text(a)[:MAX_NAME] if a.type == "identifier" else None
+        for a in args_node.named_children[:MAX_NAMES]
+        if a.type != "comment"
+    ]
+    if any(args):
+        calls.append({**site, "args": args, "line": node.start_point[0] + 1})
 
 
 def _js_declarator(node: Any, assigns: dict[str, dict[str, Any]], bindings: dict[str, str]) -> None:
@@ -441,7 +632,12 @@ def _js_declarator(node: Any, assigns: dict[str, dict[str, Any]], bindings: dict
         assigns[text(name)[:MAX_NAME]] = {"call": callee[:MAX_NAME]}
 
 
-def _js_call(node: Any, routes: list[dict[str, Any]], uses: list[dict[str, Any]]) -> None:
+def _js_call(
+    node: Any,
+    routes: list[dict[str, Any]],
+    uses: list[dict[str, Any]],
+    handlers: list[tuple[dict[str, Any], Any]],
+) -> None:
     fn = node.child_by_field_name("function")
     if fn is None or fn.type != "member_expression":
         return
@@ -505,17 +701,18 @@ def _js_call(node: Any, routes: list[dict[str, Any]], uses: list[dict[str, Any]]
     if not args:
         return
     described = [_js_arg(a) for a in args]
-    routes.append(
-        {
-            "receiver": receiver[:MAX_NAME],
-            "verb": verb,
-            "methods": [verb.upper()],
-            "path": path,
-            "handler": _label(described[-1]),
-            "middleware": [_label(a) for a in described[:-1]][:MAX_NAMES],
-            "line": line,
-        }
-    )
+    route = {
+        "receiver": receiver[:MAX_NAME],
+        "verb": verb,
+        "methods": [verb.upper()],
+        "path": path,
+        "handler": _label(described[-1]),
+        "middleware": [_label(a) for a in described[:-1]][:MAX_NAMES],
+        "line": line,
+    }
+    routes.append(route)
+    if args[-1].type in _JS_FUNCTIONS or args[-1].type == "identifier":
+        handlers.append((route, args[-1]))
 
 
 def _non_empty(**parts: Any) -> dict[str, Any]:

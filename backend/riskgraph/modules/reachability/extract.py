@@ -32,7 +32,7 @@ from riskgraph.modules.reachability.syntax import string_value as _string_value
 from riskgraph.modules.reachability.syntax import text as _text
 from riskgraph.modules.reachability.syntax import walk as _walk
 
-ANALYZER_VERSION = "ts-imports.4"
+ANALYZER_VERSION = "ts-imports.5"
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_SPANS_PER_NAME = 8  # a name defined in several classes keeps a few spans
 MAX_FILES = 50_000
