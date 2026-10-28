@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from riskgraph import __version__
+from riskgraph.modules.authz.router import router as authz_router
 from riskgraph.modules.context.router import router as context_router
 from riskgraph.modules.explain.router import router as explain_router
 from riskgraph.modules.findings.router import router as findings_router
@@ -65,6 +66,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(sbom_router, prefix=API_PREFIX)
     app.include_router(risk_router, prefix=API_PREFIX)
     app.include_router(explain_router, prefix=API_PREFIX)
+    app.include_router(authz_router, prefix=API_PREFIX)
 
     log.info("api_configured", env=settings.env, docs=docs_enabled)
     log.warning("auth_disabled_mvp", detail="bind the API to localhost only (ADR-0010)")
