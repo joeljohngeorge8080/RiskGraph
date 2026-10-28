@@ -497,7 +497,9 @@ def _js_call(node: Any, routes: list[dict[str, Any]], uses: list[dict[str, Any]]
         if len(args) < 2:
             return
         path = _path(args[0])
-        if path is None or not path.startswith(("/", "*")):
+        # a template literal like `/${page}` is a route whose path is not known
+        dynamic = args[0].type == "template_string" and text(args[0]).startswith("`/")
+        if not dynamic and (path is None or not path.startswith(("/", "*"))):
             return
         args = args[1:]
     if not args:

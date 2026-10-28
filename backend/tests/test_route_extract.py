@@ -158,6 +158,8 @@ def test_express_routes_chains_uses_bindings_and_exports(tmp_path: Path) -> None
         app.post("/login", function (req, res) {});
         app.get("title");
         app.get(dynamicPath, handler);
+        cache.get(`key-${id}`, fallback);
+        for (const page of pages) { app.get(`/${page}`, render); }
         module.exports = app;
         """,
     )
@@ -168,8 +170,11 @@ def test_express_routes_chains_uses_bindings_and_exports(tmp_path: Path) -> None
     assert remove["middleware"] == ["isAdmin"] and remove["receiver"] == "api"
     assert _route(http, "/carts/:cartId")["middleware"] == []
     assert _route(http, "/login", "POST")["handler"] == "<inline>"
-    # a settings read and a dynamic path are not routes
-    assert len(http["routes"]) == 4
+    # a settings read, a variable path and a template key are not routes; a template
+    # path that starts with "/" is a route whose path is not known
+    assert len(http["routes"]) == 5
+    [dynamic] = [r for r in http["routes"] if r["handler"] == "render"]
+    assert dynamic["path"] is None
     uses = {(u["prefix"], tuple(map(str, u["args"]))) for u in http["uses"]}
     assert (None, ("{'name': 'express.json'}",)) in uses
     assert ("/api", ("{'name': 'passport.authenticate'}", "{'name': 'api'}")) in uses
