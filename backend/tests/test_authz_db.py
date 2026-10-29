@@ -123,7 +123,7 @@ def _shop(settings: Settings) -> str:
     return str(sid)
 
 
-def test_authz_findings_rest_on_route_evidence_and_stay_low(
+def test_authz_findings_rest_on_route_evidence_and_bola_stays_low(
     api: TestClient, settings: Settings
 ) -> None:
     sid = _shop(settings)
@@ -139,11 +139,17 @@ def test_authz_findings_rest_on_route_evidence_and_stay_low(
         ("authz:inconsistent", "DELETE /orders/<int:order_id>"),
         ("authz:bola", "GET /orders/<int:order_id>"),
     }
+    # risk v2 (ADR-0024): an inferred finding is scored by the authz table, a hypothesis
+    # stays Low. DELETE is a write, so high: E 0.6, X unknown 0.5, I (0.8 + 3 x 0.5) / 4.
+    inconsistent = ours[("authz:inconsistent", "DELETE /orders/<int:order_id>")]
+    assert inconsistent["priority"] == "medium"
+    assert float(inconsistent["score"]) == pytest.approx(31.5, abs=0.05)
+    assert ours[("authz:bola", "GET /orders/<int:order_id>")]["priority"] == "low"
     for f in ours.values():
-        assert f["detected_by"] == ["riskgraph"] and f["priority"] == "low"
+        assert f["detected_by"] == ["riskgraph"]
         detail = api.get(f"/api/v1/findings/{f['id']}").json()
         kinds = {e["kind"] for e in detail["evidence"]}
-        assert "route" in kinds and detail["risk"]["model_version"] == "v1-ctx.4"
+        assert "route" in kinds and detail["risk"]["model_version"] == "v2.1"
         assert all(e["producer"] == "riskgraph.authz@1" for e in detail["evidence"])
     bola = api.get(
         f"/api/v1/findings/{ours[('authz:bola', 'GET /orders/<int:order_id>')]['id']}"

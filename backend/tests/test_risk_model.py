@@ -8,7 +8,7 @@ from hypothesis import strategies as st
 from riskgraph.modules.context import FindingContext, Observed
 from riskgraph.modules.risk import ScoreInput, priority_for, score
 from riskgraph.modules.risk.model import epss_to_e
-from riskgraph.modules.risk.tables import E_SAST, MODEL_VERSION, T_SAST
+from riskgraph.modules.risk.tables import E_AUTHZ_INFERRED, E_SAST, MODEL_VERSION, T_SAST
 from riskgraph.shared.vocabulary import Priority
 from riskgraph.shared.vocabulary import Severity as V
 from riskgraph.shared.vocabulary import SourceType as S
@@ -321,14 +321,15 @@ def test_runtime_eol_has_its_own_interim_factors_not_iac_ones() -> None:
     assert r.factor("R") is None or not r.factor("R").applicable  # type: ignore[union-attr]
 
 
-# --- v1-ctx.4: interim authorization score and the hypothesis ceiling (ADR-0023) --------
-def test_authz_findings_have_interim_factors_from_the_sast_auth_rows() -> None:
+# --- authorization findings: v2 factors (ADR-0024, replacing ADR-0023's interim score) ---
+def test_an_inferred_authz_finding_is_scored_by_the_v2_table_without_a_cap() -> None:
     r = score(ScoreInput(S.AUTHZ, V.HIGH, category="auth", assurance="inferred"))
     e, t_ = r.factor("E"), r.factor("T")
-    assert e is not None and e.source == "authz_interim" and e.value == E_SAST[V.HIGH]
-    assert t_ is not None and t_.source == "authz_interim" and t_.value == T_SAST["auth"]
-    assert MODEL_VERSION == "v1-ctx.4"
-    # until risk v2, even an inferred finding with full context and a path stays Low
+    assert e is not None and e.source == "authz" and e.value == E_AUTHZ_INFERRED[V.HIGH]
+    assert e.value < E_SAST[V.HIGH]  # a catalogue can miss a custom guard
+    assert t_ is not None and t_.source == "authz" and t_.value == T_SAST["auth"]
+    assert MODEL_VERSION == "v2.1"
+    # with full context and a path an inferred finding is no longer held at Low
     top = score(
         ScoreInput(
             S.AUTHZ,
@@ -338,8 +339,7 @@ def test_authz_findings_have_interim_factors_from_the_sast_auth_rows() -> None:
             effective_impact=EffectiveImpact(1.0, "internet → api → db", "db", 1.0),
         )
     )
-    assert top.priority is Priority.LOW and top.score < 20.0
-    assert [o["rule"] for o in top.overrides] == ["authz_interim_ceiling_low"]
+    assert top.priority is Priority.CRITICAL and top.overrides == []
 
 
 @given(

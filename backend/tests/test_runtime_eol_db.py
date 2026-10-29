@@ -87,7 +87,7 @@ def test_eol_runtimes_become_dated_findings_with_fresh_evidence(
         assert own is not None and occ.scanner_run_id == own.id
         # interim score (ADR-0018): its own factors, never the IaC fallthrough
         score = s.scalars(select(RiskScore).where(RiskScore.finding_id == py.id)).one()
-        assert score.model_version == "v1-ctx.4" and float(score.score) > 0
+        assert score.model_version == "v2.1" and float(score.score) > 0
 
         [eol] = s.scalars(
             select(EvidenceRow)
