@@ -101,6 +101,27 @@ def test_a_public_read_next_to_a_guarded_write_is_not_inconsistent() -> None:
     assert analyze(routes).issues == []
 
 
+def test_a_public_list_next_to_guarded_writes_is_not_inconsistent() -> None:
+    routes = [
+        _route("/posts", "GET", "none_found", line=1),
+        _route("/posts", "POST", "guarded", line=2, guards=("login_required",)),
+        _route("/posts/<id>", "PUT", "guarded", line=3, guards=("login_required",)),
+        _route("/posts/<id>", "DELETE", "guarded", line=4, guards=("login_required",)),
+    ]
+    assert analyze(routes).issues == []
+
+
+def test_a_public_list_next_to_a_guarded_detail_read_is_inconsistent() -> None:
+    routes = [
+        _route("/teams", "GET", "none_found", line=1),
+        _route("/teams/<id>", "GET", "guarded", line=2, guards=("login_required",)),
+        _route("/teams", "POST", "guarded", line=3, guards=("login_required",)),
+    ]
+    [issue] = analyze(routes).issues
+    assert issue.route.full_path == "/teams" and issue.severity is Severity.MEDIUM
+    assert "1 of the 1 other read routes" in issue.detail
+
+
 def test_a_minority_of_guarded_siblings_is_not_inconsistent() -> None:
     routes = [
         _route("/posts", "GET", "none_found", line=1),
