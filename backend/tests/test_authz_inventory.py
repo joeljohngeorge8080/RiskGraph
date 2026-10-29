@@ -613,3 +613,39 @@ def test_many_express_mounts_stay_linear() -> None:
     routes = route_inventory({"files": files})
     assert time.perf_counter() - start < 2.0  # 3.6 s before the per-file receiver index
     assert len(routes) == 5_000 and all(r.mounted for r in routes)
+
+
+@pytest.mark.parametrize(
+    ("texts", "expected"),
+    [
+        (("/login", "show_form"), True),
+        (("/auth/oauth2/callback", None), True),
+        (("/users/register", "create"), True),
+        (("/healthz", None), True),
+        (("/orders", "signupBonus"), True),
+        (("/orders/<id>", "delete_order"), False),
+        (("/catalogue", "logging_settings"), False),  # words, not substrings: "log" is no hint
+        ((None, None), False),
+    ],
+)
+def test_public_by_design_hints(texts: tuple[str | None, str | None], expected: bool) -> None:
+    assert load_catalogue().public_by_design(*texts) is expected
+
+
+def test_manifest_guard_names_count_like_catalogued_ones(tmp_path: Path) -> None:
+    files = {
+        "app.py": """
+            from flask import Flask
+            app = Flask(__name__)
+
+            @app.get("/team")
+            @team_only
+            def team():
+                return ""
+            """
+    }
+    assert _inventory(tmp_path, files)[0].status == "none_found"
+    for name in files:
+        (tmp_path / name).write_text(textwrap.dedent(files[name]))
+    [route] = route_inventory(extract(tmp_path), extra_guards=("team_only",))
+    assert route.status == "guarded" and route.guards[0].catalogued

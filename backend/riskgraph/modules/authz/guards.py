@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -15,6 +15,7 @@ FRAMEWORKS = ("flask", "fastapi", "express")
 _NAME = re.compile(r"^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$")
 _MODULE = re.compile(r"^[@a-z0-9][\w./@-]{0,99}$")
 _HINT = re.compile(r"^[a-z]{2,20}( [a-z]{2,20})?$")
+_PUBLIC = re.compile(r"^[a-z]{2,20}$")
 _WORDS = re.compile(r"[A-Z]+(?![a-z])|[A-Z]?[a-z]+|\d+")
 
 
@@ -50,9 +51,23 @@ class Catalogue:
     guards: dict[str, tuple[GuardEntry, ...]]
     fastapi_schemes: frozenset[str]
     custom_hints: tuple[tuple[str, ...], ...]
+    public_hints: tuple[str, ...] = ()
 
     def is_guard(self, framework: str, name: str, bindings: dict[str, Any] | None = None) -> bool:
         return any(g.matches(name, bindings) for g in self.guards.get(framework, ()))
+
+    def with_guards(self, names: tuple[str, ...]) -> Catalogue:
+        """The catalogue plus a repository's own guard names (manifest ``authz.guards``),
+        for every framework."""
+        if not names:
+            return self
+        extra = tuple(GuardEntry(n) for n in names)
+        return replace(self, guards={fw: (*g, *extra) for fw, g in self.guards.items()})
+
+    def public_by_design(self, *texts: str | None) -> bool:
+        """A login, signup, OAuth callback, health probe or webhook route."""
+        words = {w.lower() for t in texts if t for w in _WORDS.findall(t)}
+        return any(w.startswith(h) for w in words for h in self.public_hints)
 
     def looks_like_auth(self, name: str) -> bool:
         words = [w.lower() for w in _WORDS.findall(name)]
@@ -86,7 +101,8 @@ def _strs(value: Any, where: str, pattern: re.Pattern[str]) -> tuple[str, ...]:
 def parse(doc: Any) -> Catalogue:
     if not isinstance(doc, dict) or doc.get("version") != 1:
         raise CatalogueError("guard catalogue must be a mapping with version: 1")
-    unknown = set(doc) - {"version", "frameworks", "guards", "fastapi_schemes", "custom_hints"}
+    known = {"version", "frameworks", "guards", "fastapi_schemes", "custom_hints", "public_hints"}
+    unknown = set(doc) - known
     if unknown:
         raise CatalogueError(f"unknown catalogue keys {sorted(unknown)}")
     raw_fw = doc.get("frameworks")
@@ -129,6 +145,7 @@ def parse(doc: Any) -> Catalogue:
         guards=guards,
         fastapi_schemes=frozenset(_strs(doc.get("fastapi_schemes"), "fastapi_schemes", _NAME)),
         custom_hints=tuple(tuple(h.split()) for h in hints),
+        public_hints=_strs(doc.get("public_hints"), "public_hints", _PUBLIC),
     )
 
 
