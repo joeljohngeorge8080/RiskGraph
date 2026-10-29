@@ -89,3 +89,79 @@ def test_a_scan_serves_its_route_inventory(api: TestClient, settings: Settings) 
 def test_an_unknown_scan_is_404(api: TestClient) -> None:
     missing = "00000000-0000-7000-8000-000000000000"
     assert api.get(f"/api/v1/scans/{missing}/routes").status_code == 404
+
+
+SHOP = textwrap.dedent(
+    """
+    from flask import Flask
+    from flask_login import login_required
+    app = Flask(__name__)
+
+    @app.get("/orders/<int:order_id>")
+    @login_required
+    def show(order_id):
+        return Order.query.get_or_404(order_id)
+
+    @app.get("/orders")
+    @login_required
+    def orders():
+        return ""
+
+    @app.delete("/orders/<int:order_id>")
+    def remove(order_id):
+        Order.query.filter_by(id=order_id, owner_id=current_user.id).delete()
+        return ""
+    """
+)
+
+
+def _shop(settings: Settings) -> str:
+    with session_scope() as s:
+        sid = service.create_scan(s, "https://github.com/acme/shop", "", settings).scan.id
+    deps = make_deps(settings, cloner=LocalDirCloner(extra={"shop.py": SHOP}))
+    assert run_pipeline_inline(sid, ALL_SCANNERS, deps) is ScanStatus.COMPLETED
+    return str(sid)
+
+
+def test_authz_findings_rest_on_route_evidence_and_stay_low(
+    api: TestClient, settings: Settings
+) -> None:
+    sid = _shop(settings)
+    found = api.get(
+        f"/api/v1/scans/{sid}/findings", params={"source_type": "authz", "limit": 200}
+    ).json()["items"]
+    ours = {
+        (f["rule_id"], f["location"]["resource"]): f
+        for f in found
+        if f["location"]["file"] == "shop.py"
+    }
+    assert set(ours) == {
+        ("authz:inconsistent", "DELETE /orders/<int:order_id>"),
+        ("authz:bola", "GET /orders/<int:order_id>"),
+    }
+    for f in ours.values():
+        assert f["detected_by"] == ["riskgraph"] and f["priority"] == "low"
+        detail = api.get(f"/api/v1/findings/{f['id']}").json()
+        kinds = {e["kind"] for e in detail["evidence"]}
+        assert "route" in kinds and detail["risk"]["model_version"] == "v1-ctx.4"
+        assert all(e["producer"] == "riskgraph.authz@1" for e in detail["evidence"])
+    bola = api.get(
+        f"/api/v1/findings/{ours[('authz:bola', 'GET /orders/<int:order_id>')]['id']}"
+    ).json()
+    assert bola["cwe_ids"] == ["CWE-639"] and float(bola["risk"]["score"]) < 20
+    # the ceiling is recorded only when it lowered something
+    assert [o["rule"] for o in bola["risk"]["overrides"]] in ([], ["hypothesis_ceiling_low"])
+    # the guarded siblings' route evidence is linked to the inconsistency too
+    inc = api.get(
+        f"/api/v1/findings/{ours[('authz:inconsistent', 'DELETE /orders/<int:order_id>')]['id']}"
+    ).json()
+    assert sum(1 for e in inc["evidence"] if e["kind"] == "route") == 3
+
+    # a rescan of the same code finds the same findings again (stable fingerprints)
+    again = _shop(settings)
+    second = api.get(
+        f"/api/v1/scans/{again}/findings", params={"source_type": "authz", "limit": 200}
+    ).json()["items"]
+    assert {f["id"] for f in second if f["location"]["file"] == "shop.py"} == {
+        f["id"] for f in ours.values()
+    }

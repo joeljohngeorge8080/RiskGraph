@@ -44,12 +44,16 @@ def test_full_pipeline_with_recorded_reports(db: None, settings: Settings) -> No
     scan = _scan(sid)
     assert scan.commit_sha == FAKE_SHA and scan.risk_model_version == MODEL_VERSION
     summary = scan.summary
-    assert summary["raw_findings"] == 50 and summary["findings"] == 29
+    assert summary["raw_findings"] == 50 and summary["findings"] == 32
     assert summary["cross_scanner"] >= 10
-    assert set(summary["by_scanner"]) == {"trivy", "semgrep", "checkov", "gitleaks"}
+    # riskgraph: the kitchen sink's three unguarded routes (X5, ADR-0023)
+    assert set(summary["by_scanner"]) == {"trivy", "semgrep", "checkov", "gitleaks", "riskgraph"}
+    assert summary["by_source_type"]["authz"] == summary["authz"]["findings"] == 3
+    assert summary["authz"]["by_rule"] == {"unguarded-sensitive": 3}
+    assert summary["merged_away"] == 50 + 3 - 32
     assert summary["by_priority"]["critical"] == 2  # two live credentials
     assert summary["context"]["manifest"] == "absent"
-    assert summary["context"]["unmapped_findings"] == 29
+    assert summary["context"]["unmapped_findings"] == 32
 
     with session_scope() as s:
         # scanner runs only: the riskgraph run is RiskGraph's own analysis and stores no
@@ -59,12 +63,12 @@ def test_full_pipeline_with_recorded_reports(db: None, settings: Settings) -> No
         assert all(r.status is RunStatus.SUCCEEDED and r.output_sha256 for r in runs)
         assert all(r.scanner_version == "1.2.3" for r in runs)
         rows, total = list_scan_findings(s, sid, FindingFilters(), limit=200)
-        assert total == 29
+        assert total == 32
         ranks = [(row[2].priority_rank, float(row[2].score)) for row in rows]
         assert ranks == sorted(ranks, reverse=True)
         assert rows[0][0].source_type is SourceType.SECRET
         factors = s.execute(select(func.count()).select_from(RiskFactor)).scalar_one()
-        assert factors == 29 * 8
+        assert factors == 32 * 8
 
     # stored reports are redacted and the workspace is gone
     for name in ALL_SCANNERS:
@@ -93,7 +97,7 @@ def test_analyze_is_idempotent_and_rescans_reuse_findings(db: None, settings: Se
     sid2 = _new_scan(settings)
     assert run_pipeline_inline(sid2, ALL_SCANNERS, deps) is ScanStatus.COMPLETED
     with session_scope() as s:
-        assert s.execute(select(func.count()).select_from(Finding)).scalar_one() == 29
+        assert s.execute(select(func.count()).select_from(Finding)).scalar_one() == 32
         f = s.scalars(select(Finding).limit(1)).one()
         assert f.first_seen_scan_id == sid and f.last_seen_scan_id == sid2
 
@@ -227,7 +231,7 @@ def test_manifest_context_raises_scores(db: None, settings: Settings) -> None:
     )
     ctx = _scan(sid).summary["context"]
     assert ctx["manifest"] == "valid" and ctx["unmapped_findings"] == 0
-    assert ctx["services"][0]["findings"] == 29
+    assert ctx["services"][0]["findings"] == 32
 
     with session_scope() as s:
         before = {

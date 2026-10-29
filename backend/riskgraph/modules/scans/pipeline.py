@@ -25,7 +25,15 @@ import redis
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from riskgraph.modules.authz import Route, route_evidence, route_inventory
+from riskgraph.modules.authz import (
+    SENSITIVE_CATEGORIES,
+    AuthzResult,
+    Route,
+    evidence_by_route,
+    issue_findings,
+    route_inventory,
+)
+from riskgraph.modules.authz import analyze as authz_analysis
 from riskgraph.modules.authz import summary as routes_summary
 from riskgraph.modules.context import (
     ContextResolver,
@@ -783,17 +791,48 @@ def _reachability(
     return run
 
 
-def _routes(scan_id: uuid.UUID, reach: ReachabilityRun) -> tuple[list[Route], dict[str, Any]]:
+def _routes(
+    scan_id: uuid.UUID, reach: ReachabilityRun, extra_guards: tuple[str, ...] = ()
+) -> tuple[list[Route], dict[str, Any]]:
     """The route inventory from the extractor's output (X5, ADR-0022). Pure and capped; a
     failure here is logged and reported in the summary, and the scan goes on without it."""
     if reach.status != "ok":
         return [], {"status": "unavailable", "routes": 0}
     try:
-        routes = route_inventory(reach.extracted)
+        routes = route_inventory(reach.extracted, extra_guards=extra_guards)
     except Exception:
         log.exception("route_inventory_crashed", scan_id=str(scan_id))
         return [], {"status": "failed", "routes": 0}
     return routes, {"status": "ok", **routes_summary(routes)}
+
+
+def _authz(
+    scan_id: uuid.UUID, routes: list[Route], manifest: ManifestResult, raw: list[RawFinding]
+) -> tuple[AuthzResult, dict[str, Any]]:
+    """Authorization issues from the routes (X5 part 2, ADR-0023); like the inventory, a
+    failure is reported and the scan goes on without them."""
+    authz = manifest.manifest.authz if manifest.manifest is not None else None
+    rules = authz.rules if authz is not None else ()
+    code: dict[str, list[int]] = {}
+    for f in raw:
+        if f.source_type is SourceType.SAST and f.category in SENSITIVE_CATEGORIES:
+            code.setdefault(f.location.file, []).append(f.location.line_start or 0)
+    try:
+        result = authz_analysis(routes, rules, code)
+    except Exception:
+        log.exception("authz_analysis_crashed", scan_id=str(scan_id))
+        return AuthzResult([], {}), {"status": "failed", "findings": 0}
+    by_rule: dict[str, int] = {}
+    for issue in result.issues:
+        by_rule[issue.rule] = by_rule.get(issue.rule, 0) + 1
+    return result, {
+        "status": "ok" if routes else "no_routes",
+        "findings": len(result.issues),
+        "by_rule": dict(sorted(by_rule.items())),
+        "hypotheses": sum(1 for i in result.issues if i.assurance.value == "hypothesis"),
+        "policy_rules": len(rules),
+        "policy_unchecked_routes": len(result.unchecked),
+    }
 
 
 def _image_of(m: MergedFinding) -> str | None:
@@ -967,18 +1006,29 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
         # X2 part 2: what the image stage found (sca, marked with the image) and EOSL
         image_scan = _image_results(deps, scan_id, repo_name)
         own = [*own, *image_scan.eol]
-        merged = merge([*raw, *image_scan.findings, *own])
-        syft_inventory = _sbom_documents(deps, scan_id, succeeded)
         manifest = _manifest(deps, scan_id)
+        reach = _reachability(
+            deps, scan_id, _trivy_dependencies(deps, scan_id, succeeded), manifest
+        )
+        # X5: routes and their authorization issues, which are findings like any other
+        now = _now()
+        authz_decl = manifest.manifest.authz if manifest.manifest is not None else None
+        routes, routes_info = _routes(
+            scan_id, reach, authz_decl.guards if authz_decl is not None else ()
+        )
+        authz, authz_info = _authz(scan_id, routes, manifest, raw)
+        routes_ev, route_ids = evidence_by_route(routes, now, authz.unchecked)
+        authz_findings = issue_findings(authz.issues, route_ids)
+        for f in authz_findings:
+            f.fingerprint = fingerprint(f, repo_name)
+        merged = merge([*raw, *image_scan.findings, *own, *authz_findings])
+        syft_inventory = _sbom_documents(deps, scan_id, succeeded)
         trivy_db = _trivy_db_time(deps, scan_id)
         eol_as_of = min(
             (c.fetched_at for cycles in feeds.values() for c in cycles.values()), default=None
         )
         # MVP scans only public github.com repositories (ADR-0010)
         resolver = ContextResolver(manifest, public_repository=True, iac=iac.assets)
-        reach = _reachability(
-            deps, scan_id, _trivy_dependencies(deps, scan_id, succeeded), manifest
-        )
 
         cvss_by_id: dict[str, dict[str, Any] | None] = {}
         for m in merged:
@@ -1021,12 +1071,18 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
             )
             scored.append(_Scored(m, context, verdict, inp, score(inp)))
 
-        # Each finding's own evidence (ADR-0017): edges built from a finding rest on it.
-        now = _now()
-        routes, routes_info = _routes(scan_id, reach)
-        routes_ev = route_evidence(routes, now)
+        # Each finding's own evidence (ADR-0017): edges built from a finding rest on it. An
+        # authorization finding rests on the route and guard evidence it names (ADR-0023).
+        routes_by_id = {e.id: e for e in routes_ev}
         evidence: list[list[Evidence]] = [
-            finding_evidence(x.merged, x.verdict, run_ids, versions, now, {"trivy": trivy_db})
+            [
+                *finding_evidence(x.merged, x.verdict, run_ids, versions, now, {"trivy": trivy_db}),
+                *(
+                    routes_by_id[i]
+                    for i in x.merged.attrs.get("evidence_ids") or []
+                    if x.merged.source_type is SourceType.AUTHZ and i in routes_by_id
+                ),
+            ]
             for x in scored
         ]
 
@@ -1114,7 +1170,12 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
             summary = {
                 "raw_findings": len(raw),
                 "findings": len(merged),
-                "merged_away": len(raw) - len(merged),
+                # scanner results plus RiskGraph's own (image, runtime, authz) before merging
+                "merged_away": len(raw)
+                + len(image_scan.findings)
+                + len(own)
+                + len(authz_findings)
+                - len(merged),
                 "cross_scanner": multi,
                 "by_priority": by_priority,
                 "by_source_type": by_source,
@@ -1129,6 +1190,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                 "context": resolver.summary(),
                 "reachability": reach.summary(tiers),
                 "routes": routes_info,
+                "authz": authz_info,
                 "graph": analysis.summary(),
                 "sbom": sbom_summary,
                 "iac": {

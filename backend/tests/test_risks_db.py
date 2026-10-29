@@ -48,11 +48,11 @@ def test_risks_are_ranked_by_score_and_match_the_findings(
     sid, rid = scan
     body = api.get("/api/v1/risks", params={"scan_id": sid, "limit": 200}).json()
     items = body["items"]
-    assert body["total"] == len(items) == 29
+    assert body["total"] == len(items) == 32
     scores = [i["score"] for i in items]
     assert scores == sorted(scores, reverse=True)
-    assert [i["rank"] for i in items] == list(range(1, 30))
-    assert {i["model_version"] for i in items} == {"v1-ctx.3"}
+    assert [i["rank"] for i in items] == list(range(1, 33))
+    assert {i["model_version"] for i in items} == {"v1-ctx.4"}
     # the same ranking through the repository's latest finished scan
     latest = api.get("/api/v1/risks", params={"repository_id": rid, "limit": 200}).json()
     assert latest["scan_id"] == sid and [i["finding_id"] for i in latest["items"]] == [
@@ -75,13 +75,13 @@ def test_triaged_noise_leaves_the_ranking_but_stays_retrievable(
     )
     assert resp.status_code == 200, resp.text
     after = api.get("/api/v1/risks", params={"scan_id": sid, "limit": 200}).json()
-    assert after["total"] == 28 and top["finding_id"] not in {
+    assert after["total"] == 31 and top["finding_id"] not in {
         i["finding_id"] for i in after["items"]
     }
     every = api.get(
         "/api/v1/risks", params={"scan_id": sid, "limit": 200, "include_excluded": True}
     ).json()
-    assert every["total"] == 29
+    assert every["total"] == 32
     # §14.5: excluded from ranking, kept in audit: the score itself is still there
     detail = api.get(f"/api/v1/risks/{top['finding_id']}", params={"scan_id": sid})
     assert detail.status_code == 200

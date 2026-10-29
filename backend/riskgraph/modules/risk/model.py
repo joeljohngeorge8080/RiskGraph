@@ -43,6 +43,8 @@ class ScoreInput:
     confidence: str | None = None
     # iac
     iac_family: str | None = None
+    # authz (X5): the finding's assurance; a hypothesis is capped at Low (ADR-0023)
+    assurance: str | None = None
     # deployment context; None means "nothing known" (all defaults)
     context: FindingContext | None = None
     # reachability tier (sca/sast) with provenance; None = not analysed
@@ -143,6 +145,9 @@ def _exploitability(inp: ScoreInput) -> Factor:
         return Factor("likelihood", "E", _clamp(value), "sast_severity", "medium", raw)
     if st is SourceType.RUNTIME:
         return Factor("likelihood", "E", t.E_RUNTIME_EOL, "runtime_eol", "low", "eol=true")
+    if st is SourceType.AUTHZ:
+        raw = f"severity={inp.severity},assurance={inp.assurance or 'unknown'}"
+        return Factor("likelihood", "E", t.E_SAST[inp.severity], "authz_interim", "low", raw)
     family = inp.iac_family or "hygiene"
     return Factor(
         "likelihood", "E", t.E_IAC.get(family, 0.25), "iac_family", "medium", f"family={family}"
@@ -166,6 +171,9 @@ def _technical_impact(inp: ScoreInput) -> Factor:
         return Factor("impact", "T", value, "sast_category", "medium", f"category={inp.category}")
     if st is SourceType.RUNTIME:
         return Factor("impact", "T", t.T_RUNTIME_EOL, "runtime_eol", "low", "no security fixes")
+    if st is SourceType.AUTHZ:
+        value = t.T_SAST[t.AUTHZ_CATEGORY]
+        return Factor("impact", "T", value, "authz_interim", "low", f"category={t.AUTHZ_CATEGORY}")
     family = inp.iac_family or "hygiene"
     return Factor(
         "impact", "T", t.T_IAC.get(family, 0.2), "iac_family", "medium", f"family={family}"
@@ -314,6 +322,25 @@ def score(inp: ScoreInput) -> ScoreResult:
                 "rule": "live_credential_public_repo",
                 "effect": "priority=critical",
                 "reason": "format-validated credential in a public repository",
+            }
+        )
+
+    authz = inp.source_type is SourceType.AUTHZ
+    if authz and (value > t.AUTHZ_SCORE_CEILING or priority is not Priority.LOW):
+        value = min(value, t.AUTHZ_SCORE_CEILING)
+        priority = Priority.LOW
+        overrides.append(
+            {
+                "rule": "hypothesis_ceiling_low",
+                "effect": "priority<=low",
+                "reason": "a pattern suggests it and no artifact supports it (test it)",
+            }
+            if inp.assurance == "hypothesis"
+            else {
+                "rule": "authz_interim_ceiling_low",
+                "effect": "priority<=low",
+                "reason": "authorization findings are not ranked against scanner findings "
+                "until risk v2",
             }
         )
 

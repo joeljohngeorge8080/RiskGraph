@@ -13,7 +13,7 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from sqlalchemy import select
@@ -25,11 +25,27 @@ from riskgraph.modules.evidence import Assurance, Evidence, EvidenceRow, make_ev
 from riskgraph.modules.normalization import Location
 
 PRODUCER = "riskgraph.authz@1"
+RouteKey = tuple[str, int, tuple[str, ...], str]
 
 
-def route_evidence(routes: Iterable[Route], observed_at: dt.datetime) -> list[Evidence]:
+def route_evidence(
+    routes: Iterable[Route],
+    observed_at: dt.datetime,
+    unchecked: Mapping[RouteKey, tuple[str, ...]] | None = None,
+) -> list[Evidence]:
+    return evidence_by_route(routes, observed_at, unchecked)[0]
+
+
+def evidence_by_route(
+    routes: Iterable[Route],
+    observed_at: dt.datetime,
+    unchecked: Mapping[RouteKey, tuple[str, ...]] | None = None,
+) -> tuple[list[Evidence], dict[RouteKey, tuple[str, ...]]]:
+    """The evidence records, and per route the ids of its own (route first, then guard).
+    ``unchecked``: manifest rule paths a route could not be checked against (X5 part 2)."""
     catalogue = load_catalogue()
     out: list[Evidence] = []
+    ids: dict[RouteKey, tuple[str, ...]] = {}
     for r in routes:
         catalogued = sorted({g.name for g in r.guards if g.catalogued})
         custom = sorted(
@@ -57,9 +73,15 @@ def route_evidence(routes: Iterable[Route], observed_at: dt.datetime) -> list[Ev
                 "custom_guards": custom,
                 "mounted": r.mounted,
                 "notes": list(r.notes),
+                **(
+                    {"policy_unchecked": list(unchecked[r.key])}
+                    if unchecked and r.key in unchecked
+                    else {}
+                ),
             },
         )
         out.append(route)
+        ids[r.key] = (route.id,)
         if not catalogued and not custom:
             continue
         used = [g for g in r.guards if g.catalogued or g.name in custom]
@@ -81,7 +103,8 @@ def route_evidence(routes: Iterable[Route], observed_at: dt.datetime) -> list[Ev
                 },
             )
         )
-    return out
+        ids[r.key] = (route.id, out[-1].id)
+    return out, ids
 
 
 def summary(routes: list[Route]) -> dict[str, Any]:

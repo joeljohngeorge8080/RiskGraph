@@ -6,13 +6,16 @@ v1-ctx.1 added deployment context (X, D, P, C) to v1-cf.1. v1-ctx.2 adds reachab
 versions give identical scores. v1-ctx.3 (expansion X1, X2): effective impact only from
 paths of at least "inferred" assurance (ADR-0017), and an interim score for runtime
 end-of-life findings until risk v2 (X6) defines runtime factor tables (ADR-0018).
+v1-ctx.4 (X5): authorization findings get interim factors from the SAST rows for a
+missing-authorization weakness and stay at Low until risk v2 (X6) defines their tables
+(ADR-0023). Scores of every other finding are unchanged.
 """
 
 from __future__ import annotations
 
 from riskgraph.shared.vocabulary import Priority, Severity
 
-MODEL_VERSION = "v1-ctx.3"
+MODEL_VERSION = "v1-ctx.4"
 FLOOR = 0.05
 
 # "Unknown" defaults when no context source covers a finding (§14.2, §14.3).
@@ -61,6 +64,14 @@ T_SECRET = 1.0
 # future flaws stay open, but no specific exploitable flaw is known from the EOL alone.
 E_RUNTIME_EOL = 0.5
 T_RUNTIME_EOL = 0.6
+
+# Interim (ADR-0023, replaced in X6): an authorization finding has the factors of a SAST
+# finding of category "auth" with the same severity (E_SAST without the confidence bonus,
+# T_SAST["auth"]), and every one of them is capped just under the Medium band. How an
+# inferred authorization finding ranks against scanner findings is risk v2's decision;
+# a hypothesis (BOLA) stays at Low in v2 too (plan X6).
+AUTHZ_CATEGORY = "auth"
+AUTHZ_SCORE_CEILING = 19.99
 
 E_SAST = {
     Severity.CRITICAL: 0.7,

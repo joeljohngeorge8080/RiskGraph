@@ -246,3 +246,26 @@ def test_properties_over_random_inventories(
     # at most one inconsistent-or-sensitive issue per route
     keys = [i.route.key for i in result.issues if i.rule != "bola" and i.rule != "policy"]
     assert len(keys) == len(set(keys))
+
+
+def test_issues_become_authz_findings_anchored_on_the_route_not_the_line() -> None:
+    from riskgraph.modules.authz import issue_findings
+    from riskgraph.modules.normalization import fingerprint
+    from riskgraph.shared.vocabulary import ScannerName, SourceType
+
+    def findings(line: int) -> list:  # type: ignore[type-arg]
+        routes = [
+            _route("/doc/<id>", "GET", "guarded", line=line, guards=("login_required",)),
+            _route("/doc/<id>", "DELETE", "none_found", line=line + 5),
+        ]
+        ids = {routes[0].key: ("r0", "g0"), routes[1].key: ("r1",)}
+        return issue_findings(analyze(routes).issues, ids)
+
+    [f] = findings(10)
+    assert f.scanner is ScannerName.RISKGRAPH and f.source_type is SourceType.AUTHZ
+    assert f.rule_id == "authz:inconsistent" and f.cwe_ids == ("CWE-862",)
+    assert f.location.resource == "DELETE /doc/<id>" and f.location.line_start == 15
+    # the route's own evidence first, then the guarded sibling's route evidence
+    assert f.attrs["evidence_ids"] == ["r1", "r0"] and f.attrs["assurance"] == "inferred"
+    [moved] = findings(40)
+    assert fingerprint(f, "acme/x") == fingerprint(moved, "acme/x")
