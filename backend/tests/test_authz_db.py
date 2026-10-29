@@ -165,3 +165,49 @@ def test_authz_findings_rest_on_route_evidence_and_stay_low(
     assert {f["id"] for f in second if f["location"]["file"] == "shop.py"} == {
         f["id"] for f in ours.values()
     }
+
+
+ROUTER_JS = """
+const express = require("express");
+const router = express.Router();
+router.delete("/:id", h);
+module.exports = router;
+"""
+POLICY = """
+version: 1
+authz:
+  rules:
+    - path: /**
+      methods: [DELETE]
+      require: authenticated
+"""
+
+
+def test_the_manual_verification_list(api: TestClient, settings: Settings) -> None:
+    with session_scope() as s:
+        sid = service.create_scan(s, "https://github.com/acme/manual", "", settings).scan.id
+    extra = {"shop.py": SHOP, "items.js": ROUTER_JS, "riskgraph.yaml": POLICY}
+    deps = make_deps(settings, cloner=LocalDirCloner(extra=extra))
+    assert run_pipeline_inline(sid, ALL_SCANNERS, deps) is ScanStatus.COMPLETED
+    body = api.get(f"/api/v1/scans/{sid}/authz/manual").json()
+    kinds = [i["kind"] for i in body["items"]]
+    assert kinds == sorted(
+        kinds,
+        key=["bola", "policy_unchecked", "unresolved", "unknown_framework", "custom"].index,
+    )
+    [bola] = [i for i in body["items"] if i["kind"] == "bola"]
+    assert bola["file"] == "shop.py" and bola["finding_id"] and bola["route_id"] is None
+    assert any("two-user test" in m for m in bola["missing"])
+    [unresolved] = [i for i in body["items"] if i["kind"] == "unresolved"]
+    assert unresolved["file"] == "items.js" and unresolved["route"] == "DELETE /:id"
+    [unchecked] = [i for i in body["items"] if i["kind"] == "policy_unchecked"]
+    assert unchecked["route_id"] == unresolved["route_id"] and "/**" in unchecked["reason"]
+    assert body["by_kind"]["bola"] == 1 and body["total"] == len(body["items"])
+    only = api.get(f"/api/v1/scans/{sid}/authz/manual", params={"kind": "bola"}).json()
+    assert [i["kind"] for i in only["items"]] == ["bola"] and only["by_kind"] == body["by_kind"]
+    assert api.get(f"/api/v1/scans/{sid}/authz/manual", params={"kind": "x"}).status_code == 422
+    missing = "00000000-0000-7000-8000-000000000000"
+    assert api.get(f"/api/v1/scans/{missing}/authz/manual").status_code == 404
+    with session_scope() as s:
+        scan = s.get(ScanJob, sid)
+        assert scan is not None and scan.summary["authz"]["policy_rules"] == 1

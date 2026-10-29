@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from pydantic import BaseModel
@@ -60,3 +61,22 @@ class RoutesOut(BaseModel):
     items: list[RouteOut]
     total: int
     by_status: dict[str, int]
+
+
+class ManualCheckOut(BaseModel):
+    """Something static analysis cannot decide and a person has to check (X5 part 2)."""
+
+    kind: str  # bola | policy_unchecked | unresolved | unknown_framework | custom
+    reason: str
+    finding_id: uuid.UUID | None  # the BOLA hypothesis finding
+    route_id: str | None  # the route evidence id
+    file: str
+    line: int | None
+    route: str | None  # "METHOD full path"
+    missing: list[str]  # what would settle it
+
+
+class ManualChecksOut(BaseModel):
+    items: list[ManualCheckOut]
+    total: int
+    by_kind: dict[str, int]

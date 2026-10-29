@@ -23,6 +23,7 @@ from riskgraph.modules.authz.guards import load_catalogue
 from riskgraph.modules.authz.inventory import Route
 from riskgraph.modules.evidence import Assurance, Evidence, EvidenceRow, make_evidence
 from riskgraph.modules.normalization import Location
+from riskgraph.shared.vocabulary import FindingStatus, SourceType
 
 PRODUCER = "riskgraph.authz@1"
 RouteKey = tuple[str, int, tuple[str, ...], str]
@@ -125,3 +126,88 @@ def list_routes(session: Session, scan_id: uuid.UUID) -> list[EvidenceRow]:
         return (str(loc.get("file", "")), int(loc.get("line_start") or 0), row.id)
 
     return sorted(rows, key=order)
+
+
+# --- manual verification list (X5 part 2, plan §4 X5 "manual verification required") ---
+MANUAL_ORDER = ("bola", "policy_unchecked", "unresolved", "unknown_framework", "custom")
+_WHY = {
+    "unresolved": "the framework is known but RiskGraph could not resolve where the route is "
+    "mounted, so a guard may sit on a mount it did not see",
+    "unknown_framework": "RiskGraph does not recognise the framework, so it cannot say "
+    "whether a guard applies",
+    "custom": "the only guard is a name that looks like authentication but is not in the "
+    "catalogue: check what it does",
+}
+
+
+def manual_checks(session: Session, scan_id: uuid.UUID) -> list[dict[str, Any]]:
+    """What a person has to check, because static analysis cannot decide it: every BOLA
+    hypothesis, every route a manifest rule could not be checked against, and every route
+    whose guard status is undecided or rests on an uncatalogued name."""
+    from riskgraph.modules.findings import Finding, FindingOccurrence
+
+    items: list[dict[str, Any]] = []
+    bola = session.execute(
+        select(Finding, FindingOccurrence.evidence)
+        .join(FindingOccurrence, FindingOccurrence.finding_id == Finding.id)
+        .where(
+            FindingOccurrence.scan_job_id == scan_id,
+            FindingOccurrence.rule_id == "authz:bola",
+            Finding.source_type == SourceType.AUTHZ,
+            Finding.status == FindingStatus.OPEN,
+        )
+    ).all()
+    for finding, evidence in bola:
+        loc = finding.location or {}
+        missing = (evidence or {}).get("missing_evidence") or []
+        items.append(
+            {
+                "kind": "bola",
+                "reason": finding.title,
+                "finding_id": finding.id,
+                "route_id": None,
+                "file": str(loc.get("file") or ""),
+                "line": loc.get("line_start"),
+                "route": loc.get("resource"),
+                "missing": [str(m) for m in missing][:5],
+            }
+        )
+    for row in list_routes(session, scan_id):
+        facts = row.payload.get("facts") or {}
+        loc = (row.payload.get("locations") or [{}])[0]
+        where = f"{'/'.join(facts.get('methods') or []) or '?'} " + str(
+            facts.get("full_path") or facts.get("path") or "<dynamic path>"
+        )
+        base = {
+            "finding_id": None,
+            "route_id": row.id,
+            "file": str(loc.get("file", "")),
+            "line": loc.get("line_start"),
+            "route": where,
+        }
+        unchecked = facts.get("policy_unchecked") or []
+        if unchecked:
+            items.append(
+                {
+                    **base,
+                    "kind": "policy_unchecked",
+                    "reason": "riskgraph.yaml has a rule for this route ("
+                    + ", ".join(str(u) for u in unchecked)
+                    + "), and RiskGraph could not tell whether its guard is there",
+                    "missing": [f"the guard on {where}"],
+                }
+            )
+        status = str(facts.get("guard_status") or "unknown_framework")
+        if status in _WHY:
+            items.append(
+                {
+                    **base,
+                    "kind": status,
+                    "reason": _WHY[status],
+                    "missing": [", ".join(facts.get("custom_guards") or [])]
+                    if status == "custom"
+                    else [f"where {where} is mounted and which middleware runs before it"],
+                }
+            )
+    items.sort(key=lambda i: (MANUAL_ORDER.index(i["kind"]), i["file"], i["line"] or 0))
+    return items
