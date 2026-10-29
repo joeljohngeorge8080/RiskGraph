@@ -211,3 +211,34 @@ def test_the_manual_verification_list(api: TestClient, settings: Settings) -> No
     with session_scope() as s:
         scan = s.get(ScanJob, sid)
         assert scan is not None and scan.summary["authz"]["policy_rules"] == 1
+
+
+SHOP_MANIFEST = """
+version: 1
+services:
+  - {name: shop, path: "", exposure: internet, auth: none, connects_to: [orders-db]}
+data_stores:
+  - {name: orders-db, sensitivity: financial}
+"""
+
+
+def test_authz_edges_are_stored_with_evidence_and_build_no_path(
+    api: TestClient, settings: Settings
+) -> None:
+    with session_scope() as s:
+        sid = service.create_scan(s, "https://github.com/acme/edges", "", settings).scan.id
+    extra = {"shop.py": SHOP, "riskgraph.yaml": SHOP_MANIFEST}
+    deps = make_deps(settings, cloner=LocalDirCloner(extra=extra))
+    assert run_pipeline_inline(sid, ALL_SCANNERS, deps) is ScanStatus.COMPLETED
+    graph = api.get(f"/api/v1/scans/{sid}/graph").json()
+    edges = {(e["source"], e["target"], e["kind"]): e for e in graph["edges"]}
+    unguarded = edges[("internet", "endpoint:shop:DELETE /orders/<int:order_id>", "UNGUARDED")]
+    bola = edges[
+        ("endpoint:shop:GET /orders/<int:order_id>", "data_store:orders-db", "BOLA_SUSPECT")
+    ]
+    assert unguarded["assurance"] == "inferred" and bola["assurance"] == "hypothesis"
+    assert unguarded["evidence_ids"] and bola["evidence_ids"]
+    kinds = {n["key"]: n["kind"] for n in graph["nodes"]}
+    assert kinds["endpoint:shop:DELETE /orders/<int:order_id>"] == "endpoint"
+    paths = api.get(f"/api/v1/scans/{sid}/attack-paths").json()
+    assert paths and not any("endpoint:" in str(n) for p in paths for n in p["nodes"])

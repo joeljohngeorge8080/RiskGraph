@@ -9,6 +9,8 @@ Attack-graph states: internet, services, identities, data stores, credentials. E
                      p = max geomean(E, R) over the target's code findings that are not L0
     AUTHENTICATES_AS credential → identity, p = E of the secret (manifest links the family)
     RUNS_AS, CAN_ACCESS, CONNECTS_TO (to a data store), CONTAINS_SECRET: control, p = 1
+    UNGUARDED        internet → endpoint, BOLA_SUSPECT endpoint → data store (X5): stored
+                     with evidence, no p yet, so not traversable (``_authz_edges``)
 
 Edge weight w = -ln p, so the minimum-weight path is the most probable one. Yen's
 k-shortest simple paths (``networkx.shortest_simple_paths``, Dijkstra underneath) from a
@@ -120,6 +122,8 @@ class GraphFinding:
     image: str | None = None  # a package installed in this image (X2)
     kev: bool = False  # listed as exploited in the wild
     line: int | None = None  # the finding's first line: matches a manifest ``owns:`` link
+    authz_rule: str | None = None  # X5: inconsistent | unguarded-sensitive | policy | bola
+    route: str | None = None  # X5: "METHOD full path" of the route the authz finding is on
 
 
 @dataclass(frozen=True, slots=True)
@@ -498,6 +502,8 @@ def analyze(
         if f.public_secret:
             sources.append(key)
 
+    _authz_edges(out, node, edge, manifest, topology if derived else None, findings)
+
     broken = invariant_violations(out.nodes, out.edges)
     if broken:
         raise GraphInvariantError("; ".join(broken[:5]))
@@ -505,6 +511,56 @@ def analyze(
         g.add_edge(_VIRTUAL, src, kind="VIRTUAL", p=1.0, w=0.0, findings=[])
     _search(g, out, sinks)
     return out
+
+
+def _endpoint_key(service: str, route: str) -> str:
+    key = f"endpoint:{service}:{route}"
+    return key if len(key) <= 160 else f"endpoint:{stable_hash(service, route)[:32]}"
+
+
+def _authz_edges(
+    out: AttackAnalysis,
+    node: Callable[..., None],
+    edge: Callable[..., None],
+    manifest: Manifest | None,
+    topology: Topology | None,
+    findings: list[GraphFinding],
+) -> None:
+    """Endpoints from authorization findings (X5 part 2, ADR-0023), with their edges:
+
+    - UNGUARDED internet → endpoint, inferred: an unguarded-sensitive or inconsistent
+      finding on a route of a service the internet reaches (an EXPOSES edge);
+    - BOLA_SUSPECT endpoint → data store, hypothesis: a BOLA finding on a route of a
+      service the manifest connects to that store.
+
+    Both rest on the finding's route evidence and are stored without a probability, so
+    they are not traversable (like RUNS_IMAGE): until risk v2 gives them one, they cannot
+    form or change a path, and no score moves.
+    """
+    exposed = {e.target for e in out.edges if e.kind == "EXPOSES" and e.source == INTERNET}
+    stores: dict[str, list[str]] = {}
+    if manifest is not None:
+        names = {d.name for d in manifest.data_stores}
+        stores = {s.name: [t for t in s.connects_to if t in names] for s in manifest.services}
+    for f in findings:
+        if f.source_type is not SourceType.AUTHZ or not f.route or not f.evidence:
+            continue
+        home = f.service if f.service and _svc(f.service) in out.nodes else None
+        if home is None and topology is not None:
+            home = topology.service_for(f.file)
+        if home is None or _svc(home) not in out.nodes:
+            continue
+        unguarded = f.authz_rule in ("unguarded-sensitive", "inconsistent")
+        targets = stores.get(home, []) if f.authz_rule == "bola" else []
+        if not (unguarded and _svc(home) in exposed) and not targets:
+            continue
+        key = _endpoint_key(home, f.route)
+        if key not in out.nodes:
+            node(key, "endpoint", f.route[:200], service=home, file=f.file, line=f.line)
+        if unguarded and _svc(home) in exposed:
+            edge(INTERNET, key, "UNGUARDED", None, Assurance.INFERRED, [], [f])
+        for store in targets:
+            edge(key, _ds(store), "BOLA_SUSPECT", None, Assurance.HYPOTHESIS, [], [f])
 
 
 def _derive(
