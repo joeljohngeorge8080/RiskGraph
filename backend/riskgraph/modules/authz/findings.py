@@ -55,6 +55,13 @@ def issue_findings(
                 description=issue.detail[:2000],
                 cwe_ids=_CWE[issue.rule],
                 remediation=_REMEDIATION[issue.rule],
+                # display-only, stored with the occurrence: what a person should check
+                evidence={
+                    "route": where[:300],
+                    "guard_status": r.status,
+                    "assurance": issue.assurance.value,
+                    "missing_evidence": list(issue.missing)[:5],
+                },
                 attrs={
                     "assurance": issue.assurance.value,
                     "evidence_ids": [*evidence_ids.get(r.key, ()), *related][:12],

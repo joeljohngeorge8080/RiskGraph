@@ -9,8 +9,8 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from riskgraph.modules.authz.schemas import RouteOut, RoutesOut
-from riskgraph.modules.authz.service import list_routes
+from riskgraph.modules.authz.schemas import ManualCheckOut, ManualChecksOut, RouteOut, RoutesOut
+from riskgraph.modules.authz.service import MANUAL_ORDER, list_routes, manual_checks
 from riskgraph.modules.findings.router import require_scan
 from riskgraph.shared.db import get_session
 
@@ -39,3 +39,25 @@ def scan_routes(
         and (framework is None or r.framework == framework)
     ]
     return RoutesOut(items=items, total=len(items), by_status=dict(sorted(counts.items())))
+
+
+@router.get("/scans/{scan_id}/authz/manual", response_model=ManualChecksOut)
+def scan_manual_checks(
+    scan_id: uuid.UUID,
+    session: SessionDep,
+    kind: Literal["bola", "policy_unchecked", "unresolved", "unknown_framework", "custom"]
+    | None = None,
+) -> ManualChecksOut:
+    """Manual verification required: every BOLA hypothesis (test it with two users), every
+    route a manifest rule could not be checked against, and every route whose guard is
+    undecided or only a name that looks like authentication. Ordered by kind, then file
+    and line; ``by_kind`` counts the whole scan."""
+    require_scan(session, scan_id)
+    items = [ManualCheckOut(**i) for i in manual_checks(session, scan_id)]
+    counts = Counter(i.kind for i in items)
+    shown = [i for i in items if kind is None or i.kind == kind]
+    return ManualChecksOut(
+        items=shown,
+        total=len(shown),
+        by_kind={k: counts[k] for k in MANUAL_ORDER if counts[k]},
+    )
