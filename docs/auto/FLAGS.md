@@ -75,3 +75,31 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   - Recommendation: (a) when you have the machine time, because X4's gate in the plan needs measured numbers; until then (b) costs nothing, since X5 and X6 do not depend on tier 2 (X6's taint factor table reads `analysis`, which tier 1 already sets).
 - Resume: once `RESULT.md` says `GO` and the fixtures exist, do SCHEDULE day 3 as written (adapter in `modules/scanners/joern/`, parser golden tests on the fixtures, `deep` opt-in with one slot, correlation through `merge._join_taint_hits`, ADR with the spike numbers), before that day's own work. On `NO-GO`: an ADR recording the fallback (custom Python summaries, plan §3.A) and no adapter.
 - Answer:
+
+### F-4-1: How should the evaluation count authorization findings?
+- Status: OPEN
+- Phase / step: X5 part 2, step 6 (findings), and X6 (re-evaluation)
+- Blocked: labels for `authz` findings in the evaluation. Nothing else waits on this: the current behaviour is the conservative one.
+- Why it needs the owner: the X0 labels were written before any ranking (plan §7–§8). Scenarios B and E now produce one `authz:unguarded-sensitive` finding each. Labelling them now, after seeing their ranks, would break that rule; leaving them in unlabelled counts them as "not important" by default. Either way it is a choice about the evaluation's method, which the plan does not make.
+- Done meanwhile: the X0 replay leaves `authz` findings out and says so in the report (`OUTSIDE_X0`, ADR-0023). With that, the pooled table equals `BASELINE.md`. Also, every authz finding is capped at Low until X6 (ADR-0023), so the product ranking does not move either. Without the exclusion, M1/M2 pooled numbers shift slightly; uncapped, M4 nDCG@10 drops from 0.991 to 0.902 (DAY_4_REPORT).
+- Question: Options:
+  - (a) Keep authz out of the X0 set; add a separate authz scenario with labels written first (in X6 with F–H, or in X8).
+  - (b) Label the two existing findings now by the §26.3 rubric (both are on unauthenticated internet routes with an injection: likely "important").
+  - (c) Keep them in, unlabelled (defaulted to not important).
+  - Recommendation: (a). It keeps the frozen comparison honest and gives authz a test written before its ranking.
+- Resume: (a) In X6, write scenario I (or extend F–H) with authz routes and labels first, then decide whether `OUTSIDE_X0` stays. (b) Add `LabelRule`s for `source_type="authz"` to scenarios B and E, then remove `authz` from `OUTSIDE_X0`. (c) Remove `authz` from `OUTSIDE_X0`.
+- Answer:
+
+### F-4-2: A way to declare routes public on purpose?
+- Status: OPEN
+- Phase / step: X5 part 2, step 4 (unguarded-sensitive rule)
+- Blocked: nothing. This is a precision improvement.
+- Why it needs the owner: on the labelled suite, unguarded-sensitive precision is 3/5 = 0.6, below plan §6's 0.8 for "unguarded". The two false positives are a contact form and a feedback form: writes without a guard on purpose, and nothing in their name says so. The fix is a declaration, i.e. a new manifest field. The run book says a new field outside the plan's own list goes to the owner.
+- Done meanwhile: a fixed `public_hints` word list in `guards.yaml` (login, signup, callback, health, webhook, …). The two false positives are pinned in a test, not hidden. The inconsistency target (≥ 0.8, the one SCHEDULE names) is met: 4/4.
+- Question: Options:
+  - (a) Add `authz.public: [path patterns]` (same matcher as `rules`): routes there are never "unguarded-sensitive" or "inconsistent", and are listed as declared public.
+  - (b) Keep only the word list.
+  - (c) Add `require: none` to `authz.rules` instead (one list for both).
+  - Recommendation: (a). It is explicit and cannot be confused with a policy.
+- Resume: (a) Add `public: tuple[str, ...]` to `AuthzDecl` (validated with the rule path validator), pass it to `authz.analyze`, skip those routes in `_inconsistent` and `_unguarded_sensitive`, and add tests plus a line in ADR-0023. (c) Add `"none"` to `AuthzRule.require` and do the same.
+- Answer:

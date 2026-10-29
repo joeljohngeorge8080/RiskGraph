@@ -1,6 +1,6 @@
 # PHASE X5: business logic and authorization (expansion plan)
 
-**Status:** part 1 (extractor `ts-imports.4`, `modules/authz` route inventory and guard catalogue, `GET /scans/{id}/routes`, the labelled suite) done on 2026-10-28. It was started a day early, because X4 part 2 is gated (F-3-1). Part 2 (authorization findings, UNGUARDED/BOLA_SUSPECT edges, the manifest `authz:` section, the manual-verification list) is SCHEDULE day 5. Decision: ADR-0022. No migration. Plan: `docs/proposals/EXPANSION_A-D.md` §3.B, §4 (X5), §5, §6.
+**Status:** part 1 (extractor `ts-imports.4`, `modules/authz` route inventory and guard catalogue, `GET /scans/{id}/routes`, the labelled suite) done on 2026-10-28, a day early, because X4 part 2 is gated (F-3-1). Part 2 (extractor `ts-imports.5`, passed-in Express apps, the manifest `authz:` section, authorization findings with an interim Low score, UNGUARDED/BOLA_SUSPECT edges, the manual-verification list, the labelled authz suite) done on 2026-10-29, SCHEDULE day 4, a day early as well. Decisions: ADR-0022 (part 1), ADR-0023 (part 2). No migration. Plan: `docs/proposals/EXPANSION_A-D.md` §3.B, §3.D, §4 (X5), §5, §6.
 
 ## A. Objective
 X5 row of the plan: static authorization findings with honest assurance. Part 1 is the inventory those findings rest on: every route, its full path and parameters, and every place a guard could come from.
@@ -90,9 +90,129 @@ None. To extend the catalogue, edit `guards.yaml`. The loader is strict and a te
 See `docs/auto/DAY_3_REPORT.md`. On OWASP NodeGoat at `c5cb68a`, the inventory finds all 20 route declarations: 12 `custom` (`isLoggedIn`) and 8 `unresolved` (the app is passed in).
 
 ## Q. Known limits (part 1)
-- An Express app passed into a routes module stays `unresolved` until its call sites are followed. That is the first refinement for part 2.
+- ~~An Express app passed into a routes module stays `unresolved` until its call sites are followed.~~ Fixed in part 2.
 - Custom-hint matching is a word heuristic (ADR-0022, consequences).
 - Ordering compares line numbers.
 - Flask app hooks apply to every Flask route in the repository.
 - Django/DRF are deferred (plan §5).
-- No authorization findings yet (part 2).
+- ~~No authorization findings yet.~~ Part 2, below.
+
+
+---
+
+# Part 2: authorization findings (2026-10-29)
+
+## A. Objective
+SCHEDULE day 5 (done on day 4), and where each criterion stands:
+1. Findings with `source_type = authz`:
+   - inconsistent guarding;
+   - unguarded-sensitive routes;
+   - the manifest policy diff (an additive, optional `authz:` section, strict);
+   - BOLA, always `hypothesis` and never above Low.
+   **Done.**
+2. Graph edges UNGUARDED (inferred) and BOLA_SUSPECT (hypothesis) with evidence, under the X1/X3 rules. **Done.** They have no probability yet, so they cannot change any path (ADR-0023).
+3. A "manual verification required" list in the API. **Done:** `GET /scans/{id}/authz/manual`.
+4. Inconsistency precision ≥ 0.8 on the labelled suite. **Done: 4/4 (1.0), recall 4/4.**
+5. Zero BOLA findings above `hypothesis`. **Done**, by test (suite, random inventories, scoring property, db).
+6. Inventory recall unchanged. **Done:** 30/31 = 0.968.
+7. All earlier tests green. **Done.**
+
+Also done: the refinement DAY_3_REPORT named. A passed-in Express app is now bound through its call site (NodeGoat: 8 `unresolved` routes are now resolved).
+
+## B. Why
+The inventory alone says where guards are. Part 2 says where one is missing and matters, at the assurance the evidence supports. It sends what cannot be decided statically (BOLA, undecided routes) to a person instead of guessing.
+
+## C. Architecture
+```
+extract.py ts-imports.5 ── + route.body {span, loads, ownership}; JS calls, exported params
+        ▼
+authz.route_inventory(extracted, extra_guards=manifest.authz.guards)
+        passed-in Express apps bound through call sites
+        ▼
+authz.analyze(routes, manifest.authz.rules, SAST lines by file) ─▶ AuthzIssue[] + policy-unchecked
+        ▼
+authz.issue_findings ─▶ RawFinding(authz, riskgraph) ─▶ merge ─▶ score (v1-ctx.4, Low cap)
+        evidence = the route/guard evidence ids it rests on
+        ▼
+graph._authz_edges: endpoint nodes, UNGUARDED (inferred), BOLA_SUSPECT (hypothesis), p = None
+        ▼
+GET /scans/{id}/findings?source_type=authz ; GET /scans/{id}/authz/manual ; summary.authz
+```
+
+## D. Components
+| Component | File |
+|---|---|
+| Handler bodies, call sites, exported parameters | `modules/reachability/routes.py` (`_body`, `_js_call_site`, `_js_params`) |
+| Call-site binding | `modules/authz/inventory.py` (`_collect_calls`, `_bound`, `_earlier`) |
+| Public-by-design words, manifest guards | `modules/authz/guards.yaml` (`public_hints`), `guards.py` (`with_guards`, `public_by_design`) |
+| Manifest section | `modules/context/manifest.py` (`AuthzDecl`, `AuthzRule`) |
+| Rules | `modules/authz/analysis.py` |
+| Findings | `modules/authz/findings.py` |
+| Interim score | `modules/risk/tables.py`, `model.py` (`authz_interim`, the Low ceiling) |
+| Edges | `modules/graph/attack.py::_authz_edges` |
+| Manual list | `modules/authz/service.py::manual_checks`, `router.py` |
+| Pipeline | `modules/scans/pipeline.py::_authz` (routes now come before the merge) |
+| Evaluation | `evaluation/run.py` (`OUTSIDE_X0`) |
+
+## E. Technical decisions
+See ADR-0023.
+- Only `none_found` is ever "unguarded".
+- Reads are compared with reads.
+- Login, signup, callback, health and webhook routes are not sensitive for writing alone.
+- BOLA needs the handler code to be seen.
+- Every authz finding is Low until X6.
+- The new edges have no probability.
+- Authz findings stay outside the X0 set (F-4-1).
+
+## G. Database
+None. Authz findings use the existing findings, occurrences and evidence tables. The extractor version changes (`ts-imports.5`). Model `v1-ctx.4`.
+
+## H. API (all additive)
+- `GET /api/v1/scans/{id}/authz/manual?kind=` returns `{items: [ManualCheckOut], total, by_kind}`. Each item has `kind` (`bola`, `policy_unchecked`, `unresolved`, `unknown_framework` or `custom`), `reason`, `finding_id`, `route_id`, `file`, `line`, `route` and `missing`.
+- Authz findings appear in `/scans/{id}/findings` (`source_type=authz`) and `/findings/{id}`. Their `evidence[]` is the route and guard evidence.
+- Route evidence facts gain `policy_unchecked` when a manifest rule could not be checked.
+- `summary.authz` has `{status, findings, by_rule, hypotheses, policy_rules, policy_unchecked_routes}`.
+- The graph has `endpoint` nodes with UNGUARDED and BOLA_SUSPECT edges.
+
+## L. Configuration
+The manifest section `authz: {guards: [...], rules: [{path, methods?, require}]}` is documented in `docs/examples/riskgraph.yaml`. Catalogue words are in `guards.yaml` `public_hints`.
+
+## M. Testing
+- `test_route_extract.py` (12, +5): handler bodies (lookup, ownership, formatting calls, attribute named like the id, `add_url_rule`), Express inline, named and cross-file handlers, call sites, the three export shapes, a 6,000-line body cut off at the node cap.
+- `test_authz_inventory.py` (52, +12): a NodeGoat-shaped app (caller `use()` order, mounts and `use()` inside the module, an uncalled export), several call sites, a call that passes no receiver, public hints (8), manifest guard names.
+- `test_manifest.py` (54, +26): the `authz:` section (9 refusals, valid parse, 14 path-matching cases, methods, a hostile pattern).
+- `test_authz_analysis.py` (26, new):
+  - the resource of a path (9 cases);
+  - each rule's positive and negative cases;
+  - undecided routes, both statuses;
+  - BOLA's five cases, policy names;
+  - empty input;
+  - a Hypothesis property over random inventories;
+  - findings anchored on the route;
+  - two scale bounds.
+- `test_authz_findings_suite.py` (5, new): the labelled suite. It pins every rule's TP/FP/FN.
+- `test_authz_graph.py` (5, new): edge assurance, evidence and targets; no path or effective-impact change, also as a property.
+- `test_risk_model.py` (34, +3): interim factors, the Low ceiling over random context and paths, `assurance` inert elsewhere.
+- `test_authz_db.py` (5, +3):
+  - findings rest on route evidence, are Low, and keep their ids on a rescan;
+  - the manual list (order, kinds, filter, 422, 404, policy-unchecked);
+  - edges are stored and not on any path.
+- Updated for the kitchen sink's 3 new, correct authz findings (29 → 32): `test_api`, `test_pipeline_db`, `test_level2_ext_db`, `test_risks_db`; and `test_evidence_db` (X1's backfill test leaves X5's rows aside).
+
+## O. Validation
+See `docs/auto/DAY_4_REPORT.md`.
+- **Suite:**
+  - inconsistency 4/0/0 (TP/FP/FN);
+  - unguarded-sensitive 3/2/0;
+  - policy 1/0/0;
+  - BOLA 6/1/0.
+- **NodeGoat at `c5cb68a`:** 20/20 routes resolved, no authz issue raised. Its IDOR is missed (cross-file handler).
+- **X0:** the pooled table equals `BASELINE.md` (authz outside the set).
+
+## Q. Known limits (part 2)
+- Unguarded-sensitive precision is 0.6 on the suite: public forms (F-4-2).
+- BOLA needs the handler code in the route's file. Cross-file handlers, such as methods of handler objects (NodeGoat's style), are not read.
+- Ownership and lookup are words. Calls that only format are skipped by name.
+- The handler-span check only uses code findings whose line is inside the handler, not ones in functions it calls.
+- Edges are not traversable until X6 gives them a probability. The interim Low cap also lasts until X6.
+- The evaluation leaves authz out (F-4-1).
