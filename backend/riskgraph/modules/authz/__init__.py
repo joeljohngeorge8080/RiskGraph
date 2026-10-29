@@ -13,9 +13,9 @@ from riskgraph.modules.authz.service import PRODUCER, list_routes, route_evidenc
 __all__ = [
     "PRODUCER",
     "RULES",
+    "STATUSES",
     "AuthzIssue",
     "AuthzResult",
-    "STATUSES",
     "Catalogue",
     "Guard",
     "Route",

@@ -3,8 +3,10 @@
 Pure: routes, the manifest's ``authz.rules`` and the lines of the scan's code findings
 in; issues out. Four rules, each with honest assurance:
 
-- ``inconsistent``: a route with no guard whose siblings on the same resource are guarded:
-  most of at least two siblings, or a guarded read next to an unguarded write. Inferred.
+- ``inconsistent``: a route with no guard whose siblings on the same resource are guarded.
+  An unguarded write: most of at least two siblings are guarded, or a read is. An unguarded
+  read is compared with the other reads only (most of them guarded), because a public
+  read next to guarded writes is the usual design. Inferred.
 - ``unguarded-sensitive``: a route with no guard that writes (a mutating method) or whose
   handler contains a code finding of an injection-like category. Login, signup, callback,
   health and webhook routes are public by design and are not called sensitive for that
@@ -117,14 +119,20 @@ def _inconsistent(routes: list[Route]) -> list[AuthzIssue]:
             if r.status != "none_found":
                 continue
             others = [o for o in members if o is not r]
+            writes = bool(set(r.methods) & MUTATING)
+            if not writes:
+                # a public read next to guarded writes is the usual design (anyone may
+                # list posts, only members may add one): compare reads with reads
+                others = [o for o in others if set(o.methods) <= READS]
             guarded = [o for o in others if o.status in GUARDED]
-            majority = len(others) >= 2 and 2 * len(guarded) > len(others)
+            majority = len(others) >= (2 if writes else 1) and 2 * len(guarded) > len(others)
             reads = [o for o in guarded if set(o.methods) <= READS]
-            write_open = bool(set(r.methods) & MUTATING) and bool(reads)
+            write_open = writes and bool(reads)
             if not (majority or write_open):
                 continue
             why = (
-                f"{len(guarded)} of the {len(others)} other routes on {res} have a guard"
+                f"{len(guarded)} of the {len(others)} other "
+                f"{'' if writes else 'read '}routes on {res} have a guard"
                 if majority
                 else f"the read {_where(reads[0])} has a guard and this write has none"
             )
