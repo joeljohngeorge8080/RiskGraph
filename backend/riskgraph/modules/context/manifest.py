@@ -17,6 +17,7 @@ from __future__ import annotations
 import posixpath
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Protocol
 
@@ -168,13 +169,19 @@ class AuthzRule(_Strict):
             return False
         if self.methods and not set(self.methods) & set(methods):
             return False
-        return _segments_match(self.path.strip("/").split("/"), full_path.strip("/").split("/"))
+        return _segments_match(_segments(self.path), _segments(full_path))
 
 
-def _segments_match(pattern: list[str], path: list[str]) -> bool:
-    """Iterative glob over segments: ``*`` one, ``**`` zero or more."""
-    pattern = [p for p in pattern if p]
-    path = [p for p in path if p]
+@lru_cache(maxsize=8192)
+def _segments(path: str) -> tuple[str, ...]:
+    return tuple(p for p in path.split("/") if p)
+
+
+def _segments_match(pattern: tuple[str, ...], path: tuple[str, ...]) -> bool:
+    """Iterative glob over segments: ``*`` one, ``**`` zero or more. Worst case
+    len(pattern) * len(path) steps, never exponential."""
+    if pattern and pattern[0] not in ("*", "**") and (not path or path[0] != pattern[0]):
+        return False  # the usual rule starts with a literal: most routes stop here
     i = j = 0
     star_i, star_j = -1, 0
     while j < len(path):
