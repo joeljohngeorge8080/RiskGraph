@@ -128,26 +128,31 @@ def _inconsistent(routes: list[Route]) -> list[AuthzIssue]:
     for (_, res), members in sorted(groups.items(), key=lambda kv: (kv[0][0] or "", kv[0][1])):
         if len(members) < 2:
             continue
-        for r in members:
+        # counted once per group, so a resource with thousands of routes stays linear;
+        # the route looked at is unguarded, so it is never among the guarded ones
+        is_read = [set(o.methods) <= READS for o in members]
+        all_guarded = [o for o in members if o.status in GUARDED]
+        guarded_reads = [
+            o for o, rd in zip(members, is_read, strict=True) if rd and o.status in GUARDED
+        ]
+        n_reads = sum(is_read)
+        for r, r_is_read in zip(members, is_read, strict=True):
             if r.status != "none_found":
                 continue
-            others = [o for o in members if o is not r]
             writes = bool(set(r.methods) & MUTATING)
-            if not writes:
-                # a public read next to guarded writes is the usual design (anyone may
-                # list posts, only members may add one): compare reads with reads
-                others = [o for o in others if set(o.methods) <= READS]
-            guarded = [o for o in others if o.status in GUARDED]
-            majority = len(others) >= (2 if writes else 1) and 2 * len(guarded) > len(others)
-            reads = [o for o in guarded if set(o.methods) <= READS]
-            write_open = writes and bool(reads)
+            # a public read next to guarded writes is the usual design (anyone may list
+            # posts, only members may add one): an unguarded read is compared with reads
+            n_others = len(members) - 1 if writes else n_reads - r_is_read
+            guarded = all_guarded if writes else guarded_reads
+            majority = n_others >= (2 if writes else 1) and 2 * len(guarded) > n_others
+            write_open = writes and bool(guarded_reads)
             if not (majority or write_open):
                 continue
             why = (
-                f"{len(guarded)} of the {len(others)} other "
+                f"{len(guarded)} of the {n_others} other "
                 f"{'' if writes else 'read '}routes on {res} have a guard"
                 if majority
-                else f"the read {_where(reads[0])} has a guard and this write has none"
+                else f"the read {_where(guarded_reads[0])} has a guard and this write has none"
             )
             out.append(
                 AuthzIssue(

@@ -269,3 +269,37 @@ def test_issues_become_authz_findings_anchored_on_the_route_not_the_line() -> No
     assert f.attrs["evidence_ids"] == ["r1", "r0"] and f.attrs["assurance"] == "inferred"
     [moved] = findings(40)
     assert fingerprint(f, "acme/x") == fingerprint(moved, "acme/x")
+
+
+def test_thousands_of_routes_on_one_resource_stay_linear() -> None:
+    import time
+
+    routes = [
+        _route(
+            "/api/<id>",
+            "DELETE" if i % 2 else "GET",
+            "guarded" if i % 3 else "none_found",
+            line=i,
+            guards=("login_required",) if i % 3 else (),
+        )
+        for i in range(5000)
+    ]
+    start = time.perf_counter()
+    issues = analyze(routes).issues
+    assert time.perf_counter() - start < 2.0
+    assert len(issues) == 1667  # every unguarded one: most of its siblings are guarded
+
+
+def test_the_largest_hostile_policy_is_bounded() -> None:
+    """A repository's own manifest is untrusted input: 200 rules (the cap) that all start
+    with ** against 5,000 routes (the inventory's cap) take seconds, not forever."""
+    import time
+
+    rules = [
+        AuthzRule(path="/" + "/".join(["**", "a"] * 4) + f"/x{i}", require="authenticated")
+        for i in range(200)
+    ]
+    routes = [_route(f"/a/b/a/c/a/d/a/e/{i}", "GET", line=i) for i in range(5000)]
+    start = time.perf_counter()
+    analyze(routes, rules)
+    assert time.perf_counter() - start < 15.0
