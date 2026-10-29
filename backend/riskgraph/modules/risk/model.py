@@ -1,4 +1,4 @@
-"""Risk model v1-ctx: the blueprint's hybrid model (§14) with deployment context.
+"""Risk model v2: the blueprint's hybrid model (§14) with deployment context.
 
     L = geomean(applicable likelihood factors)   E, X, R
     I = mean(impact factors)                     T, D, P, C
@@ -9,7 +9,9 @@ X, D, P and C come from ``ScoreInput.context`` (manifest, repository visibility)
 ``ScoreInput.reachability`` (L0/L1/L2), and each falls back to the blueprint's "unknown"
 value. When the finding is evidence on an attack path, I is raised to the path's
 effective impact (§14.4, adjustment factor ``I*``). With no context, no reachability and
-K = 1 this is exactly the §14.3 context-free case. Pure function: same input, same
+K = 1 this is exactly the §14.3 context-free case. v2 (ADR-0024) adds factor rows for
+image packages, taint flows, runtime end-of-life and authorization findings; without
+those inputs it scores exactly as v1-ctx.3. Pure function: same input, same
 output, and every factor is returned with its provenance.
 """
 
@@ -45,6 +47,11 @@ class ScoreInput:
     iac_family: str | None = None
     # authz (X5): the finding's assurance; a hypothesis is capped at Low (ADR-0023)
     assurance: str | None = None
+    # v2 (ADR-0024); each default means "absent", and then the v1 factors apply
+    image_package: bool = False  # installed in a container image: R not assessable
+    taint_cwe: str | None = None  # CWE class of a tier-1 taint flow at this finding
+    taint_confidence: str | None = None  # that taint rule's confidence
+    eol_age_days: int | None = None  # runtime EOL: days from end of support to the data
     # deployment context; None means "nothing known" (all defaults)
     context: FindingContext | None = None
     # reachability tier (sca/sast) with provenance; None = not analysed
@@ -142,16 +149,39 @@ def _exploitability(inp: ScoreInput) -> Factor:
         if (inp.confidence or "").upper() == "HIGH":
             value += t.E_SAST_HIGH_CONFIDENCE_BONUS
             raw += ",confidence=HIGH"
-        return Factor("likelihood", "E", _clamp(value), "sast_severity", "medium", raw)
+        sast = Factor("likelihood", "E", _clamp(value), "sast_severity", "medium", raw)
+        flow = _taint_exploitability(inp)
+        return flow if flow is not None and flow.value > sast.value else sast
     if st is SourceType.RUNTIME:
-        return Factor("likelihood", "E", t.E_RUNTIME_EOL, "runtime_eol", "low", "eol=true")
+        return _eol_exploitability(inp.eol_age_days)
     if st is SourceType.AUTHZ:
         raw = f"severity={inp.severity},assurance={inp.assurance or 'unknown'}"
-        return Factor("likelihood", "E", t.E_SAST[inp.severity], "authz_interim", "low", raw)
+        return Factor("likelihood", "E", t.E_AUTHZ_INFERRED[inp.severity], "authz", "low", raw)
     family = inp.iac_family or "hygiene"
     return Factor(
         "likelihood", "E", t.E_IAC.get(family, 0.25), "iac_family", "medium", f"family={family}"
     )
+
+
+def _taint_exploitability(inp: ScoreInput) -> Factor | None:
+    """E of a tier-1 taint flow by CWE class and rule confidence (ADR-0024), if any."""
+    if inp.taint_cwe is None:
+        return None
+    confidence = (inp.taint_confidence or "").upper()
+    value = t.E_TAINT.get(inp.taint_cwe, {}).get(confidence)
+    if value is None:
+        return None
+    raw = f"{inp.taint_cwe},analysis=intraprocedural,confidence={confidence}"
+    # tier 1 is inferred (a rule applied to parsed code), never verified (ADR-0021)
+    return Factor("likelihood", "E", value, "taint_tier1", "medium", raw)
+
+
+def _eol_exploitability(age_days: int | None) -> Factor:
+    """E of an end-of-life runtime by the time since its end of support (ADR-0024)."""
+    if age_days is None or age_days < 0:
+        return Factor("likelihood", "E", t.E_RUNTIME_EOL, "runtime_eol", "low", "eol=true")
+    value = next(v for days, v in t.E_RUNTIME_EOL_BY_AGE if age_days >= days)
+    return Factor("likelihood", "E", value, "runtime_eol", "medium", f"eol_age_days={age_days}")
 
 
 def _technical_impact(inp: ScoreInput) -> Factor:
@@ -173,7 +203,7 @@ def _technical_impact(inp: ScoreInput) -> Factor:
         return Factor("impact", "T", t.T_RUNTIME_EOL, "runtime_eol", "low", "no security fixes")
     if st is SourceType.AUTHZ:
         value = t.T_SAST[t.AUTHZ_CATEGORY]
-        return Factor("impact", "T", value, "authz_interim", "low", f"category={t.AUTHZ_CATEGORY}")
+        return Factor("impact", "T", value, "authz", "low", f"category={t.AUTHZ_CATEGORY}")
     family = inp.iac_family or "hygiene"
     return Factor(
         "impact", "T", t.T_IAC.get(family, 0.2), "iac_family", "medium", f"family={family}"
@@ -325,8 +355,8 @@ def score(inp: ScoreInput) -> ScoreResult:
             }
         )
 
-    authz = inp.source_type is SourceType.AUTHZ
-    if authz and (value > t.AUTHZ_SCORE_CEILING or priority is not Priority.LOW):
+    hypothesis = inp.source_type is SourceType.AUTHZ and inp.assurance == "hypothesis"
+    if hypothesis and (value > t.AUTHZ_SCORE_CEILING or priority is not Priority.LOW):
         value = min(value, t.AUTHZ_SCORE_CEILING)
         priority = Priority.LOW
         overrides.append(
@@ -334,13 +364,6 @@ def score(inp: ScoreInput) -> ScoreResult:
                 "rule": "hypothesis_ceiling_low",
                 "effect": "priority<=low",
                 "reason": "a pattern suggests it and no artifact supports it (test it)",
-            }
-            if inp.assurance == "hypothesis"
-            else {
-                "rule": "authz_interim_ceiling_low",
-                "effect": "priority<=low",
-                "reason": "authorization findings are not ranked against scanner findings "
-                "until risk v2",
             }
         )
 
@@ -368,6 +391,9 @@ def _reachability_factor(inp: ScoreInput, applicable: bool) -> Factor:
             "n_a",
             applicable=False,
         )
+    if inp.image_package:
+        # the code that uses an image's packages is not analysed (X2, ADR-0024)
+        return Factor("likelihood", "R", t.R_NOT_ASSESSABLE, "not_assessable", "low", "n_a")
     obs = inp.reachability
     if obs is not None and obs.label in t.R_VALUES:
         evidence = {k: v for k, v in obs.evidence.items() if v is not None}
