@@ -93,3 +93,19 @@ custom_hints:
   - verify
   - require          # require_admin, requireLogin, team_member_required
   - current user
+
+# Words that make a route public by design: an authentication entry point or a probe.
+# An unguarded route whose path or handler has one of them is not called sensitive for
+# being unguarded (X5 part 2, ADR-0023); inconsistency and policy rules still apply.
+public_hints:
+  - login
+  - logout
+  - signin
+  - signout
+  - signup
+  - register
+  - oauth
+  - callback
+  - forgot
+  - health
+  - webhook

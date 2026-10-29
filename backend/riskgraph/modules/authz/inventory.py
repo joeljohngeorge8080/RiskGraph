@@ -69,6 +69,16 @@ class Route:
     status: str
     mounted: bool  # the mount chain reaches an app
     notes: tuple[str, ...] = ()
+    # the handler's code, when it is in the same file (ts-imports.5): its lines, the path
+    # parameters it passes into a call, and whether it compares against an owner or the
+    # current user (None: the code was not seen)
+    span: tuple[int, int] | None = None
+    loads: tuple[str, ...] = ()
+    ownership: bool | None = None
+
+    @property
+    def key(self) -> tuple[str, int, tuple[str, ...], str]:
+        return (self.file, self.line, self.methods, self.path or "")
 
 
 @dataclass
@@ -145,10 +155,17 @@ def _under(path: str | None, prefix: str | None) -> bool:
     return path == p or path.startswith(p + "/")
 
 
-def route_inventory(extracted: dict[str, Any], catalogue: Catalogue | None = None) -> list[Route]:
+def route_inventory(
+    extracted: dict[str, Any],
+    catalogue: Catalogue | None = None,
+    extra_guards: tuple[str, ...] = (),
+) -> list[Route]:
+    """``extra_guards``: the repository's own guard names (manifest ``authz.guards``)."""
     raw = extracted.get("files") if isinstance(extracted, dict) else None
     files = {k: v for k, v in (raw or {}).items() if isinstance(k, str) and isinstance(v, dict)}
-    inv = _Inventory(files=files, catalogue=catalogue or load_catalogue())
+    inv = _Inventory(
+        files=files, catalogue=(catalogue or load_catalogue()).with_guards(extra_guards)
+    )
     inv.names = set(files)
     inv.index = python_module_index({f for f in files if f.endswith(".py")})
     inv.modules = module_of_file(inv.index)
@@ -496,6 +513,9 @@ def _route(inv: _Inventory, file: str, raw: dict[str, Any], detected: dict[str, 
 
     classified = [_classify(inv, framework, g) for g in guards]
     status = _status(inv, framework, classified, mounted or framework == "flask")
+    raw_body = raw.get("body")
+    body: dict[str, Any] = raw_body if isinstance(raw_body, dict) else {}
+    span = body.get("span")
     return Route(
         file=file,
         line=line,
@@ -510,6 +530,13 @@ def _route(inv: _Inventory, file: str, raw: dict[str, Any], detected: dict[str, 
         status=status,
         mounted=mounted,
         notes=tuple(dict.fromkeys(notes))[:10],
+        span=(
+            (int(span[0]), int(span[1]))
+            if isinstance(span, list) and len(span) == 2 and all(isinstance(x, int) for x in span)
+            else None
+        ),
+        loads=tuple(x for x in body.get("loads") or [] if isinstance(x, str))[:20],
+        ownership=body["ownership"] if isinstance(body.get("ownership"), bool) else None,
     )
 
 
