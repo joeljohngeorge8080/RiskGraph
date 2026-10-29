@@ -139,6 +139,8 @@ def test_the_migration_backfill_matches_the_builder(settings: Settings, db: None
     """Downgrade a real scan, upgrade it again: SQL backfill == what the builder wrote."""
     sid = uuid.UUID(_scan(settings))
     with session_scope() as s:
+        # X5's authorization edges did not exist before X1, so no backfill rule covers them
+        s.execute(delete(GraphEdge).where(GraphEdge.kind.in_(("UNGUARDED", "BOLA_SUSPECT"))))
         built = {
             (e.source, e.target, e.kind): e.assurance
             for e in s.scalars(select(GraphEdge).where(GraphEdge.scan_job_id == sid))

@@ -1108,6 +1108,16 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                         (hit := intel.get(x.merged.representative.vulnerability_id or ""))
                         and hit.kev
                     ),
+                    authz_rule=(
+                        x.merged.representative.rule_id.removeprefix("authz:")
+                        if x.merged.source_type is SourceType.AUTHZ
+                        else None
+                    ),
+                    route=(
+                        x.merged.location.resource
+                        if x.merged.source_type is SourceType.AUTHZ
+                        else None
+                    ),
                 )
                 for i, x in enumerate(scored)
             ],
