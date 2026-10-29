@@ -13,6 +13,7 @@ from riskgraph.modules.context import FindingContext, Observed, VulnIntel
 from riskgraph.modules.normalization import MergedFinding
 from riskgraph.modules.risk.model import EffectiveImpact, ScoreInput, ScoreResult, score
 from riskgraph.modules.risk.models import RiskFactor, RiskScore
+from riskgraph.shared.vocabulary import SourceType
 
 
 def input_for(
@@ -37,6 +38,7 @@ def input_for(
         live_credential=bool(attrs.get("live_credential")),
         confidence=attrs.get("confidence"),
         iac_family=attrs.get("iac_family"),
+        assurance=attrs.get("assurance") if merged.source_type is SourceType.AUTHZ else None,
         context=context,
         reachability=reachability,
     )

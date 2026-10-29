@@ -38,6 +38,19 @@ from riskgraph.shared.vocabulary import Severity
 RULES = ("inconsistent", "unguarded-sensitive", "policy", "bola")
 MUTATING = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 READS = frozenset({"GET", "HEAD"})
+# code-finding categories that make an unguarded handler sensitive (normalization's names)
+SENSITIVE_CATEGORIES = frozenset(
+    {
+        "command_injection",
+        "code_injection",
+        "deserialization",
+        "sql_injection",
+        "injection",
+        "ssrf",
+        "path_traversal",
+        "xxe",
+    }
+)
 GUARDED = frozenset({"guarded", "custom"})
 UNDECIDED = frozenset({"unresolved", "unknown_framework"})
 _PARAM_SEGMENT = re.compile(r"^(<[^>]+>|\{[^}]+\}|:\w+\??|\*)$")

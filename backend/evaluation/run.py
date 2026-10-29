@@ -46,6 +46,10 @@ from evaluation.record import FIXTURES, INTEL
 from evaluation.scenarios import SCENARIOS, Scenario
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
+# Finding classes the X0 labels were written for. Authorization findings (X5) came later:
+# labelling them now, after seeing their ranks, would break the "labels before ranking"
+# rule, so they are left out here and get their own scenarios in X6.
+OUTSIDE_X0 = frozenset({"authz"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,6 +142,8 @@ def _scan(settings: Settings, scenario: Scenario) -> list[Row]:
     with session_scope() as s:
         found, _ = list_scan_findings(s, sid, FindingFilters(), limit=10_000)
         for finding, _by, risk, vuln, _change, tier in found:
+            if finding.source_type.value in OUTSIDE_X0:
+                continue
             facts: dict[str, Any] = {
                 "source_type": finding.source_type.value,
                 "package": str((finding.package or {}).get("name") or ""),

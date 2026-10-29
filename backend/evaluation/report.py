@@ -94,6 +94,8 @@ def render(rows: Sequence[Row]) -> str:
         "- Labels: by construction from `backend/evaluation/scenarios.py`, written before any "
         "ranking was computed (rubric in blueprint §26.3). Per-finding labels and rationale: "
         "`baseline_findings.csv`.",
+        "- Not in this set: authorization findings (X5); they are labelled with the X6 "
+        "scenarios (`OUTSIDE_X0` in `backend/evaluation/run.py`).",
         "",
         "## Dataset",
         "",

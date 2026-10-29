@@ -126,11 +126,11 @@ def test_attack_paths_and_effective_impact(api: TestClient, settings: Settings) 
 def test_history_new_existing_fixed_reopened(api: TestClient, settings: Settings) -> None:
     first = _scan(settings, manifest=False)
     h1 = api.get(f"/api/v1/scans/{first}").json()["summary"]["history"]
-    assert h1["previous_scan_id"] is None and h1["new"] == 29 and h1["fixed"] == 0
+    assert h1["previous_scan_id"] is None and h1["new"] == 32 and h1["fixed"] == 0
 
     second = _scan(settings, manifest=False)
     h2 = api.get(f"/api/v1/scans/{second}").json()["summary"]["history"]
-    assert (h2["previous_scan_id"], h2["new"], h2["existing"], h2["fixed"]) == (first, 0, 29, 0)
+    assert (h2["previous_scan_id"], h2["new"], h2["existing"], h2["fixed"]) == (first, 0, 32, 0)
     assert _findings(api, second, change="new") == []
 
     # the private key file is deleted: the scanners that reported it ran cleanly → fixed.
@@ -224,8 +224,8 @@ def test_repositories_trend(api: TestClient, settings: Settings) -> None:
     assert len(repos) == 1 and repos[0]["scans"] == 2
     detail = api.get(f"/api/v1/repositories/{repos[0]['id']}").json()
     points = detail["history"]
-    assert [p["findings"] for p in points] == [29, 28]
-    assert points[1]["fixed"] == 1 and points[0]["new"] == 29
+    assert [p["findings"] for p in points] == [32, 31]
+    assert points[1]["fixed"] == 1 and points[0]["new"] == 32
     assert api.get(f"/api/v1/repositories/{uuid.uuid4()}").status_code == 404
 
 

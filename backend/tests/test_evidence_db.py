@@ -18,7 +18,7 @@ from riskgraph.modules.scans.models import ScannerRun
 from riskgraph.modules.scans.service import ALL_SCANNERS
 from riskgraph.shared.config import Settings, get_settings
 from riskgraph.shared.db import dispose_engine, session_scope
-from riskgraph.shared.vocabulary import ScannerName, ScanStatus
+from riskgraph.shared.vocabulary import ScannerName, ScanStatus, SourceType
 from sqlalchemy import delete, func, select
 
 from tests.conftest import _alembic
@@ -144,9 +144,11 @@ def test_the_migration_backfill_matches_the_builder(settings: Settings, db: None
             for e in s.scalars(select(GraphEdge).where(GraphEdge.scan_job_id == sid))
         }
     assert {"verified", "hypothesis"} <= set(built.values())
-    # X2's downgrade refuses while riskgraph runs exist (by design); this test is about
-    # X1's backfill, so drop the run first (the scan has no runtime findings to lose)
+    # X2's downgrade refuses while riskgraph runs or runtime/authz findings exist (by
+    # design); this test is about X1's backfill, so drop them first (the kitchen sink's
+    # authz findings, X5, build no graph edge, so the comparison is unchanged)
     with session_scope() as s:
+        s.execute(delete(Finding).where(Finding.source_type == SourceType.AUTHZ))
         s.execute(delete(ScannerRun).where(ScannerRun.scanner == ScannerName.RISKGRAPH))
     _alembic("downgrade", "e1b7d3a9c2f4")
     _alembic("upgrade", "head")

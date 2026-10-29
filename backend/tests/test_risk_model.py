@@ -8,6 +8,7 @@ from hypothesis import strategies as st
 from riskgraph.modules.context import FindingContext, Observed
 from riskgraph.modules.risk import ScoreInput, priority_for, score
 from riskgraph.modules.risk.model import epss_to_e
+from riskgraph.modules.risk.tables import E_SAST, MODEL_VERSION, T_SAST
 from riskgraph.shared.vocabulary import Priority
 from riskgraph.shared.vocabulary import Severity as V
 from riskgraph.shared.vocabulary import SourceType as S
@@ -318,3 +319,53 @@ def test_runtime_eol_has_its_own_interim_factors_not_iac_ones() -> None:
     assert e is not None and e.source == "runtime_eol" and e.value == 0.5
     assert t_ is not None and t_.source == "runtime_eol" and t_.value == 0.6
     assert r.factor("R") is None or not r.factor("R").applicable  # type: ignore[union-attr]
+
+
+# --- v1-ctx.4: interim authorization score and the hypothesis ceiling (ADR-0023) --------
+def test_authz_findings_have_interim_factors_from_the_sast_auth_rows() -> None:
+    r = score(ScoreInput(S.AUTHZ, V.HIGH, category="auth", assurance="inferred"))
+    e, t_ = r.factor("E"), r.factor("T")
+    assert e is not None and e.source == "authz_interim" and e.value == E_SAST[V.HIGH]
+    assert t_ is not None and t_.source == "authz_interim" and t_.value == T_SAST["auth"]
+    assert MODEL_VERSION == "v1-ctx.4"
+    # until risk v2, even an inferred finding with full context and a path stays Low
+    top = score(
+        ScoreInput(
+            S.AUTHZ,
+            V.HIGH,
+            assurance="inferred",
+            context=FULL,
+            effective_impact=EffectiveImpact(1.0, "internet → api → db", "db", 1.0),
+        )
+    )
+    assert top.priority is Priority.LOW and top.score < 20.0
+    assert [o["rule"] for o in top.overrides] == ["authz_interim_ceiling_low"]
+
+
+@given(
+    severity=st.sampled_from(list(V)),
+    context=st.sampled_from([None, FULL]),
+    effective=st.floats(0.0, 1.0),
+)
+def test_an_authz_hypothesis_is_never_above_low(
+    severity: V, context: FindingContext | None, effective: float
+) -> None:
+    r = score(
+        ScoreInput(
+            S.AUTHZ,
+            severity,
+            assurance="hypothesis",
+            context=context,
+            effective_impact=EffectiveImpact(effective, "p", "s", effective),
+        )
+    )
+    assert r.priority is Priority.LOW and r.score < 20.0
+    assert all(o["rule"] == "hypothesis_ceiling_low" for o in r.overrides)
+
+
+@given(st.sampled_from([None, "hypothesis", "inferred", "verified"]))
+def test_assurance_changes_nothing_for_other_source_types(assurance: str | None) -> None:
+    for st_ in (S.SAST, S.SCA, S.SECRET, S.IAC):
+        plain = score(ScoreInput(st_, V.CRITICAL, context=FULL))
+        marked = score(ScoreInput(st_, V.CRITICAL, context=FULL, assurance=assurance))
+        assert marked == plain
