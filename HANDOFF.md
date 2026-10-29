@@ -1,4 +1,25 @@
-# HANDOFF: resume here (updated 2026-10-28, auto session day 3: X4 part 2 gated by the Joern spike (F-3-1); tier-1 hardening and X5 part 1 done; next X5 part 2, see docs/auto/SCHEDULE.md)
+# HANDOFF: resume here (updated 2026-10-29, auto session day 4: X5 part 2 done a day early (authorization findings, manifest `authz:`, manual list, UNGUARDED/BOLA_SUSPECT edges); X4 part 2 still gated (F-3-1); next X6, see docs/auto/SCHEDULE.md)
+
+## Auto session day 4 (2026-10-29, cloud, branch `extended_phase_auto`)
+- **Verdict COMPLETE.** Report: `docs/auto/DAY_4_REPORT.md`; plan: `DAY_4_PLAN.md`.
+- **X5 part 2, a day early** (`PHASE_X5.md` part 2, ADR-0023, no migration, model `v1-ctx.4`):
+  - extractor `ts-imports.5`: handler bodies (what a handler looks up, whether it checks an owner), JS call sites;
+  - a passed-in Express app is bound through its call site (NodeGoat: 20/20 routes resolved);
+  - manifest `authz: {guards, rules}`, optional and strict;
+  - `authz` findings: inconsistent, unguarded-sensitive, policy, and BOLA (always a low hypothesis). They link the route evidence they rest on;
+  - **every authz finding is capped at Low until X6** (uncapped, two entered the X0 top 10; that ranking is X6's call);
+  - `GET /scans/{id}/authz/manual` (what a person must check);
+  - UNGUARDED (inferred) and BOLA_SUSPECT (hypothesis) edges, stored **without a probability**, so no path or score changes.
+  - Labelled suite: inconsistency 4/4, no false positive; unguarded-sensitive 3 TP and 2 FP (precision 0.6, F-4-2); BOLA 6 TP and 1 FP.
+- Verified:
+  - lint/types clean; 610 unit; 83 db, 2 skipped; perf 4 passed;
+  - migration round trip and `alembic check` clean;
+  - the X0 re-run's pooled table equals `BASELINE.md`, with authz findings outside the X0 set (F-4-1).
+- **For the owner:**
+  - new flags F-4-1 (authz findings in the evaluation) and F-4-2 (declaring public routes); F-1-1, F-1-2, F-2-1 and F-3-1 are still open;
+  - `1fd675c` was pushed with one lint error (tests green), fixed in the next commit `fe25182`; the check script that let it through is fixed;
+  - the kitchen sink now has 3 correct authz findings (pinned counts 29 → 32).
+
 
 ## Auto session day 3 (2026-10-28, cloud, branch `extended_phase_auto`)
 - **Verdict COMPLETE.** Report: `docs/auto/DAY_3_REPORT.md`; plan: `DAY_3_PLAN.md`.
