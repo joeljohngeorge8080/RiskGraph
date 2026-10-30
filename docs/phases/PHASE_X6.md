@@ -84,3 +84,11 @@ None.
 - Inferred authz findings now compete with scanner findings. They have not been checked against labels yet (F-4-1).
 - UNGUARDED and BOLA_SUSPECT edges still have no probability.
 - G's database end waits on F-1-1.
+
+## R. Integration pass (day 6, 2026-10-31)
+Every suite was run across the six days' work (`DAY_6_REPORT.md`). Three gaps between phases were fixed, none in scoring:
+- the frontend's copy of the vocabulary (source types `runtime`/`authz`, producers `syft`/`riskgraph`, `CANCELLED` as terminal), with `tests/test_frontend_vocabulary.py` comparing every mirrored union with its enum;
+- the template explanation's remediation steps for runtime and authz findings;
+- the example manifest's description of credential families, and an `owns:` example.
+
+Every migration now round-trips down to base and back. The X0 run is unchanged. The six-day summary and everything still open: `docs/auto/FINAL_REPORT.md`.
