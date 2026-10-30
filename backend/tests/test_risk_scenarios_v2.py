@@ -19,7 +19,13 @@ from riskgraph.modules.context import (
     parse_manifest,
 )
 from riskgraph.modules.evidence import Assurance
-from riskgraph.modules.graph import AttackAnalysis, GraphFinding, PathResult, analyze
+from riskgraph.modules.graph import (
+    AttackAnalysis,
+    GraphFinding,
+    PathResult,
+    analyze,
+    fill_image_context,
+)
 from riskgraph.modules.graph.topology import derive
 from riskgraph.modules.risk import ScoreInput, ScoreResult, rescore, score
 from riskgraph.modules.runtime import dockerfile_refs
@@ -61,7 +67,8 @@ def _run(cases: list[Case], manifest: str | None = None, root: Path | None = Non
     for i, c in enumerate(cases):
         ctx = resolver.for_finding(c.file, c.inp.source_type)
         if c.image is not None and topology is not None:
-            ctx = topology.image_context(c.image, ctx)  # as the pipeline does (ADR-0024)
+            # as the pipeline does (ADR-0024)
+            ctx = fill_image_context(ctx, topology.image_contexts().get(c.image))
         inp = replace(c.inp, context=ctx)
         result = score(inp)
         inputs.append(inp)

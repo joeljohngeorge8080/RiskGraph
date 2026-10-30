@@ -314,9 +314,14 @@ def test_hostile_long_names_still_fit_the_node_key_column(tmp_path: Path) -> Non
 
 def test_an_image_takes_the_worst_context_of_the_services_that_run_it(tmp_path: Path) -> None:
     from riskgraph.modules.context import FindingContext, Observed
+    from riskgraph.modules.graph import fill_image_context
 
-    topo = _repo(tmp_path)
-    ctx = topo.image_context(API_IMAGE, FindingContext())
+    index = _repo(tmp_path).image_contexts()
+
+    def image_context(ref: str, base: FindingContext) -> FindingContext:
+        return fill_image_context(base, index.get(ref))
+
+    ctx = image_context(API_IMAGE, FindingContext())
     assert ctx.exposure is not None and ctx.privilege is not None
     assert (ctx.exposure.label, ctx.exposure.source, ctx.exposure.confidence) == (
         "internet_noauth",
@@ -326,11 +331,39 @@ def test_an_image_takes_the_worst_context_of_the_services_that_run_it(tmp_path: 
     assert ctx.exposure.evidence == {"image": API_IMAGE, "services": ["api"]}
     assert (ctx.privilege.label, ctx.privilege.evidence["services"]) == ("admin", ["api"])
     # an image nobody exposes or binds adds nothing; an unknown image neither
-    jobs = topo.image_context("ghcr.io/acme/jobs:1", FindingContext())
+    jobs = image_context("ghcr.io/acme/jobs:1", FindingContext())
     assert jobs == FindingContext()
-    assert topo.image_context("ghcr.io/acme/nothing:9", FindingContext()) == FindingContext()
+    assert image_context("ghcr.io/acme/nothing:9", FindingContext()) == FindingContext()
     # what the finding's own file already says wins (manifest > Kubernetes > Compose)
     stated = FindingContext("api", Observed("internal", "manifest", "high"))
-    kept = topo.image_context(API_IMAGE, stated)
+    kept = image_context(API_IMAGE, stated)
     assert kept.exposure is stated.exposure and kept.service == "api"
     assert kept.privilege is not None and kept.privilege.label == "admin"
+
+
+def test_image_contexts_stay_linear_on_a_large_topology() -> None:
+    import time
+
+    from riskgraph.modules.context import FindingContext
+    from riskgraph.modules.graph import fill_image_context
+    from riskgraph.modules.graph.topology import Declared, DerivedService, ServiceImage
+
+    d = Declared("k8s/x.yaml", {})
+    services = tuple(
+        DerivedService(
+            f"s{i}",
+            None,
+            d,
+            exposure=d if i % 2 else None,
+            images=tuple(ServiceImage(f"r/i{i}-{j}:1", VER, d) for j in range(20)),
+            privilege="admin" if i % 3 == 0 else None,
+        )
+        for i in range(200)
+    )
+    start = time.perf_counter()
+    index = Topology(services).image_contexts()
+    for k in range(10_000):
+        fill_image_context(FindingContext(), index.get(f"r/i{k % 200}-0:1"))
+    assert time.perf_counter() - start < 0.5  # was 1.9 s when each finding scanned all
+    assert index["r/i3-0:1"].privilege.label == "admin"  # type: ignore[union-attr]
+    assert index["r/i3-0:1"].exposure is not None and "r/i2-0:1" not in index
