@@ -1,4 +1,24 @@
-# HANDOFF: resume here (updated 2026-10-29, auto session day 4: X5 part 2 done a day early (authorization findings, manifest `authz:`, manual list, UNGUARDED/BOLA_SUSPECT edges); X4 part 2 still gated (F-3-1); next X6, see docs/auto/SCHEDULE.md)
+# HANDOFF: resume here (updated 2026-10-30, auto session day 5: X6 risk v2 built a day early (model `v2.1`, factor tables for image packages, taint, runtime EOL and authz; image packages scored in their services' context; scenarios F–H); next the day-6 integration pass, see docs/auto/SCHEDULE.md)
+
+## Auto session day 5 (2026-10-30, cloud, branch `extended_phase_auto`)
+- **Verdict COMPLETE.** Report: `docs/auto/DAY_5_REPORT.md`; plan: `DAY_5_PLAN.md`.
+- **X6, a day early** (`PHASE_X6.md`, ADR-0024, no migration, model `v2.1`):
+  - image packages: R = 0.5, "not assessable";
+  - tier-1 taint: E by CWE class and rule confidence, never below the SAST row;
+  - runtime EOL: E by time past the end of support, read from the feed snapshot (no date: the old 0.5);
+  - authz: an inferred finding is scored by its own table, no longer capped; a BOLA hypothesis stays Low;
+  - **an image package takes the exposure and privilege of the services that run its image.** The first scenario run showed that image findings had no context at all.
+  - Reduction (without the new inputs, v2.1 = v1-ctx.3) and monotonicity are Hypothesis properties.
+  - Scenarios F–H pass with labels written first. H has 0 paths.
+- Verified:
+  - lint/types clean; 648 unit; 84 db, 2 skipped; perf 4 passed;
+  - migration round trip and `alembic check` clean;
+  - the X0 re-run equals the day-4 run except for the model line; the pooled table equals `BASELINE.md`.
+- **For the owner:**
+  - new flag **F-5-1**: a weak hash next to an SSRF in an exposed service takes the path's effective impact and is Critical. The rule predates v2; the options and their X0 effect are in the flag;
+  - F-1-1 now also holds scenario G's database end;
+  - an inferred authz finding can now rank High or Critical (F-4-1 is about labelling them).
+
 
 ## Auto session day 4 (2026-10-29, cloud, branch `extended_phase_auto`)
 - **Verdict COMPLETE.** Report: `docs/auto/DAY_4_REPORT.md`; plan: `DAY_4_PLAN.md`.
