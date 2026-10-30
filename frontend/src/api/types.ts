@@ -8,12 +8,13 @@ export type ScanStatus =
   | "ANALYZING"
   | "COMPLETED"
   | "PARTIAL"
-  | "FAILED";
+  | "FAILED"
+  | "CANCELLED";
 export type RunStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "TIMED_OUT" | "SKIPPED";
 export type Priority = "critical" | "high" | "medium" | "low";
 export type Severity = "critical" | "high" | "medium" | "low" | "info";
-export type SourceType = "sca" | "sast" | "secret" | "iac";
-export type ScannerName = "trivy" | "semgrep" | "checkov" | "gitleaks";
+export type SourceType = "sca" | "sast" | "secret" | "iac" | "runtime" | "authz";
+export type ScannerName = "trivy" | "semgrep" | "checkov" | "gitleaks" | "syft" | "riskgraph";
 export type FindingStatus = "open" | "fixed" | "false_positive" | "accepted_risk" | "wont_fix";
 export type FindingChange = "new" | "existing" | "reopened";
 export type ReachabilityTier = "L0" | "L1" | "L2" | "L3" | "unknown" | "n_a";

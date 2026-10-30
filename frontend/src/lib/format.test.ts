@@ -5,6 +5,8 @@ import {
   formatLocation,
   isTerminal,
   looksLikeGithubUrl,
+  SOURCE_LABEL,
+  SOURCE_TYPES,
   statusTone,
 } from "./format";
 
@@ -12,6 +14,7 @@ describe("format helpers", () => {
   it("knows terminal scan states", () => {
     expect(isTerminal("COMPLETED")).toBe(true);
     expect(isTerminal("PARTIAL")).toBe(true);
+    expect(isTerminal("CANCELLED")).toBe(true);
     expect(isTerminal("SCANNING")).toBe(false);
     expect(isTerminal(undefined)).toBe(false);
   });
@@ -45,5 +48,12 @@ describe("format helpers", () => {
     expect(statusTone("SUCCEEDED")).toBe("ok");
     expect(statusTone("TIMED_OUT")).toBe("warn");
     expect(statusTone("RUNNING")).toBe("busy");
+    expect(statusTone("CANCELLED")).toBe("idle");
+  });
+
+  it("labels every source type, including runtime and authz findings", () => {
+    expect(SOURCE_TYPES).toContain("runtime");
+    expect(SOURCE_TYPES).toContain("authz");
+    for (const t of SOURCE_TYPES) expect(SOURCE_LABEL[t]).toBeTruthy();
   });
 });

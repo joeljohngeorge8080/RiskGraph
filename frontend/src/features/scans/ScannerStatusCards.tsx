@@ -8,6 +8,8 @@ const ROLE: Record<string, string> = {
   semgrep: "source code (SAST)",
   checkov: "infrastructure as code",
   gitleaks: "hard-coded secrets",
+  syft: "software bill of materials",
+  riskgraph: "runtime end-of-life · authorization",
 };
 
 export function ScannerStatusCards({ scan }: { scan: Scan }) {
