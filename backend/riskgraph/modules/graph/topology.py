@@ -90,27 +90,49 @@ class Topology:
                 best = (len(p), s.name)
         return best[1] if best else None
 
-    def image_context(self, ref: str, base: FindingContext) -> FindingContext:
-        """``base`` with the exposure and privilege of the services that run ``ref``.
+    def image_contexts(self) -> dict[str, FindingContext]:
+        """Per image reference, the exposure and privilege of the services that run it.
 
         A package installed in an image runs wherever the image does, so it takes the worst
-        case over those services, like a service's most sensitive store (ADR-0024). Only a
-        factor ``base`` leaves unknown is filled: what the finding's own file says wins.
+        case over those services, like a service's most sensitive store (ADR-0024). Built
+        once per scan: services x images, not per finding.
         """
-        running = [s for s in self.services if any(i.ref == ref for i in s.images)]
-        exposed = sorted(s.name for s in running if s.exposure is not None)
-        exposure = base.exposure
-        if exposure is None and exposed:
-            evidence = {"image": ref, "services": exposed}
-            exposure = Observed("internet_noauth", "topology", "low", evidence)
-        privilege = base.privilege
-        bound = [s for s in running if s.privilege in _PRIVILEGE_RANK]
-        if privilege is None and bound:
-            top = max(_PRIVILEGE_RANK[s.privilege or ""] for s in bound)
-            label = next(k for k, v in _PRIVILEGE_RANK.items() if v == top)
-            names = sorted(s.name for s in bound if s.privilege == label)
-            privilege = Observed(label, "topology", "low", {"image": ref, "services": names})
-        return FindingContext(base.service, exposure, base.data, privilege, base.criticality)
+        running: dict[str, list[DerivedService]] = {}
+        for s in self.services:
+            for ref in dict.fromkeys(i.ref for i in s.images):
+                running.setdefault(ref, []).append(s)
+        out: dict[str, FindingContext] = {}
+        for ref, services in running.items():
+            exposed = sorted(s.name for s in services if s.exposure is not None)
+            exposure = (
+                Observed("internet_noauth", "topology", "low", {"image": ref, "services": exposed})
+                if exposed
+                else None
+            )
+            privilege = None
+            bound = [s for s in services if s.privilege in _PRIVILEGE_RANK]
+            if bound:
+                top = max(_PRIVILEGE_RANK[s.privilege or ""] for s in bound)
+                label = next(k for k, v in _PRIVILEGE_RANK.items() if v == top)
+                names = sorted(s.name for s in bound if s.privilege == label)
+                privilege = Observed(label, "topology", "low", {"image": ref, "services": names})
+            if exposure is not None or privilege is not None:
+                out[ref] = FindingContext(None, exposure, None, privilege, None)
+        return out
+
+
+def fill_unknown(base: FindingContext, image: FindingContext | None) -> FindingContext:
+    """``base`` with the factors it leaves unknown taken from ``image``: what the finding's
+    own file says wins (manifest > Kubernetes > Compose)."""
+    if image is None:
+        return base
+    return FindingContext(
+        base.service,
+        base.exposure or image.exposure,
+        base.data,
+        base.privilege or image.privilege,
+        base.criticality,
+    )
 
 
 _PRIVILEGE_RANK = {"elevated": 1, "admin": 2}  # what RBAC bindings set (context.iac)

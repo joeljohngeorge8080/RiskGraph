@@ -50,7 +50,7 @@ from riskgraph.modules.context import (
 from riskgraph.modules.evidence import Evidence, link_finding, persist_evidence
 from riskgraph.modules.evidence import clear as clear_evidence
 from riskgraph.modules.findings import apply_history, clear_scan, persist_merged
-from riskgraph.modules.graph import GraphFinding, Topology, derive_topology
+from riskgraph.modules.graph import GraphFinding, Topology, derive_topology, fill_image_context
 from riskgraph.modules.graph import analyze as attack_analysis
 from riskgraph.modules.graph import clear as clear_graph
 from riskgraph.modules.graph import persist as persist_graph
@@ -1045,12 +1045,13 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
 
         # Pass 1: base scores with context and reachability (pure).
         topology = _topology(deps, scan_id, iac)
+        image_contexts = topology.image_contexts()
         scored: list[_Scored] = []
         for m in merged:
             context = resolver.for_finding(m.location.file, m.source_type)
             if image := (m.representative.package or {}).get("image"):
                 # an image package runs where its image runs (ADR-0024)
-                context = topology.image_context(str(image), context)
+                context = fill_image_context(context, image_contexts.get(str(image)))
             # the code that uses an image's packages is not analysed: not assessable
             verdict = (
                 NOT_APPLICABLE

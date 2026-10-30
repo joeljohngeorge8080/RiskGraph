@@ -20,6 +20,7 @@ from riskgraph.modules.graph.service import (
 )
 from riskgraph.modules.graph.topology import Topology
 from riskgraph.modules.graph.topology import derive as derive_topology
+from riskgraph.modules.graph.topology import fill_unknown as fill_image_context
 
 __all__ = [
     "AttackAnalysis",
@@ -33,6 +34,7 @@ __all__ = [
     "analyze",
     "clear",
     "derive_topology",
+    "fill_image_context",
     "list_paths",
     "load_graph",
     "path_assurance",
