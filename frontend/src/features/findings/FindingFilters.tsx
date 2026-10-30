@@ -2,7 +2,7 @@ import type { FindingChange, ReachabilityTier, ScannerName } from "@/api/types";
 import { PRIORITIES, SOURCE_LABEL, SOURCE_TYPES } from "@/lib/format";
 import { REACH_LABEL, STATUS_LABEL } from "@/lib/level2";
 
-const SCANNERS: ScannerName[] = ["trivy", "semgrep", "checkov", "gitleaks"];
+const SCANNERS: ScannerName[] = ["trivy", "semgrep", "checkov", "gitleaks", "riskgraph"];
 const STATUSES = Object.keys(STATUS_LABEL);
 const CHANGES: FindingChange[] = ["new", "reopened"];
 const TIERS: ReachabilityTier[] = ["L3", "L2", "L1", "L0", "unknown"];

@@ -2,20 +2,22 @@ import type { Priority, RunStatus, ScanStatus, Severity, SourceType } from "@/ap
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const TERMINAL: ReadonlySet<ScanStatus> = new Set(["COMPLETED", "PARTIAL", "FAILED"]);
+const TERMINAL: ReadonlySet<ScanStatus> = new Set(["COMPLETED", "PARTIAL", "FAILED", "CANCELLED"]);
 
 export function isTerminal(status: ScanStatus | undefined): boolean {
   return status !== undefined && TERMINAL.has(status);
 }
 
 export const PRIORITIES: Priority[] = ["critical", "high", "medium", "low"];
-export const SOURCE_TYPES: SourceType[] = ["sca", "sast", "secret", "iac"];
+export const SOURCE_TYPES: SourceType[] = ["sca", "sast", "secret", "iac", "runtime", "authz"];
 
 export const SOURCE_LABEL: Record<SourceType, string> = {
   sca: "Dependency",
   sast: "Code",
   secret: "Secret",
   iac: "IaC",
+  runtime: "Runtime",
+  authz: "Access control",
 };
 
 export const PRIORITY_COLOR: Record<Priority, string> = {
@@ -44,6 +46,7 @@ export function statusTone(status: ScanStatus | RunStatus): "ok" | "warn" | "bad
     case "FAILED":
       return "bad";
     case "SKIPPED":
+    case "CANCELLED":
     case "PENDING":
     case "QUEUED":
       return "idle";
