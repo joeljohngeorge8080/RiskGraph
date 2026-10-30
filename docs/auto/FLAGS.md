@@ -30,6 +30,7 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   - (c) No.
   - Recommendation: (a). It is what the plan's NodeGoat criterion needs. The sensitivity is labelled as assumed in the node and the edge evidence, and a manifest still overrides everything.
 - Resume: in `graph/topology.py`, add a data-store detector over Compose services. In `graph/attack.py::_derive`, add the node, the inferred CONNECTS_TO edges from `depends_on`/`links` with declaration evidence, and the sink. Then add tests (a NodeGoat-shaped fixture gives ≥ 1 inferred path) and a line in ADR-0019.
+- Also waiting on this (day 5): scenario G of X6 (plan §6: "public image CVE on an internet service → DB"). G is built with the ServiceAccount sink the derived graph has; once (a) is built, add a Compose `postgres` service with `depends_on` to `tests/test_risk_scenarios_v2.py` G and assert the inferred path to it.
 - Answer:
 
 ### F-1-2: CAN_ACCESS from RBAC bindings has no target
@@ -102,4 +103,25 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   - (c) Add `require: none` to `authz.rules` instead (one list for both).
   - Recommendation: (a). It is explicit and cannot be confused with a policy.
 - Resume: (a) Add `public: tuple[str, ...]` to `AuthzDecl` (validated with the rule path validator), pass it to `authz.analyze`, skip those routes in `_inconsistent` and `_unguarded_sensitive`, and add tests plus a line in ADR-0023. (c) Add `"none"` to `AuthzRule.require` and do the same.
+- Answer:
+
+### F-5-1: Should every finding of an exposed service take the path's effective impact?
+- Status: OPEN
+- Phase / step: X6, scenarios F–H (DAY_5_PLAN step 3)
+- Blocked: nothing. The current rule stays and is pinned in `test_f_ssrf_flow_reaches_the_admin_identity_and_the_metadata`.
+- Why it needs the owner: scenario F showed that every code finding of a service is evidence on its EXPLOIT edge (up to `MAX_EVIDENCE`), and each one gets the path's effective impact I* (§14.4, ADR-0013). Changing that changes how I* is attributed, which ADR-0013 and the blueprint decided. One of the options also moves the frozen X0 ranking.
+  - In F, a weak hash (medium, `crypto`, L2) next to a tier-1 SSRF scores 71.1, Critical.
+  - An L1 CVE (only a hypothesis on its own, `exploit_assurance`) scores 50.0, High.
+  - In G, a non-KEV image CVE (a hypothesis on its own) next to a KEV one takes I* too: 44.4 instead of 28.9.
+  - The labelled ordering still holds, because the important findings score higher. But the inheritance is co-location, not an attack step.
+- Done meanwhile: nothing changed. I measured two options on the X0 replay with a temporary patch (reverted):
+  - (a) took nothing out of X0: byte-identical;
+  - (c) left the pooled table equal, but swapped three neighbouring pairs in the M4 top 10 (ranks 2–3: B's deserialization ahead of E's second SSRF; 5–6: C's AWS key ahead of a pyyaml CVE; 7–8: two unlabelled E CVEs).
+- Question: Options:
+  - (a) I* only for findings whose **own** support of the edge is at least inferred (L2/L3; an image package only with KEV). It fixes F3 and G2, not F2 (a weak hash at L2 is "inferred"). X0: no change.
+  - (b) (a), plus only categories that give a foothold: SCA, and SAST with T ≥ 0.8 (injection, deserialization, SSRF, path traversal, XXE, auth). That fixes F2 too. It needs `category` on `GraphFinding`. X0: not measured; E's two SSRFs and B's deserialization qualify, so I expect no change (BELIEVE).
+  - (c) I* only for the edge's leading finding (the one whose p is the edge's p). X0: the three swapped pairs above.
+  - (d) Keep the current rule: a finding in an exploitable, exposed service shares its fate.
+  - Recommendation: (b). It matches what the EXPLOIT edge claims ("an attacker can exploit this service through this finding"). It keeps ADR-0020's rule that a hypothesis never raises a score. And as far as measured, it leaves X0 as it is.
+- Resume: (a)/(b) In `graph/attack.py::_search`, skip `e["findings"]` entries whose own support is below inferred (`exploit_assurance(f.tier)`, or `image_assurance(f)` for image packages; pass a support map from `analyze`). For (b), also add `category` to `GraphFinding` (pipeline: `x.merged.representative.category`) and keep only SCA or SAST categories with `T_SAST ≥ 0.8`. Flip the F/G pins in `test_risk_scenarios_v2.py`, add a property test (a hypothesis-level finding never gets I*), re-run X0, and add an ADR-0024 note. (c) Use `e["findings"][:1]`, re-run X0 and report the reordering. (d) Close the flag and turn the pin into a documented rule in ADR-0024.
 - Answer:
