@@ -1044,9 +1044,13 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                 client.close()
 
         # Pass 1: base scores with context and reachability (pure).
+        topology = _topology(deps, scan_id, iac)
         scored: list[_Scored] = []
         for m in merged:
             context = resolver.for_finding(m.location.file, m.source_type)
+            if image := (m.representative.package or {}).get("image"):
+                # an image package runs where its image runs (ADR-0024)
+                context = topology.image_context(str(image), context)
             # the code that uses an image's packages is not analysed: not assessable
             verdict = (
                 NOT_APPLICABLE
@@ -1123,7 +1127,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
             ],
             manifest_file=manifest.file or "riskgraph.yaml",
             observed_at=now,
-            topology=_topology(deps, scan_id, iac),
+            topology=topology,
         )
         for i, effective in analysis.effective.items():
             scored[i].result = rescore(scored[i].score_input, effective)

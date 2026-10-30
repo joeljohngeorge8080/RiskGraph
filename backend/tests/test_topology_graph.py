@@ -307,3 +307,30 @@ def test_hostile_long_names_still_fit_the_node_key_column(tmp_path: Path) -> Non
     assert all(len(k) <= 160 for k in a.nodes)
     assert all(len(e.source) <= 160 and len(e.target) <= 160 for e in a.edges)
     assert all(len(n["label"]) <= 200 for n in a.nodes.values())
+
+
+# --- risk v2 (ADR-0024): an image package runs where its image runs --------------------
+
+
+def test_an_image_takes_the_worst_context_of_the_services_that_run_it(tmp_path: Path) -> None:
+    from riskgraph.modules.context import FindingContext, Observed
+
+    topo = _repo(tmp_path)
+    ctx = topo.image_context(API_IMAGE, FindingContext())
+    assert ctx.exposure is not None and ctx.privilege is not None
+    assert (ctx.exposure.label, ctx.exposure.source, ctx.exposure.confidence) == (
+        "internet_noauth",
+        "topology",
+        "low",
+    )
+    assert ctx.exposure.evidence == {"image": API_IMAGE, "services": ["api"]}
+    assert (ctx.privilege.label, ctx.privilege.evidence["services"]) == ("admin", ["api"])
+    # an image nobody exposes or binds adds nothing; an unknown image neither
+    jobs = topo.image_context("ghcr.io/acme/jobs:1", FindingContext())
+    assert jobs == FindingContext()
+    assert topo.image_context("ghcr.io/acme/nothing:9", FindingContext()) == FindingContext()
+    # what the finding's own file already says wins (manifest > Kubernetes > Compose)
+    stated = FindingContext("api", Observed("internal", "manifest", "high"))
+    kept = topo.image_context(API_IMAGE, stated)
+    assert kept.exposure is stated.exposure and kept.service == "api"
+    assert kept.privilege is not None and kept.privilege.label == "admin"
