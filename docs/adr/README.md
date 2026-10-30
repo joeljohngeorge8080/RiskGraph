@@ -24,4 +24,5 @@
 | [0020](0020-assurance-aware-paths-and-credential-links.md) | Assurance-aware path search, missing evidence, and manifest credential links | accepted |
 | [0021](0021-tier1-taint-catalogue.md) | Tier-1 taint rules from one RiskGraph catalogue; the taint evidence contract | accepted (off by default until F-2-1) |
 | [0022](0022-route-inventory-and-guards.md) | Route inventory and guard detection, stored as evidence, with an honest guard status | accepted |
-| [0023](0023-authorization-findings.md) | Authorization findings, the manifest `authz:` section, an interim Low ceiling, non-traversable authz edges | accepted (interim score until X6) |
+| [0023](0023-authorization-findings.md) | Authorization findings, the manifest `authz:` section, an interim Low ceiling, non-traversable authz edges | accepted (interim score replaced by 0024) |
+| [0024](0024-risk-model-v2.md) | Risk model v2: factor tables for image packages, taint, runtime end-of-life and authorization findings | accepted |

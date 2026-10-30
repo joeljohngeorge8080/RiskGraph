@@ -1,6 +1,6 @@
 # ADR-0023: Authorization findings, the manifest `authz:` section, an interim score, and non-traversable authz edges
 
-Status: accepted · Date: 2026-10-29 · Implements: expansion phase X5 part 2 (`docs/proposals/EXPANSION_A-D.md` §3.B, §3.D (UNGUARDED, BOLA_SUSPECT), §4 X5, §6; `docs/auto/SCHEDULE.md` day 5, done on day 4) · Builds on: ADR-0017 (evidence and assurance), ADR-0018 (RiskGraph's own producer, interim EOL score), ADR-0020 (two-pass search), ADR-0022 (route inventory)
+Status: accepted · Date: 2026-10-29 · Implements: expansion phase X5 part 2 (`docs/proposals/EXPANSION_A-D.md` §3.B, §3.D (UNGUARDED, BOLA_SUSPECT), §4 X5, §6; `docs/auto/SCHEDULE.md` day 5, done on day 4) · Builds on: ADR-0017 (evidence and assurance), ADR-0018 (RiskGraph's own producer, interim EOL score), ADR-0020 (two-pass search), ADR-0022 (route inventory) · Interim score replaced by ADR-0024 (risk v2: inferred authz findings are no longer capped; a hypothesis still is)
 
 ## Context
 X5 part 1 (ADR-0022) gives every route a guard status. Only `none_found` means "every place a guard could come from was resolved and none was found". Part 2 turns that into findings, a manifest policy and graph edges, with the plan's honesty rules:

@@ -1,6 +1,6 @@
 # ADR-0018: Runtime and image intelligence: EOL from a stored feed, image scans behind an allow-list
 
-Status: accepted · Date: 2026-10-25 · Implements: expansion phase X2 (`docs/proposals/EXPANSION_A-D.md` §3.C, §4) · Builds on: ADR-0014 (container runner), ADR-0015 (feeds by Beat), ADR-0017 (evidence)
+Status: accepted · Date: 2026-10-25 · Implements: expansion phase X2 (`docs/proposals/EXPANSION_A-D.md` §3.C, §4) · Builds on: ADR-0014 (container runner), ADR-0015 (feeds by Beat), ADR-0017 (evidence) · Interim EOL score replaced by ADR-0024 (risk v2)
 
 ## Context
 Gaps G4–G6: images were never scanned, runtime versions were never read, and advisory freshness was never recorded. Three questions were open, and the owner decided them on 2026-10-25:
