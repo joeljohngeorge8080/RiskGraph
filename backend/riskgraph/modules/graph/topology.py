@@ -26,7 +26,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from riskgraph.modules.context import IacAsset, kubernetes_context
+from riskgraph.modules.context import FindingContext, IacAsset, Observed, kubernetes_context
 from riskgraph.modules.evidence import Assurance
 from riskgraph.modules.runtime import ImageRef, parse_ref
 
@@ -89,6 +89,31 @@ class Topology:
             if best is None or len(p) > best[0]:
                 best = (len(p), s.name)
         return best[1] if best else None
+
+    def image_context(self, ref: str, base: FindingContext) -> FindingContext:
+        """``base`` with the exposure and privilege of the services that run ``ref``.
+
+        A package installed in an image runs wherever the image does, so it takes the worst
+        case over those services, like a service's most sensitive store (ADR-0024). Only a
+        factor ``base`` leaves unknown is filled: what the finding's own file says wins.
+        """
+        running = [s for s in self.services if any(i.ref == ref for i in s.images)]
+        exposed = sorted(s.name for s in running if s.exposure is not None)
+        exposure = base.exposure
+        if exposure is None and exposed:
+            evidence = {"image": ref, "services": exposed}
+            exposure = Observed("internet_noauth", "topology", "low", evidence)
+        privilege = base.privilege
+        bound = [s for s in running if s.privilege in _PRIVILEGE_RANK]
+        if privilege is None and bound:
+            top = max(_PRIVILEGE_RANK[s.privilege or ""] for s in bound)
+            label = next(k for k, v in _PRIVILEGE_RANK.items() if v == top)
+            names = sorted(s.name for s in bound if s.privilege == label)
+            privilege = Observed(label, "topology", "low", {"image": ref, "services": names})
+        return FindingContext(base.service, exposure, base.data, privilege, base.criticality)
+
+
+_PRIVILEGE_RANK = {"elevated": 1, "admin": 2}  # what RBAC bindings set (context.iac)
 
 
 def _canonical(raw: object, file: str, origin: str) -> str | None:

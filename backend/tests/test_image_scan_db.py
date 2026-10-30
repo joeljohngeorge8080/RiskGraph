@@ -255,3 +255,44 @@ def api(db: None, settings: Settings) -> Iterator[TestClient]:
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
     dispose_engine()
+
+
+def test_an_image_package_is_scored_in_the_context_of_its_service(
+    db: None, settings: Settings
+) -> None:
+    """Risk v2 (ADR-0024): R not assessable, exposure from the service that runs it."""
+    from riskgraph.modules.risk import RiskFactor, RiskScore
+
+    def build(dest: Path) -> Path:
+        _build(dest)
+        compose = (dest / "docker-compose.images.yml").read_text(encoding="utf-8")
+        exposed = compose.replace(
+            "web: {image: 'node:14'}", "web: {image: 'node:14', ports: ['80:80']}"
+        )
+        (dest / "docker-compose.images.yml").write_text(exposed, encoding="utf-8")
+        return dest
+
+    with session_scope() as s:
+        sid = service.create_scan(s, URL, "", settings).scan.id
+    deps = make_deps(
+        settings,
+        runner=FixtureRunner(images=dict(IMAGE_FIXTURES)),
+        cloner=LocalDirCloner(build=build),
+    )
+    assert run_pipeline_inline(sid, ALL_SCANNERS, deps) is ScanStatus.COMPLETED
+    node, py = _image_findings(NODE), _image_findings(PY)
+    with session_scope() as s:
+
+        def factors(f: Finding) -> dict[str, RiskFactor]:
+            score = s.scalars(select(RiskScore).where(RiskScore.finding_id == f.id)).one()
+            rows = s.scalars(select(RiskFactor).where(RiskFactor.risk_score_id == score.id))
+            return {r.name: r for r in rows}
+
+        for f in [*node, *py]:
+            r = factors(f)["R"]
+            assert (float(r.value), r.source, r.applicable) == (0.5, "not_assessable", True)
+        x = factors(node[0])["X"]
+        assert (x.raw_value, x.source) == ("internet_noauth", "topology")
+        assert x.evidence == {"image": NODE, "services": ["web"]}
+        # python:3.8-slim is the base of the root Dockerfile, which no exposed service builds
+        assert factors(py[0])["X"].source != "topology"
