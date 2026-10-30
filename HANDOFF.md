@@ -1,4 +1,13 @@
-# HANDOFF: resume here (updated 2026-10-30, auto session day 5: X6 risk v2 built a day early (model `v2.1`, factor tables for image packages, taint, runtime EOL and authz; image packages scored in their services' context; scenarios F–H); next the day-6 integration pass, see docs/auto/SCHEDULE.md)
+# HANDOFF: resume here (updated 2026-10-31, auto session day 6: integration pass over X2–X6; six-day summary and everything open in docs/auto/FINAL_REPORT.md)
+
+## Auto session day 6 (2026-10-31, cloud, branch `extended_phase_auto`)
+- **Verdict COMPLETE** for the day; the six days together are **PARTIAL** (X4 part 2 waits on the Joern spike, F-3-1). Report: `docs/auto/DAY_6_REPORT.md`; summary: **`docs/auto/FINAL_REPORT.md`**.
+- Integration pass, no scoring change, no migration:
+  - frontend vocabulary: `runtime`/`authz` findings had an empty type label and no filter, `syft`/`riskgraph` runs no role, and a cancelled scan kept polling. Fixed; a backend test now compares all nine mirrored unions in `types.ts` with the enums;
+  - the template explanation gives runtime and authz findings their own remediation steps;
+  - the example manifest says a credential family is a hypothesis and shows `owns:`.
+- Verified: lint/types clean; 661 unit; 84 db, 2 skipped; perf 4; frontend lint, tsc, 11 Vitest, build; every migration down to base and back, `alembic check` clean; X0 pooled table equals `BASELINE.md`.
+- **For the owner:** seven flags are OPEN (F-1-1, F-1-2, F-2-1, F-3-1, F-4-1, F-4-2, F-5-1) and eight local tasks TODO (L-2 … L-9); the table with recommendations is in `FINAL_REPORT.md`. Today's commits carry the sandbox's configured git identity.
 
 ## Auto session day 5 (2026-10-30, cloud, branch `extended_phase_auto`)
 - **Verdict COMPLETE.** Report: `docs/auto/DAY_5_REPORT.md`; plan: `DAY_5_PLAN.md`.
