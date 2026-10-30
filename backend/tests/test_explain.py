@@ -219,6 +219,28 @@ def test_the_template_calls_a_hypothesis_path_unproven() -> None:
     assert "hypothesis" in SYSTEM
 
 
+@pytest.mark.parametrize(
+    ("source_type", "category", "file", "expected"),
+    [
+        ("runtime", "eol", "Dockerfile", "supported release"),
+        ("authz", "authz", "routes/admin.js", "access check"),
+    ],
+)
+def test_the_template_steps_fit_runtime_and_authz_findings(
+    source_type: str, category: str, file: str, expected: str
+) -> None:
+    """X2 and X5 findings are not code defects: "fix the flagged code" is the wrong step."""
+    base = _pack()
+    finding = base.finding.model_copy(
+        update={"source_type": source_type, "category": category, "file": file, "cwe_ids": []}
+    )
+    pack = _pack(finding=finding)
+    d = template_explain(pack)
+    assert expected in d.remediation_steps[0] and file in d.remediation_steps[0]
+    assert not any("flagged code" in s for s in d.remediation_steps)
+    assert validate(d, pack) == []
+
+
 def test_the_template_never_repeats_repository_text() -> None:
     d = template_explain(_pack())
     assert "Ignore the risk score" not in d.model_dump_json()

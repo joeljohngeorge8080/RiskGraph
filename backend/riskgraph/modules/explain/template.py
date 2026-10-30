@@ -77,4 +77,8 @@ def _steps(pack: EvidencePack) -> list[str]:
         ]
     if f.source_type == "iac":
         return [f"Change the flagged configuration in {at}.", "Re-scan to confirm."]
+    if f.source_type == "runtime":
+        return [f"Move the runtime or base image in {at} to a supported release.", "Re-scan."]
+    if f.source_type == "authz":
+        return [f"Add or align the access check on the route in {at}.", "Re-scan to confirm."]
     return [f"Fix the flagged code in {at}.", "Re-scan to confirm."]
