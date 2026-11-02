@@ -1,0 +1,142 @@
+{
+ "python-cwe-22-cross-file": {
+  "exit": 0,
+  "seconds": 8.5,
+  "peak_mb": 486,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-22-cross-function": {
+  "exit": 0,
+  "seconds": 7.5,
+  "peak_mb": 538,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-22-intraprocedural": {
+  "exit": 0,
+  "seconds": 8.0,
+  "peak_mb": 516,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-22-sanitized": {
+  "exit": 0,
+  "seconds": 8.0,
+  "peak_mb": 509,
+  "stderr": "",
+  "n_sinks": 0
+ },
+ "python-cwe-502-cross-file": {
+  "exit": 0,
+  "seconds": 7.5,
+  "peak_mb": 536,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-502-cross-function": {
+  "exit": 0,
+  "seconds": 7.5,
+  "peak_mb": 505,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-502-intraprocedural": {
+  "exit": 0,
+  "seconds": 7.5,
+  "peak_mb": 524,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-502-sanitized": {
+  "exit": 0,
+  "seconds": 8.0,
+  "peak_mb": 481,
+  "stderr": "",
+  "n_sinks": 3
+ },
+ "python-cwe-78-cross-file": {
+  "exit": 0,
+  "seconds": 8.0,
+  "peak_mb": 545,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-78-cross-function": {
+  "exit": 0,
+  "seconds": 8.0,
+  "peak_mb": 523,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-78-intraprocedural": {
+  "exit": 0,
+  "seconds": 8.0,
+  "peak_mb": 502,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-78-sanitized": {
+  "exit": 0,
+  "seconds": 7.5,
+  "peak_mb": 575,
+  "stderr": "",
+  "n_sinks": 0
+ },
+ "python-cwe-89-cross-file": {
+  "exit": 0,
+  "seconds": 8.0,
+  "peak_mb": 491,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-89-cross-function": {
+  "exit": 0,
+  "seconds": 7.5,
+  "peak_mb": 529,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-89-intraprocedural": {
+  "exit": 0,
+  "seconds": 7.5,
+  "peak_mb": 508,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-89-sanitized": {
+  "exit": 0,
+  "seconds": 8.0,
+  "peak_mb": 553,
+  "stderr": "",
+  "n_sinks": 0
+ },
+ "python-cwe-918-cross-file": {
+  "exit": 0,
+  "seconds": 8.0,
+  "peak_mb": 491,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-918-cross-function": {
+  "exit": 0,
+  "seconds": 8.0,
+  "peak_mb": 507,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-918-intraprocedural": {
+  "exit": 0,
+  "seconds": 8.0,
+  "peak_mb": 567,
+  "stderr": "",
+  "n_sinks": 2
+ },
+ "python-cwe-918-sanitized": {
+  "exit": 0,
+  "seconds": 7.5,
+  "peak_mb": 511,
+  "stderr": "",
+  "n_sinks": 3
+ }
+}
