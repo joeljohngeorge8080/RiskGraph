@@ -1,0 +1,256 @@
+{
+ "results": [
+  {
+   "check_id": "riskgraph.taint.py.path-traversal",
+   "path": "python-cwe-22-cross-file/helper.py",
+   "start": {
+    "line": 14
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.path-traversal",
+   "path": "python-cwe-22-cross-file/helper.py",
+   "start": {
+    "line": 14
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.path-traversal",
+   "path": "python-cwe-22-cross-function/app.py",
+   "start": {
+    "line": 15
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.path-traversal",
+   "path": "python-cwe-22-cross-function/app.py",
+   "start": {
+    "line": 15
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.path-traversal",
+   "path": "python-cwe-22-intraprocedural/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.path-traversal",
+   "path": "python-cwe-22-intraprocedural/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.unsafe-deserialization",
+   "path": "python-cwe-502-cross-file/helper.py",
+   "start": {
+    "line": 14
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.unsafe-deserialization",
+   "path": "python-cwe-502-cross-file/helper.py",
+   "start": {
+    "line": 14
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.unsafe-deserialization",
+   "path": "python-cwe-502-cross-function/app.py",
+   "start": {
+    "line": 15
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.unsafe-deserialization",
+   "path": "python-cwe-502-cross-function/app.py",
+   "start": {
+    "line": 15
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.unsafe-deserialization",
+   "path": "python-cwe-502-intraprocedural/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.unsafe-deserialization",
+   "path": "python-cwe-502-intraprocedural/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.unsafe-deserialization",
+   "path": "python-cwe-502-sanitized/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.unsafe-deserialization",
+   "path": "python-cwe-502-sanitized/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.unsafe-deserialization",
+   "path": "python-cwe-502-sanitized/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.os-command-injection",
+   "path": "python-cwe-78-cross-file/helper.py",
+   "start": {
+    "line": 14
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.os-command-injection",
+   "path": "python-cwe-78-cross-file/helper.py",
+   "start": {
+    "line": 14
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.os-command-injection",
+   "path": "python-cwe-78-cross-function/app.py",
+   "start": {
+    "line": 15
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.os-command-injection",
+   "path": "python-cwe-78-cross-function/app.py",
+   "start": {
+    "line": 15
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.os-command-injection",
+   "path": "python-cwe-78-intraprocedural/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.os-command-injection",
+   "path": "python-cwe-78-intraprocedural/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.sql-injection",
+   "path": "python-cwe-89-cross-file/helper.py",
+   "start": {
+    "line": 14
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.sql-injection",
+   "path": "python-cwe-89-cross-file/helper.py",
+   "start": {
+    "line": 14
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.sql-injection",
+   "path": "python-cwe-89-cross-function/app.py",
+   "start": {
+    "line": 15
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.sql-injection",
+   "path": "python-cwe-89-cross-function/app.py",
+   "start": {
+    "line": 15
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.sql-injection",
+   "path": "python-cwe-89-intraprocedural/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.sql-injection",
+   "path": "python-cwe-89-intraprocedural/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.server-side-request-forgery",
+   "path": "python-cwe-918-cross-file/helper.py",
+   "start": {
+    "line": 14
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.server-side-request-forgery",
+   "path": "python-cwe-918-cross-file/helper.py",
+   "start": {
+    "line": 14
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.server-side-request-forgery",
+   "path": "python-cwe-918-cross-function/app.py",
+   "start": {
+    "line": 15
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.server-side-request-forgery",
+   "path": "python-cwe-918-cross-function/app.py",
+   "start": {
+    "line": 15
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.server-side-request-forgery",
+   "path": "python-cwe-918-intraprocedural/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.server-side-request-forgery",
+   "path": "python-cwe-918-intraprocedural/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.server-side-request-forgery",
+   "path": "python-cwe-918-sanitized/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.server-side-request-forgery",
+   "path": "python-cwe-918-sanitized/app.py",
+   "start": {
+    "line": 17
+   }
+  },
+  {
+   "check_id": "riskgraph.taint.py.server-side-request-forgery",
+   "path": "python-cwe-918-sanitized/app.py",
+   "start": {
+    "line": 17
+   }
+  }
+ ]
+}
