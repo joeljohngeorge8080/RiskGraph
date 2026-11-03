@@ -644,8 +644,8 @@ def _derive(
             ev = [stated(Declared(s.declared.file, {"service": s.name, "runs_as": None}))]
             edge(key, UNKNOWN_IDENTITY, "RUNS_AS", 1.0, Assurance.INFERRED, ev)
 
-        for target in dict.fromkeys(n for n, _ in s.needs if n in stores):
-            via = next(v for n, v in s.needs if n == target)
+        for target in dict.fromkeys(n for n, _, _ in s.needs if n in stores):
+            via, env_key = next((v, k) for n, v, k in s.needs if n == target)
             link = stated(
                 Declared(
                     s.declared.file,
@@ -653,6 +653,7 @@ def _derive(
                         "service": s.name,
                         "connects_to": target,
                         "via": via,
+                        **({"env_key": env_key} if env_key else {}),
                         "assumed_sensitivity": ASSUMED_STORE_SENSITIVITY,
                         "source": "compose",
                     },

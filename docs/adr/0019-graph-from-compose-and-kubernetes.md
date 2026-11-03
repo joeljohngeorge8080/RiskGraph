@@ -39,7 +39,7 @@ Gap G3: a repository without a `riskgraph.yaml` got no attack graph, even when i
 - A service that lists it under `depends_on` (list or mapping) or `links` gets a `CONNECTS_TO` edge, p = 1.0, assurance **inferred**: the file states the dependency, and that the service uses the data is an inference. A path through it is at most inferred.
 - A manifest that declares services still wins; nothing here applies then.
 - The database's own image is not scanned as a service and gets no `RUNS_IMAGE` edge; a published database port does not make an `EXPOSES` edge. Both are under-claims.
-- **Limit:** a connection written only in an environment value (NodeGoat: `MONGODB_URI: mongodb://mongo:27017/...`) is not seen, so NodeGoat still has no path. Reading connection strings is a separate decision.
+- **Environment URLs (owner, 2026-11-03).** An `environment` value that starts with `scheme://[userinfo@]host` and whose host is another service of the same Compose file also gives the `CONNECTS_TO` edge (inferred; `via: environment`). Only the variable name and the target service are kept: never the value, so a password in the URL is not stored. Bare host names (`DB_HOST=mongo`), hosts outside the file and self-references are not read. A stated `depends_on`/`links` is used as the evidence first. NodeGoat (`MONGODB_URI: mongodb://mongo:27017/nodegoat`) now gets `Internet → web → mongo`, inferred.
 
 **Not built (flagged).**
 - CAN_ACCESS from RBAC (F-1-2, answered: keep as is).

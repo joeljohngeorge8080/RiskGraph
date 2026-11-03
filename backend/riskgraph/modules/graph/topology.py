@@ -72,7 +72,8 @@ class DerivedService:
     bindings: tuple[Declared, ...] = ()
     sources: tuple[str, ...] = ()  # compose, kubernetes
     store_kind: str | None = None  # a database image with no build context (F-1-1)
-    needs: tuple[tuple[str, str], ...] = ()  # (service name, "depends_on" | "links") in Compose
+    # (service name, "depends_on" | "links" | "environment", variable name) in Compose
+    needs: tuple[tuple[str, str, str | None], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -288,16 +289,22 @@ def derive(assets: Sequence[IacAsset], dockerfiles: Sequence[ImageRef] = ()) -> 
                 for b in bindings
                 if account in b.attrs.get("service_accounts", [])
             )
-        needs: tuple[tuple[str, str], ...] = ()
+        needs: tuple[tuple[str, str, str | None], ...] = ()
         store_kind = None
         if c is not None:
             if w is None:  # a name-joined workload is a service, not a store
                 store_kind = _store_kind(c.attrs.get("image"), prefix)
-            needs = tuple(
-                (str(n)[:MAX_NAME], via)
+            stated_needs = (
+                (str(n)[:MAX_NAME], via, None)
                 for via in ("depends_on", "links")
                 for n in c.attrs.get(via, [])
-            )[:MAX_SERVICES]
+            )
+            env_needs = (
+                (str(r.get("service"))[:MAX_NAME], "environment", str(r.get("key"))[:64])
+                for r in c.attrs.get("env_refs", [])
+                if isinstance(r, dict)
+            )
+            needs = (*stated_needs, *env_needs)[:MAX_SERVICES]
         out.append(
             DerivedService(
                 name=name,
