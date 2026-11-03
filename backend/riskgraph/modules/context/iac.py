@@ -319,6 +319,9 @@ def _compose(doc: dict[str, Any], source: str, compose_dir: str) -> list[IacAsse
         )
         secret_keys = sorted({k for k in keys if SECRET_KEY.search(k)})[:MAX_LIST]
         exposure = "internet" if published else "internal"
+        depends = svc.get("depends_on")  # a list of names, or a mapping name -> condition
+        needs = [str(k) for k in (depends if isinstance(depends, (list, dict)) else [])]
+        linked = [str(x).split(":", 1)[0] for x in _l(svc.get("links")) if isinstance(x, str)]
         out.append(
             IacAsset(
                 "service",
@@ -326,6 +329,8 @@ def _compose(doc: dict[str, Any], source: str, compose_dir: str) -> list[IacAsse
                 source,
                 {
                     "published_ports": published[:MAX_LIST],
+                    "depends_on": sorted({n[:160] for n in needs})[:MAX_LIST],  # X3: F-1-1
+                    "links": sorted({n[:160] for n in linked})[:MAX_LIST],
                     "privileged": svc.get("privileged") is True,
                     "secret_env_keys": secret_keys,
                     "image": _text(svc.get("image"), 256),  # X2: image ref, if any

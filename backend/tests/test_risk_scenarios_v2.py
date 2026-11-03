@@ -166,6 +166,15 @@ subjects: [{{kind: ServiceAccount, name: web-sa}}]
 """
 
 
+G_COMPOSE = """
+services:
+  web:
+    depends_on: [postgres]
+  postgres:
+    image: postgres:16
+"""
+
+
 def _g_cases(g1_kev: bool = True) -> list[Case]:
     image = {"file": "k8s/web.yaml", "tier": "n_a", "image": WEB_IMAGE}
     return [
@@ -197,6 +206,8 @@ def _g_cases(g1_kev: bool = True) -> list[Case]:
 def _g_repo(root: Path) -> Path:
     (root / "k8s").mkdir()
     (root / "k8s" / "web.yaml").write_text(G_K8S)
+    # the Compose file joins the workload by name and adds a database it depends on (F-1-1)
+    (root / "docker-compose.yml").write_text(G_COMPOSE)
     return root
 
 
@@ -268,7 +279,8 @@ def test_g_kev_image_cve_gives_an_inferred_path_and_a_non_kev_one_only_a_hypothe
     g1 = run.results["G1 KEV image CVE"]
     assert g1.factor("R").source == "not_assessable"  # type: ignore[union-attr]
     paths = _assured(run, "G1 KEV image CVE")
-    assert paths and {p.sink for p in paths} == {"identity:sa:web-sa"}
+    # the service account (RBAC) and the Compose database it depends on (assumed confidential)
+    assert paths and {p.sink for p in paths} == {"identity:sa:web-sa", "data_store:postgres"}
     assert all(p.assurance is Assurance.INFERRED for p in paths)
     assert g1.priority.rank >= Priority.HIGH.rank  # KEV floor at least
 

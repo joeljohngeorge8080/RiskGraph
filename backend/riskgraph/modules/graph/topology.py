@@ -30,6 +30,10 @@ from riskgraph.modules.context import FindingContext, IacAsset, Observed, kubern
 from riskgraph.modules.evidence import Assurance
 from riskgraph.modules.runtime import ImageRef, parse_ref
 
+# Images whose last path segment names a database (F-1-1): such a Compose service is a data store.
+DATABASE_IMAGES = frozenset(
+    {"postgres", "mysql", "mariadb", "mongo", "redis", "elasticsearch", "cassandra", "couchdb"}
+)
 MAX_SERVICES = 200
 MAX_IMAGES_PER_SERVICE = 20
 # Graph keys are stored in 160 characters and add a prefix ("identity:sa:"); the IaC
@@ -67,6 +71,8 @@ class DerivedService:
     privilege: str | None = None  # admin | elevated | None (unknown)
     bindings: tuple[Declared, ...] = ()
     sources: tuple[str, ...] = ()  # compose, kubernetes
+    store_kind: str | None = None  # a database image with no build context (F-1-1)
+    needs: tuple[tuple[str, str], ...] = ()  # (service name, "depends_on" | "links") in Compose
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,6 +172,15 @@ def _dockerfile_base(
 def _default_dockerfile(prefix: str) -> str:
     p = prefix.strip("/")
     return f"{p}/Dockerfile" if p else "Dockerfile"
+
+
+def _store_kind(image: object, prefix: str | None) -> str | None:
+    """The database a Compose service runs, from its image's last path segment. A service
+    that builds its own image is code, whatever the image is called."""
+    if prefix is not None or not isinstance(image, str):
+        return None
+    last = image.rsplit("@", 1)[0].rsplit(":", 1)[0].rsplit("/", 1)[-1].lower()
+    return last if last in DATABASE_IMAGES else None
 
 
 def _compose_services(assets: Iterable[IacAsset]) -> list[IacAsset]:
@@ -273,6 +288,16 @@ def derive(assets: Sequence[IacAsset], dockerfiles: Sequence[ImageRef] = ()) -> 
                 for b in bindings
                 if account in b.attrs.get("service_accounts", [])
             )
+        needs: tuple[tuple[str, str], ...] = ()
+        store_kind = None
+        if c is not None:
+            if w is None:  # a name-joined workload is a service, not a store
+                store_kind = _store_kind(c.attrs.get("image"), prefix)
+            needs = tuple(
+                (str(n)[:MAX_NAME], via)
+                for via in ("depends_on", "links")
+                for n in c.attrs.get(via, [])
+            )[:MAX_SERVICES]
         out.append(
             DerivedService(
                 name=name,
@@ -286,6 +311,8 @@ def derive(assets: Sequence[IacAsset], dockerfiles: Sequence[ImageRef] = ()) -> 
                 privilege=privilege,
                 bindings=bound,
                 sources=sources,
+                store_kind=store_kind,
+                needs=needs,
             )
         )
     return Topology(tuple(out))
