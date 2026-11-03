@@ -75,6 +75,7 @@ MANIFEST_PRODUCER = "riskgraph.manifest@1"
 IAC_PRODUCER = "riskgraph.iac@1"  # X3: facts stated by Compose and Kubernetes files
 SINK_SENSITIVITY = frozenset({"confidential", "pii", "financial", "credentials"})
 SINK_PRIVILEGE = frozenset({"elevated", "admin"})
+ASSUMED_STORE_SENSITIVITY = "confidential"  # a Compose database says nothing about its data
 
 
 class GraphInvariantError(RuntimeError):
@@ -580,6 +581,7 @@ def _derive(
     the account a sink. Nothing connects two findings unless one of these rules does.
     """
     services = {s.name: s for s in topology.services}
+    stores = {s.name for s in topology.services if s.store_kind}
     code: dict[str, list[GraphFinding]] = {}
     images: dict[str, list[GraphFinding]] = {}
     for f in findings:
@@ -591,6 +593,19 @@ def _derive(
             code.setdefault(home, []).append(f)
 
     for s in topology.services:
+        if s.store_kind:
+            # a database image: a sink whose sensitivity is assumed, not stated (F-1-1)
+            node(
+                _ds(s.name),
+                "data_store",
+                s.name,
+                sensitivity=ASSUMED_STORE_SENSITIVITY,
+                sensitivity_source="assumed",
+                store_kind=s.store_kind,
+                derived_from=list(s.sources),
+            )
+            sinks[_ds(s.name)] = D_VALUES[ASSUMED_STORE_SENSITIVITY]
+            continue
         key = _svc(s.name)
         node(
             key,
@@ -628,6 +643,23 @@ def _derive(
                 )
             ev = [stated(Declared(s.declared.file, {"service": s.name, "runs_as": None}))]
             edge(key, UNKNOWN_IDENTITY, "RUNS_AS", 1.0, Assurance.INFERRED, ev)
+
+        for target in dict.fromkeys(n for n, _ in s.needs if n in stores):
+            via = next(v for n, v in s.needs if n == target)
+            link = stated(
+                Declared(
+                    s.declared.file,
+                    {
+                        "service": s.name,
+                        "connects_to": target,
+                        "via": via,
+                        "assumed_sensitivity": ASSUMED_STORE_SENSITIVITY,
+                        "source": "compose",
+                    },
+                )
+            )
+            # the file says the service needs the database; that it uses it is an inference
+            edge(key, _ds(target), "CONNECTS_TO", 1.0, Assurance.INFERRED, [link])
 
         if s.exposure is None:
             continue

@@ -367,3 +367,100 @@ def test_image_contexts_stay_linear_on_a_large_topology() -> None:
     assert time.perf_counter() - start < 0.5  # was 1.9 s when each finding scanned all
     assert index["r/i3-0:1"].privilege.label == "admin"  # type: ignore[union-attr]
     assert index["r/i3-0:1"].exposure is not None and "r/i2-0:1" not in index
+
+
+# --- databases in Compose (F-1-1) -------------------------------------------------------
+NODEGOAT = """
+services:
+  web:
+    build: ./app
+    ports: ["4000:4000"]
+    depends_on: [mongo]
+  mongo:
+    image: mongo:4.4
+"""
+
+
+def _compose_only(root: Path, text: str) -> Topology:
+    (root / "app").mkdir()
+    (root / "docker-compose.yml").write_text(text)
+    return derive(extract_iac(root).assets, dockerfile_refs(root))
+
+
+def test_a_compose_database_is_an_assumed_sink_and_gives_an_inferred_path(
+    tmp_path: Path,
+) -> None:
+    a = analyze(None, [_code(0, "app/server.js")], topology=_compose_only(tmp_path, NODEGOAT))
+    store = a.nodes["data_store:mongo"]
+    assert store["kind"] == "data_store" and "service:mongo" not in a.nodes
+    props = store["properties"]
+    assert (props["sensitivity"], props["sensitivity_source"]) == ("confidential", "assumed")
+    assert props["store_kind"] == "mongo"
+    [path] = [p for p in a.paths if p.sink == "data_store:mongo"]
+    assert path.nodes == ["internet", "service:web", "data_store:mongo"]
+    assert path.assurance is INF and path.sink_impact == 0.7 and path.findings == [0]
+    [conn] = _kind(a, "CONNECTS_TO")
+    assert (conn.source, conn.target, conn.assurance) == ("service:web", "data_store:mongo", INF)
+    facts = a.evidence[conn.evidence_ids[0]].facts
+    assert facts["via"] == "depends_on" and facts["assumed_sensitivity"] == "confidential"
+    assert 0 in a.effective
+
+
+@pytest.mark.parametrize(
+    "needs",
+    [
+        "links: [mongo:db]",
+        "depends_on: {mongo: {condition: service_started}}",
+    ],
+)
+def test_links_and_the_mapping_form_of_depends_on_connect_too(tmp_path: Path, needs: str) -> None:
+    compose = NODEGOAT.replace("depends_on: [mongo]", needs)
+    a = analyze(None, [_code(0, "app/server.js")], topology=_compose_only(tmp_path, compose))
+    assert [(e.source, e.target) for e in _kind(a, "CONNECTS_TO")] == [
+        ("service:web", "data_store:mongo")
+    ]
+    assert any(p.sink == "data_store:mongo" for p in a.paths)
+
+
+@pytest.mark.parametrize(
+    "compose",
+    [
+        # no depends_on or links: the file states no connection (NodeGoat uses an env URL)
+        NODEGOAT.replace("    depends_on: [mongo]\n", ""),
+        # a service that builds its own image is code, whatever the image is called
+        NODEGOAT.replace("    image: mongo:4.4", "    build: ./app\n    image: mongo:4.4"),
+        # not a database image
+        NODEGOAT.replace("mongo:4.4", "nginx:1.25"),
+        # not a well-known database name as the last path segment
+        NODEGOAT.replace("mongo:4.4", "acme/mongo-tools:1"),
+    ],
+)
+def test_no_database_or_no_stated_link_means_no_data_store_path(
+    tmp_path: Path, compose: str
+) -> None:
+    a = analyze(None, [_code(0, "app/server.js")], topology=_compose_only(tmp_path, compose))
+    assert not any(p.sink.startswith("data_store:") for p in a.paths)
+    assert not _kind(a, "CONNECTS_TO")
+
+
+def test_a_registry_prefixed_database_image_is_recognised(tmp_path: Path) -> None:
+    compose = NODEGOAT.replace("mongo:4.4", "docker.io/library/postgres@sha256:" + "a" * 64)
+    topo = _compose_only(tmp_path, compose)
+    assert {s.name: s.store_kind for s in topo.services} == {"web": None, "mongo": "postgres"}
+
+
+@pytest.mark.parametrize(
+    "needs", ["depends_on: 3", "depends_on: [[a], {b: 1}, 5]", "links: {a: b}"]
+)
+def test_malformed_depends_on_and_links_never_fail(tmp_path: Path, needs: str) -> None:
+    compose = NODEGOAT.replace("depends_on: [mongo]", needs)
+    a = analyze(None, [_code(0, "app/server.js")], topology=_compose_only(tmp_path, compose))
+    assert not any(p.sink.startswith("data_store:") for p in a.paths)
+
+
+def test_a_manifest_that_declares_services_still_wins_over_compose_databases(
+    tmp_path: Path,
+) -> None:
+    topo = _compose_only(tmp_path, NODEGOAT)
+    a = analyze(_manifest(), FINDINGS, topology=topo)
+    assert "data_store:mongo" not in a.nodes

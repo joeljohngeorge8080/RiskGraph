@@ -4,7 +4,7 @@ Questions the owner (jojo) answered, with the options offered. Source of truth f
 
 | Flag | Question | Options | Answer (2026-11-03) | Build work |
 |---|---|---|---|---|
-| F-1-1 | Compose database images as `data_store` nodes? | (a) yes, confidential; (b) yes, unknown sensitivity; (c) no | **(a)** | TODO: detector in `graph/topology.py`, node and edges in `graph/attack.py::_derive`, NodeGoat-shaped test, scenario G addition, ADR-0019 line |
+| F-1-1 | Compose database images as `data_store` nodes? | (a) yes, confidential; (b) yes, unknown sensitivity; (c) no | **(a)** | DONE 2026-11-03: detector in `graph/topology.py`, node and edges in `graph/attack.py::_derive`, `depends_on`/`links` in `context/iac.py`, tests, scenario G, ADR-0019. Open: NodeGoat itself still has no path (connection is an env URL) |
 | F-1-2 | CAN_ACCESS target for RBAC bindings | (a) keep as is; (b) `kubernetes_api` node; (c) secrets to credentials | **(a)** | none |
 | F-2-1 | Tier-1 taint rules on by default? | (a) on by default; (b) opt-in | **(b)**, not the recommendation | none (setting stays unset) |
 | F-3-1 | Build the Joern adapter now? | (a) yes; (b) skip | **(a)** | TODO: `modules/scanners/joern/`, parser golden tests on `fixtures/joern/`, `deep` profile (one slot), correlation, ADR with spike numbers, L-5 through the runner |

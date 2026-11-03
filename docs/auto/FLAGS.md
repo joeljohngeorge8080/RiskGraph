@@ -31,7 +31,7 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   - Recommendation: (a). It is what the plan's NodeGoat criterion needs. The sensitivity is labelled as assumed in the node and the edge evidence, and a manifest still overrides everything.
 - Resume: in `graph/topology.py`, add a data-store detector over Compose services. In `graph/attack.py::_derive`, add the node, the inferred CONNECTS_TO edges from `depends_on`/`links` with declaration evidence, and the sink. Then add tests (a NodeGoat-shaped fixture gives ≥ 1 inferred path) and a line in ADR-0019.
 - Also waiting on this (day 5): scenario G of X6 (plan §6: "public image CVE on an internet service → DB"). G is built with the ServiceAccount sink the derived graph has; once (a) is built, add a Compose `postgres` service with `depends_on` to `tests/test_risk_scenarios_v2.py` G and assert the inferred path to it.
-- Answer: (a) on 2026-11-03. Yes: a Compose service with a well-known database image becomes a `data_store` node, sensitivity assumed `confidential` (D = 0.6), a sink; inferred CONNECTS_TO from `depends_on`/`links`; the assumption is labelled in node and edge evidence; a manifest overrides.
+- Answer: (a) on 2026-11-03. Built 2026-11-03 (see ADR-0019); NodeGoat still has no path because its Compose file has no `depends_on`/`links`. Yes: a Compose service with a well-known database image becomes a `data_store` node, sensitivity assumed `confidential` (D = 0.6), a sink; inferred CONNECTS_TO from `depends_on`/`links`; the assumption is labelled in node and edge evidence; a manifest overrides.
 
 ### F-1-2: CAN_ACCESS from RBAC bindings has no target
 - Status: ANSWERED

@@ -34,10 +34,16 @@ Gap G3: a repository without a `riskgraph.yaml` got no attack graph, even when i
   - The edge is capped at inferred: the exposure it starts from is only inferred, so an L3 finding cannot make the path verified.
 - Image package findings never join a **manifest** service's EXPLOIT edge. Otherwise a Dockerfile in a manifest service's path would demote an existing inferred edge.
 
+**Compose databases (F-1-1, answered a, 2026-11-03).** A Compose service whose image's last path segment is `postgres`, `mysql`, `mariadb`, `mongo`, `redis`, `elasticsearch`, `cassandra` or `couchdb`, and that has no `build:` context and no Kubernetes workload of the same name, becomes a `data_store` node instead of a service.
+- Its sensitivity is **assumed** `confidential` (D = 0.7 in `D_VALUES`) and says so: the node carries `sensitivity_source: assumed`, and the edge evidence carries `assumed_sensitivity`. It is a sink.
+- A service that lists it under `depends_on` (list or mapping) or `links` gets a `CONNECTS_TO` edge, p = 1.0, assurance **inferred**: the file states the dependency, and that the service uses the data is an inference. A path through it is at most inferred.
+- A manifest that declares services still wins; nothing here applies then.
+- The database's own image is not scanned as a service and gets no `RUNS_IMAGE` edge; a published database port does not make an `EXPOSES` edge. Both are under-claims.
+- **Limit:** a connection written only in an environment value (NodeGoat: `MONGODB_URI: mongodb://mongo:27017/...`) is not seen, so NodeGoat still has no path. Reading connection strings is a separate decision.
+
 **Not built (flagged).**
-- Data stores from Compose (F-1-1).
-- CAN_ACCESS from RBAC (F-1-2).
-- Without either, a Compose-only repository has no sinks and so no paths, which is the under-claim rule.
+- CAN_ACCESS from RBAC (F-1-2, answered: keep as is).
+- Without a sink, a Compose-only repository has no paths, which is the under-claim rule.
 - Endpoint nodes wait for X5: the extractor yields entrypoint labels, not routes.
 
 ## Consequences
