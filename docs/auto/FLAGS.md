@@ -127,7 +127,7 @@ A run adds an entry here when the work needs a human decision or permission (RUN
 - Answer:
 
 ### F-L-1: Tier-1 taint steps cannot come from the Semgrep JSON
-- Status: OPEN
+- Status: ANSWERED
 - Phase / step: X4 part 1 (taint finding contract, `parser.taint_steps`), found by L-4 on 2026-11-02
 - Blocked: nothing built so far depends on it; tier 1 stays off by default (F-2-1).
 - Why it needs the owner: the contract says `taint_flow` evidence carries ordered `steps` "from the Semgrep dataflow trace when present". With the real Semgrep CE 1.182.0 it is never present: `extra.dataflow_trace` is missing from the JSON output (`engine_kind: OSS`), SARIF has no `codeFlows`, and `--dataflow-traces` is documented as affecting text and SARIF only. In text output the trace is printed ("Taint comes from", "intermediate variables"). So every tier-1 `taint_flow` has an empty `steps`, and the unit tests pass only because `fixtures/semgrep_taint/sample.json` was written by hand with a trace the tool does not emit.
@@ -138,10 +138,10 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   - (c) Use the source and sink locations the rule match itself gives (`metavars`) as a two-step trace.
   - Recommendation: (a). It is honest, costs nothing, and Joern covers the case where steps matter.
 - Resume: (a) Replace `sample.json` with a trimmed copy of the real run, drop the claim from ADR-0021 and PHASE_X4, keep `taint_steps` for forward compatibility. (b)/(c) Design the parser against the real output first.
-- Answer:
+- Answer: (a), accepted on 2026-11-03 (owner said "go" to the recommendation). Done: ADR-0021 and PHASE_X4 now say tier-1 steps are empty; `test_real_semgrep_output_gives_taint_findings_without_steps` parses the real run. `sample.json` was kept (it still tests the trace walker) and is labelled hand-written.
 
 ### F-L-2: The explanation prompt does not validate on real findings
-- Status: OPEN
+- Status: ANSWERED
 - Phase / step: P12 / X1 (prompt `explain.2`), found by L-6 on 2026-11-02
 - Blocked: nothing: the template fallback worked every time, so users see a correct, plain explanation.
 - Why it needs the owner: the prompt and the model are a product choice (quality against size and speed). Measured with the live `qwen3:4b` on a NodeGoat scan: 0 of 8 findings validated (a code finding, an image CVE, the Node.js 12 EOL finding, five more), two attempts each, 24–30 s each. 23 of 24 recorded rejections are "reason N rests only on untrusted repository text (S ids)", one is "cites an evidence id that does not exist". `make test-llm` passes (1 of 1 validated, 16.5 s) because its repository is tiny. On Oct 25, `explain.1` validated 4 of 4.
@@ -152,4 +152,4 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   - (c) Keep it: the fallback is correct, and the model is optional.
   - Recommendation: (a), measured; if it stays under about 5 of 8, then (c) and say so in the UI copy.
 - Resume: (a) Edit `modules/explain/prompt.py`, bump `PROMPT_VERSION`, re-run the same eight findings through `POST /api/v1/findings/{id}/explanation?scan_id=…` and compare the stored `validation_errors`. (b) Pull the model with Ollama, change the model setting, and repeat the measurement. (c) Close the flag.
-- Answer:
+- Answer: (a), accepted on 2026-11-03. Done: `explain.3` in `modules/explain/prompt.py` (2 to 4 reasons, at least one F/P/SCORE/FINDING id in each, a worked example; an S id never stands alone). Measured with the live `qwen3:4b` on 15 real NodeGoat evidence packs (8 top-scoring plus 7 runtime, IaC, SCA, SAST), same validator, temperature 0: `explain.2` validated 10 of 15 (5 of 8 and 5 of 7); `explain.3` validated 14 to 15 of 15 (14 with the first wording, 15 as committed), about 13 s per finding instead of 12 to 41 s. Caveats: the original "0 of 8" did not reproduce (the earlier eight were a different set and I cannot say why they all failed, so BELIEVE the model is simply sensitive to the finding); 15 packs is a small sample; no image-CVE finding was in the set. The cache key is the evidence hash, not the prompt version, so stored `explain.2` rows are kept; fallback rows are regenerated with `refresh`.

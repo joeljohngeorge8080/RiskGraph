@@ -317,3 +317,18 @@ def test_joining_scales_with_many_sast_findings() -> None:
     merged = merge(many)
     assert time.perf_counter() - start < 2.0
     assert len(merged) == 4000 + 2000  # every taint hit in big.py joined its generic finding
+
+
+# --- the real tool's output (L-4, F-L-1) -----------------------------------------------
+REAL_RUN = Path(__file__).parent / "fixtures" / "semgrep_taint" / "real-1.182.0-suite-run.json"
+
+
+def test_real_semgrep_output_gives_taint_findings_without_steps() -> None:
+    """Semgrep CE 1.182.0 writes no dataflow_trace to its JSON, so tier 1 yields the sink
+    and the rule only; the steps come from tier 2. sample.json is hand-written."""
+    doc = json.loads(REAL_RUN.read_text(encoding="utf-8"))
+    assert not any("dataflow_trace" in r["extra"] for r in doc["results"])
+    taint_hits = [f for f in _parsed(doc) if f.attrs.get("analysis") == "intraprocedural"]
+    assert len(taint_hits) == len(doc["results"]) == 15
+    assert all(f.attrs["taint_steps"] == [] for f in taint_hits)
+    assert all(f.cwe_ids for f in taint_hits)

@@ -83,7 +83,7 @@ See `docs/auto/DAY_2_REPORT.md`.
 
 ## Q. Known limits (part 1)
 - No recall or precision numbers (L-4).
-- The trace shape is BELIEVE until L-4.
+- The trace shape is not emitted by Semgrep CE 1.182.0 (L-4, F-L-1, answered a): tier-1 `steps` are empty, tier 2 supplies them. `sample.json` is hand-written; the real run is `real-1.182.0-suite-run.json`.
 - Sources are matched by name (`request`, `req`).
 - JS SQL sinks match any `$DB.query`, so their confidence is `medium`.
 - Tier 1 cannot see across functions or files; that is tier 2's job.
