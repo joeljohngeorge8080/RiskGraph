@@ -1,4 +1,28 @@
-# HANDOFF: resume here (updated 2026-10-31, auto session day 6: integration pass over X2–X6; six-day summary and everything open in docs/auto/FINAL_REPORT.md)
+# HANDOFF: resume here (updated 2026-11-03, session 9 local: L-2…L-9 run, nine flags answered, F-1-1 built; remaining work below)
+
+## Session 9 (2026-11-02 to 2026-11-03, local, branch `extended_phase_auto`, nothing pushed)
+Branch history on top of the merged nightly work (`1a93885`): `de0f3bc` local tasks, `6329243` F-L-1/F-L-2, `19ba9e7` flag answers, `b94e31b` + `11a3a9e` F-1-1. Unit tests 684 passed, lint clean. The four `graphify-out/` files stay uncommitted (the hooks rewrite them; commit them separately at the end).
+
+**Done**
+- L-2…L-9 run on this machine (`docs/auto/LOCAL_TASKS.md`): image stage, docker runner, migrations, Trivy size flag, real Semgrep taint rules, live model, **Joern spike = GO** (`docs/auto/spikes/joern/RESULT.md`, fixtures in `backend/tests/fixtures/joern/master-f6b35cd1296f/`). L-5 is PARTIAL: measured with the spike runner, not the pipeline runner.
+- F-L-1 closed: Semgrep CE writes no `dataflow_trace`; tier-1 `steps` are empty, tier 2 supplies them (ADR-0021, PHASE_X4, a test on the real run).
+- F-L-2 closed: prompt `explain.3` (2 to 4 reasons, a non-snippet id in each). Live `qwen3:4b` on 15 real NodeGoat packs: `explain.2` 10 of 15, `explain.3` 14 to 15 of 15.
+- F-1-1 built (ADR-0019): Compose database images (postgres, mysql, mariadb, mongo, redis, elasticsearch, cassandra, couchdb; no `build:`, no joined workload) are `data_store` sinks, sensitivity assumed `confidential` (D = 0.7); `depends_on`, `links` and environment URLs naming a sibling service give an inferred `CONNECTS_TO`. NodeGoat's real compose now gives `Internet → web → mongo` (inferred). The URL value is never stored.
+- All nine flags answered; log with options and answers: **`docs/auto/OWNER_DECISIONS.md`** (source of truth per flag: `docs/auto/FLAGS.md`).
+
+**Remaining work, in the order I proposed**
+1. **F-4-2 (a): `authz.public`.** Add `public: tuple[str, ...]` to `AuthzDecl` (validate with the rule path validator), pass it to `authz.analyze`, skip those routes in `_inconsistent` and `_unguarded_sensitive`, list them as declared public. Tests plus a line in ADR-0023. Target: unguarded-sensitive precision 3/5 to at least 0.8 (the contact and feedback forms are the two false positives, pinned in a test today). Update the example manifest.
+2. **F-5-1 (b): foothold-only effective impact.** In `graph/attack.py::_search`, give I* only to findings whose own support of the edge is at least inferred (`exploit_assurance(f.tier)`; `image_assurance(f)` for image packages; pass a support map from `analyze`) AND whose category gives a foothold (SCA, or SAST with T >= 0.8). Add `category` to `GraphFinding` (pipeline: `x.merged.representative.category`). Flip the F and G pins in `tests/test_risk_scenarios_v2.py`, add a property test (a hypothesis-level finding never gets I*), **re-run X0 (`make test-services`, then `make eval-baseline`) and compare with `docs/evaluation/BASELINE.md`**, add an ADR-0024 note. Expect no X0 change (BELIEVE, not measured).
+3. **F-3-1 (a): Joern adapter (X4 part 2), the largest item.** `modules/scanners/joern/` (adapter, parser), parser golden tests on `fixtures/joern/`, `deep` profile opt-in with one slot, correlation through `merge._join_taint_hits` (key = file and sink line), ADR with the spike numbers, then L-5 through the pipeline runner. Facts to carry: image `ghcr.io/joernio/joern@sha256:f6b35cd1296f92070305fcc7cbdb2f113d26ea1920abcb303e1a6622c6b1ba2a` (`master` tag moves; pin the digest or build from a release archive); `/tmp` cannot be `noexec`, so set `JAVA_TOOL_OPTIONS=-Djava.io.tmpdir=/work/tmp`; query is `docs/auto/spikes/joern/taint.sc`, runner `run_spike.py`; steps are locations only (ADR-0021). Open inside this item: sanitized negatives are 2 of 5 flagged (0.40 against the plan's 0.2), both allow-list lookups (`ALLOWED.get(arg)`); needs an allow-list sanitizer class in the catalogue or custom semantics. The 3.6 GB Joern image is still on disk (disk about 95 %).
+4. **F-4-1 (a):** keep `authz` in `OUTSIDE_X0`; write an authz scenario with labels first (in X6 or X8).
+
+**Not decided / not started**
+- X7 (dashboard: assurance badges, flow-step viewer, route table, paths to verify, `--assurance-min`, SARIF export) and X8 (full evaluation, ablations, `deep` prod profile). X7 overlaps with blueprint P13 (dashboard), which has no phase chapter; check P13 and P2 against the blueprint before starting X7.
+- Blueprint P13 to P19 (dashboard, GitHub Action and webhook, auth hardening, test consolidation, research evaluation, deployment, thesis) are not done as formal phases.
+- Follow-ups: a probability for UNGUARDED and BOLA_SUSPECT edges; cross-file BOLA; F-2-1 chose opt-in for tier-1 taint, so `RISKGRAPH_SEMGREP_TAINT_RULES_PATH` stays unset by default.
+- Housekeeping: nothing is pushed (open a PR when asked); the nightly cloud routine still fires next on 2027-10-25 (disable if unwanted); the dev and test stacks are down and the model is unloaded.
+
+**Machine notes (new)**: the dev DB is migrated to `b8d3f1a6c2e9`; the NodeGoat scan `01a19cb7-1f5f-7548-9594-21c6a5f658ff` is in it. To run a script against it, export `RISKGRAPH_DATABASE_URL`, `RISKGRAPH_REDIS_URL` and a throwaway `RISKGRAPH_SECRET_KEY` from `.env` values by key name (sourcing the whole `.env` breaks `cors_origins`). `/api/v1/findings` limit is at most 200; `/risks` needs `scan_id`.
 
 ## Auto session day 6 (2026-10-31, cloud, branch `extended_phase_auto`)
 - **Verdict COMPLETE** for the day; the six days together are **PARTIAL** (X4 part 2 waits on the Joern spike, F-3-1). Report: `docs/auto/DAY_6_REPORT.md`; summary: **`docs/auto/FINAL_REPORT.md`**.
