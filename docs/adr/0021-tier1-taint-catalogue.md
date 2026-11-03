@@ -47,7 +47,7 @@ Plan §3.A makes Semgrep CE's taint mode tier 1: RiskGraph-authored rules for th
 - (+) Tier 1 and tier 2 will read one catalogue, so they cannot drift.
 - (+) A taint finding shows its path from source to sink without storing any code.
 - (−) No recall is claimed. By construction, tier 1 can only find the intraprocedural cases; the measured numbers come from L-4.
-- (−) The trace shape (`CliLoc`, `CliCall`, `intermediate_vars`) is from Semgrep's documented JSON as I remember it (BELIEVE). The walker accepts any location-shaped dict, so a shape change costs steps, not findings.
+- (−) **Measured (L-4, F-L-1):** Semgrep CE 1.182.0 writes no `dataflow_trace` to its JSON or SARIF, so a real tier-1 `taint_flow` has empty `steps`: it gives the sink and the rule only, and the steps come from tier 2 (Joern, which returns them). The trace walker stays for engines that do emit one; `fixtures/semgrep_taint/sample.json` is hand-written, and `real-1.182.0-suite-run.json` is the real output.
 - (−) Name-based sources (`request.GET`, `req.query`) miss renamed objects; under-claiming is the rule.
 - (−) Until F-2-1 is answered, a default scan is unchanged: no tier-1 findings.
 
