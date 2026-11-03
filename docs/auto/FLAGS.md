@@ -19,7 +19,7 @@ A run adds an entry here when the work needs a human decision or permission (RUN
 ## Entries
 
 ### F-1-1: Data stores from Compose (which images, which sensitivity)
-- Status: OPEN
+- Status: ANSWERED
 - Phase / step: X3 part 1, step 7 (derived topology)
 - Blocked: data_store nodes for repositories without a manifest. Without them, a Compose-only repository has no sink, so no attack path (Kubernetes RBAC still gives identity sinks).
 - Why it needs the owner: the plan's X3 row expects NodeGoat (Compose: app + mongo, no manifest) to get an inferred path, which needs a data store sink. Its sink impact comes from its sensitivity, and nothing in a Compose file states sensitivity. Choosing a default sensitivity is a scoring decision the plan does not make.
@@ -31,10 +31,10 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   - Recommendation: (a). It is what the plan's NodeGoat criterion needs. The sensitivity is labelled as assumed in the node and the edge evidence, and a manifest still overrides everything.
 - Resume: in `graph/topology.py`, add a data-store detector over Compose services. In `graph/attack.py::_derive`, add the node, the inferred CONNECTS_TO edges from `depends_on`/`links` with declaration evidence, and the sink. Then add tests (a NodeGoat-shaped fixture gives ≥ 1 inferred path) and a line in ADR-0019.
 - Also waiting on this (day 5): scenario G of X6 (plan §6: "public image CVE on an internet service → DB"). G is built with the ServiceAccount sink the derived graph has; once (a) is built, add a Compose `postgres` service with `depends_on` to `tests/test_risk_scenarios_v2.py` G and assert the inferred path to it.
-- Answer:
+- Answer: (a) on 2026-11-03. Yes: a Compose service with a well-known database image becomes a `data_store` node, sensitivity assumed `confidential` (D = 0.6), a sink; inferred CONNECTS_TO from `depends_on`/`links`; the assumption is labelled in node and edge evidence; a manifest overrides.
 
 ### F-1-2: CAN_ACCESS from RBAC bindings has no target
-- Status: OPEN
+- Status: ANSWERED
 - Phase / step: X3 part 1, step 8 (edge rules)
 - Blocked: the plan's "CAN_ACCESS identity → data_store/service from an RBAC binding (verified)".
 - Why it needs the owner: a Kubernetes (Cluster)Role grants verbs on API resources (pods, secrets, deployments). It does not grant access to the application's services or data stores, which are the only CAN_ACCESS targets in the graph. Building the edge needs a new node kind, which is a design choice the plan does not make.
@@ -45,10 +45,10 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   - (c) Map a role's `secrets` permissions to the credentials found in that namespace's manifests.
   - Recommendation: (a) for now. It gives the same paths without inventing a target; (c) is closer to the real risk but is X5/X6-sized work.
 - Resume: (a) close the flag. (b) Add the node and the edges in `_derive`, the sink impact in `tables.py` (an ADR note), and tests. (c) Plan it as its own phase item.
-- Answer:
+- Answer: (a) on 2026-11-03. Keep as is: privilege on the identity, no CAN_ACCESS edge from RBAC. Flag closed, nothing to build.
 
 ### F-2-1: Turn the tier-1 taint rules on by default?
-- Status: OPEN
+- Status: ANSWERED
 - Phase / step: X4 part 1, step 7 (wiring)
 - Blocked: tier 1 in the default scan profile, as plan §3.A puts it.
 - Why it needs the owner: it contradicts the plan for now. The generated rules were only checked for structure here; the real Semgrep is not available in the cloud runs. If Semgrep refuses one rule, the whole Semgrep run fails, and every scan loses all its SAST findings. Checking needs the owner's machine (L-4), and the scanner image must carry the rules file.
@@ -62,10 +62,10 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   2. Set `semgrep_taint_rules_path: Path | None = Path("/opt/scanners/riskgraph-taint/taint_rules.yaml")` in `shared/config.py`, plus `RISKGRAPH_SEMGREP_TAINT_RULES_PATH` in `docker/backend.Dockerfile`.
   3. Update `test_the_rules_are_a_second_config_only_when_configured`.
   4. Re-run the X0 evaluation: the recorded Semgrep fixtures have no tier-1 hits, so no change is expected.
-- Answer:
+- Answer: (b) on 2026-11-03. Opt-in per deployment: `RISKGRAPH_SEMGREP_TAINT_RULES_PATH` stays unset by default, a default scan is unchanged. (Chosen over the recommendation (a); the L-4 numbers were: cross-function/file recall 0, 5/10 sanitized flagged, no steps.)
 
 ### F-3-1: Joern spike not run, so no Joern adapter
-- Status: OPEN
+- Status: ANSWERED
 - Phase / step: X4 part 2 (all of it: adapter, parser, `deep` profile, tier-1 + tier-2 correlation, ADR with the spike numbers)
 - Blocked: the Joern adapter. SCHEDULE day 3 makes it conditional on `docs/auto/spikes/joern/RESULT.md` saying `GO`, with recorded Joern output under `backend/tests/fixtures/joern/` (L-2).
 - Why it needs the owner: at the start of the day-3 run (2026-10-28, 05:00 IST) `RESULT.md` still said "Not run yet" and `backend/tests/fixtures/joern/` did not exist. The spike needs Docker and a JVM container, which the cloud runs do not have. Building a parser without recorded output would mean inventing Joern's output format.
@@ -75,10 +75,10 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   - (b) Skip Joern for this six-day block: the remaining days keep the schedule's order (X5, X6), and X4 part 2 goes back to the plan's queue.
   - Recommendation: (a) when you have the machine time, because X4's gate in the plan needs measured numbers; until then (b) costs nothing, since X5 and X6 do not depend on tier 2 (X6's taint factor table reads `analysis`, which tier 1 already sets).
 - Resume: once `RESULT.md` says `GO` and the fixtures exist, do SCHEDULE day 3 as written (adapter in `modules/scanners/joern/`, parser golden tests on the fixtures, `deep` opt-in with one slot, correlation through `merge._join_taint_hits`, ADR with the spike numbers), before that day's own work. On `NO-GO`: an ADR recording the fallback (custom Python summaries, plan §3.A) and no adapter.
-- Answer:
+- Answer: (a) on 2026-11-03. Yes: build the Joern adapter (X4 part 2) now, on the GO in `spikes/joern/RESULT.md`; the allow-list lookup handling stays an open follow-up.
 
 ### F-4-1: How should the evaluation count authorization findings?
-- Status: OPEN
+- Status: ANSWERED
 - Phase / step: X5 part 2, step 6 (findings), and X6 (re-evaluation)
 - Blocked: labels for `authz` findings in the evaluation. Nothing else waits on this: the current behaviour is the conservative one.
 - Why it needs the owner: the X0 labels were written before any ranking (plan §7–§8). Scenarios B and E now produce one `authz:unguarded-sensitive` finding each. Labelling them now, after seeing their ranks, would break that rule; leaving them in unlabelled counts them as "not important" by default. Either way it is a choice about the evaluation's method, which the plan does not make.
@@ -89,10 +89,10 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   - (c) Keep them in, unlabelled (defaulted to not important).
   - Recommendation: (a). It keeps the frozen comparison honest and gives authz a test written before its ranking.
 - Resume: (a) In X6, write scenario I (or extend F–H) with authz routes and labels first, then decide whether `OUTSIDE_X0` stays. (b) Add `LabelRule`s for `source_type="authz"` to scenarios B and E, then remove `authz` from `OUTSIDE_X0`. (c) Remove `authz` from `OUTSIDE_X0`.
-- Answer:
+- Answer: (a) on 2026-11-03. Keep authz out of the X0 set (`OUTSIDE_X0` stays); write a separate authz scenario with labels first, in X6 or X8.
 
 ### F-4-2: A way to declare routes public on purpose?
-- Status: OPEN
+- Status: ANSWERED
 - Phase / step: X5 part 2, step 4 (unguarded-sensitive rule)
 - Blocked: nothing. This is a precision improvement.
 - Why it needs the owner: on the labelled suite, unguarded-sensitive precision is 3/5 = 0.6, below plan §6's 0.8 for "unguarded". The two false positives are a contact form and a feedback form: writes without a guard on purpose, and nothing in their name says so. The fix is a declaration, i.e. a new manifest field. The run book says a new field outside the plan's own list goes to the owner.
@@ -103,10 +103,10 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   - (c) Add `require: none` to `authz.rules` instead (one list for both).
   - Recommendation: (a). It is explicit and cannot be confused with a policy.
 - Resume: (a) Add `public: tuple[str, ...]` to `AuthzDecl` (validated with the rule path validator), pass it to `authz.analyze`, skip those routes in `_inconsistent` and `_unguarded_sensitive`, and add tests plus a line in ADR-0023. (c) Add `"none"` to `AuthzRule.require` and do the same.
-- Answer:
+- Answer: (a) on 2026-11-03. Add `authz.public: [path patterns]` to the manifest: such routes are never unguarded-sensitive or inconsistent and are listed as declared public.
 
 ### F-5-1: Should every finding of an exposed service take the path's effective impact?
-- Status: OPEN
+- Status: ANSWERED
 - Phase / step: X6, scenarios F–H (DAY_5_PLAN step 3)
 - Blocked: nothing. The current rule stays and is pinned in `test_f_ssrf_flow_reaches_the_admin_identity_and_the_metadata`.
 - Why it needs the owner: scenario F showed that every code finding of a service is evidence on its EXPLOIT edge (up to `MAX_EVIDENCE`), and each one gets the path's effective impact I* (§14.4, ADR-0013). Changing that changes how I* is attributed, which ADR-0013 and the blueprint decided. One of the options also moves the frozen X0 ranking.
@@ -124,7 +124,7 @@ A run adds an entry here when the work needs a human decision or permission (RUN
   - (d) Keep the current rule: a finding in an exploitable, exposed service shares its fate.
   - Recommendation: (b). It matches what the EXPLOIT edge claims ("an attacker can exploit this service through this finding"). It keeps ADR-0020's rule that a hypothesis never raises a score. And as far as measured, it leaves X0 as it is.
 - Resume: (a)/(b) In `graph/attack.py::_search`, skip `e["findings"]` entries whose own support is below inferred (`exploit_assurance(f.tier)`, or `image_assurance(f)` for image packages; pass a support map from `analyze`). For (b), also add `category` to `GraphFinding` (pipeline: `x.merged.representative.category`) and keep only SCA or SAST categories with `T_SAST ≥ 0.8`. Flip the F/G pins in `test_risk_scenarios_v2.py`, add a property test (a hypothesis-level finding never gets I*), re-run X0, and add an ADR-0024 note. (c) Use `e["findings"][:1]`, re-run X0 and report the reordering. (d) Close the flag and turn the pin into a documented rule in ADR-0024.
-- Answer:
+- Answer: (b) on 2026-11-03. I* only for findings whose own support of the edge is at least inferred AND whose category gives a foothold (SCA, and SAST with T >= 0.8). Needs `category` on `GraphFinding`; re-run X0 and add an ADR-0024 note.
 
 ### F-L-1: Tier-1 taint steps cannot come from the Semgrep JSON
 - Status: ANSWERED
