@@ -464,3 +464,87 @@ def test_a_manifest_that_declares_services_still_wins_over_compose_databases(
     topo = _compose_only(tmp_path, NODEGOAT)
     a = analyze(_manifest(), FINDINGS, topology=topo)
     assert "data_store:mongo" not in a.nodes
+
+
+# --- connection strings in environment values (F-1-1) ---------------------------------
+ENV_COMPOSE = """
+services:
+  web:
+    build: ./app
+    ports: ["4000:4000"]
+    environment:
+      NODE_ENV:
+      MONGODB_URI: mongodb://mongo:27017/nodegoat
+  mongo:
+    image: mongo:4.4
+"""
+
+
+def _env_connections(a: AttackAnalysis) -> list[tuple[str, str, str | None]]:
+    return [
+        (
+            e.source,
+            e.target,
+            str(k) if (k := a.evidence[e.evidence_ids[0]].facts.get("env_key")) else None,
+        )
+        for e in _kind(a, "CONNECTS_TO")
+    ]
+
+
+def test_an_environment_url_naming_a_database_service_gives_an_inferred_path(
+    tmp_path: Path,
+) -> None:
+    a = analyze(None, [_code(0, "app/server.js")], topology=_compose_only(tmp_path, ENV_COMPOSE))
+    assert _env_connections(a) == [("service:web", "data_store:mongo", "MONGODB_URI")]
+    [conn] = _kind(a, "CONNECTS_TO")
+    assert conn.assurance is INF
+    assert a.evidence[conn.evidence_ids[0]].facts["via"] == "environment"
+    [path] = [p for p in a.paths if p.sink == "data_store:mongo"]
+    assert path.assurance is INF and path.nodes == ["internet", "service:web", "data_store:mongo"]
+
+
+def test_the_list_form_of_environment_works_and_a_url_password_is_never_kept(
+    tmp_path: Path,
+) -> None:
+    compose = ENV_COMPOSE.replace(
+        "    environment:\n      NODE_ENV:\n      MONGODB_URI: mongodb://mongo:27017/nodegoat\n",
+        '    environment:\n      - "DB=postgres://app:hunter2secret@mongo:5432/x"\n',
+    )
+    topo = _compose_only(tmp_path, compose)
+    a = analyze(None, [_code(0, "app/server.js")], topology=topo)
+    assert _env_connections(a) == [("service:web", "data_store:mongo", "DB")]
+    blob = repr(extract_iac(tmp_path).assets) + repr(a.evidence) + repr(a.nodes)
+    assert "hunter2secret" not in blob and "postgres://" not in blob
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "mongodb://db.example.com:27017/x",  # not a service of this file
+        "mongo:27017",  # not a URL
+        "mongo",  # a bare host name is not read
+        "see mongodb://mongo/x for docs",  # the URL must start the value
+        "mongodb://",
+        "mongodb://@/x",
+    ],
+)
+def test_only_a_url_naming_a_sibling_service_counts(tmp_path: Path, value: str) -> None:
+    compose = ENV_COMPOSE.replace("mongodb://mongo:27017/nodegoat", value)
+    a = analyze(None, [_code(0, "app/server.js")], topology=_compose_only(tmp_path, compose))
+    assert not _kind(a, "CONNECTS_TO") and not a.paths
+
+
+def test_a_service_naming_itself_and_non_string_values_are_ignored(tmp_path: Path) -> None:
+    compose = ENV_COMPOSE.replace("mongodb://mongo:27017/nodegoat", "http://web:4000/").replace(
+        "      NODE_ENV:\n", "      PORT: 4000\n      FLAG: true\n      LIST: [a]\n"
+    )
+    a = analyze(None, [_code(0, "app/server.js")], topology=_compose_only(tmp_path, compose))
+    assert not _kind(a, "CONNECTS_TO")
+
+
+def test_a_stated_dependency_wins_over_the_environment_as_the_evidence(tmp_path: Path) -> None:
+    compose = ENV_COMPOSE.replace("    ports:", "    depends_on: [mongo]\n    ports:")
+    a = analyze(None, [_code(0, "app/server.js")], topology=_compose_only(tmp_path, compose))
+    assert _env_connections(a) == [("service:web", "data_store:mongo", None)]
+    [conn] = _kind(a, "CONNECTS_TO")
+    assert a.evidence[conn.evidence_ids[0]].facts["via"] == "depends_on"

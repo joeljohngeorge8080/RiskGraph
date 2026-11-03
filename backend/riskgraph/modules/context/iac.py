@@ -31,6 +31,8 @@ MAX_FILE_BYTES = 512 * 1024
 MAX_DOCS_PER_FILE = 200
 MAX_LIST = 20
 MAX_ANCHORS = 100
+# scheme://[userinfo@]host: only the host is read, and only to match a sibling service
+URL_HOST = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://(?:[^/@\s]*@)?([A-Za-z0-9_.-]+)")
 SECRET_KEY = re.compile(r"(PASSWORD|SECRET|TOKEN|API_?KEY|PRIVATE_?KEY)", re.IGNORECASE)
 YAML_SUFFIXES = (".yaml", ".yml")
 SKIP_DIRS = frozenset({".git", "node_modules", ".venv", "vendor"})
@@ -296,6 +298,7 @@ def _compose(doc: dict[str, Any], source: str, compose_dir: str) -> list[IacAsse
     if not isinstance(services, dict):
         return []
     out: list[IacAsset] = []
+    siblings = {n for n in services if isinstance(n, str)}
     for name, svc in list(services.items())[: MAX_LIST * 10]:
         if not isinstance(name, str) or not isinstance(svc, dict):
             continue
@@ -317,6 +320,23 @@ def _compose(doc: dict[str, Any], source: str, compose_dir: str) -> list[IacAsse
             if isinstance(env, dict)
             else [str(e).split("=", 1)[0] for e in env or [] if isinstance(e, str)]
         )
+        pairs = (
+            [(str(k), v) for k, v in env.items()]
+            if isinstance(env, dict)
+            else [tuple(e.split("=", 1)) for e in env or [] if isinstance(e, str) and "=" in e]
+        )
+        # F-1-1: an environment value that is a URL naming a sibling service ("mongodb://mongo:
+        # 27017/db"). Only the variable name and that service's name are kept, never the value.
+        env_refs = sorted(
+            {
+                (str(k)[:64], m.group(1))
+                for k, v in pairs[: MAX_LIST * 5]
+                if isinstance(v, str)
+                and (m := URL_HOST.match(v.strip()))
+                and m.group(1) in siblings
+                and m.group(1) != name
+            }
+        )[:MAX_LIST]
         secret_keys = sorted({k for k in keys if SECRET_KEY.search(k)})[:MAX_LIST]
         exposure = "internet" if published else "internal"
         depends = svc.get("depends_on")  # a list of names, or a mapping name -> condition
@@ -331,6 +351,7 @@ def _compose(doc: dict[str, Any], source: str, compose_dir: str) -> list[IacAsse
                     "published_ports": published[:MAX_LIST],
                     "depends_on": sorted({n[:160] for n in needs})[:MAX_LIST],  # X3: F-1-1
                     "links": sorted({n[:160] for n in linked})[:MAX_LIST],
+                    "env_refs": [{"key": k, "service": s[:160]} for k, s in env_refs],
                     "privileged": svc.get("privileged") is True,
                     "secret_env_keys": secret_keys,
                     "image": _text(svc.get("image"), 256),  # X2: image ref, if any
