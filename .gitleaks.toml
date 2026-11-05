@@ -1,0 +1,19 @@
+# Gitleaks config for CI (security-self-scan) and the pre-commit hook. The default rules stay on;
+# this file only silences two kinds of false positive, each matched on the whole line.
+title = "RiskGraph"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known false positives"
+regexTarget = "line"
+regexes = [
+  # Test code naming a credential family for a fake finding: `secret_family="aws"` is a label,
+  # not a value (tests/test_graph_*.py, tests/test_topology_graph.py).
+  '''secret_family\s*=\s*"[a-z_]+"''',
+  # The published GPG key fingerprint that the official python/node images set in their
+  # Dockerfile (GPG_KEY=...), kept in the recorded `trivy image` reports under
+  # tests/fixtures/images/. A fingerprint of a public key, not a secret.
+  '''GPG_KEY=[0-9A-F]{40}''',
+]
