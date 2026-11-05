@@ -13,12 +13,12 @@ How to measure every criterion of `docs/proposals/EXPANSION_A-D.md` §6 and fill
 | Command | Needs | Writes |
 |---|---|---|
 | `make eval-expansion` | nothing | `EVALUATION_EXPANSION.md`: A1–A3, B1–B3, D2; the rest NOT RUN |
-| `make eval-expansion-x0` | `make test-services` (the dev stack must be down: same ports). It empties `riskgraph_test` | the same, plus P1 |
+| `make eval-expansion-full` | `make test-services` (the dev stack must be down: same ports). It empties `riskgraph_test` | the same, plus P1 |
 | `make eval-baseline` | `make test-services` | `BASELINE.md`, `baseline_findings.csv` (X0) |
 | `make eval-authz` | nothing | `AUTHZ_EVAL.md` (scenario I, F-4-1) |
 | `uv run python -m evaluation.taint_suite write DIR` / `score DIR JSON` | Semgrep (tier 1) or the Joern image (tier 2) for new runs | a table on stdout |
 
-The committed `EVALUATION_EXPANSION.md` came from `make eval-expansion-x0`: **5 PASS, 3 FAIL, 5 NOT RUN**.
+The committed `EVALUATION_EXPANSION.md` came from `make eval-expansion-full`: **5 PASS, 3 FAIL, 5 NOT RUN**.
 
 ## Re-recording the inputs
 ### A: taint
@@ -38,7 +38,7 @@ Copy the JSON to `tests/fixtures/semgrep_taint/real-<version>-suite-run.json`, t
 B is code only. The suites are `tests/test_authz_suite.py`, `tests/test_authz_findings_suite.py` and `evaluation/authz_scenario.py`. To add a framework, write its app and its labels first, in their own commit.
 
 ### P1: prioritization
-Run `make test-services`, then `make eval-expansion-x0`. Today:
+Run `make test-services`, then `make eval-expansion-full`. Today:
 - pooled nDCG@10 is 0.991 (RiskGraph) against 0.162 (M2);
 - every method ties within each X0 scenario, so the pre-registered paired test over scenarios gives p = 1.00 (FAIL).
 

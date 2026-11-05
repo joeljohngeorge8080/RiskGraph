@@ -7,13 +7,13 @@ likelihood, code reachability, network exposure, identity privilege and data
 sensitivity, builds a security graph, discovers attack paths, and scores
 contextual risk deterministically — with an AI layer that explains, never decides.
 
-**Status:** MVP vertical slice: scan a public GitHub repo with Trivy, Semgrep, Checkov and
-Gitleaks, normalize and merge their reports, and rank findings by risk in a web UI
-(`docs/phases/PHASE_MVP.md`). Level 2 adds context-aware scoring from a `riskgraph.yaml`
-manifest in the scanned repository (`docs/phases/PHASE_MVP2.md`), extended with
-reachability (L0/L1/L2 from a tree-sitter import graph), attack paths with effective impact,
-triage, scan history and a CI gate (`docs/phases/PHASE_MVP2_EXT.md`). The MVP has **no
-authentication**: keep it on localhost. Roadmap: `docs/blueprint/06_ROADMAP.md`.
+**Status (2026-11-05, handed over to collaborators):** the MVP and Level 2 are built, along with blueprint phases P3–P12 and expansion phases X0–X6. That covers:
+- hardened scanner containers, SBOM, reachability L0–L3 and a graph from Compose and Kubernetes;
+- evidence and assurance on every claim, image and runtime end-of-life findings;
+- tier-1 taint (Semgrep) and tier-2 taint (Joern, opt-in `deep` profile);
+- route inventory and authorization findings, and risk model v2.
+
+An X8 evaluation harness exists. X7 (dashboard additions) and the rest of X8 are open. **There is no authentication yet:** keep it on localhost. Start at `docs/handover/README.md`; what's left is in `docs/handover/BACKLOG.md`.
 
 ## Context-aware scoring
 Add a `riskgraph.yaml` at the root of the repository you scan to tell RiskGraph what the
@@ -63,6 +63,7 @@ make lint                       # ruff, mypy, eslint, tsc
 ```
 
 ## Documentation
+- `docs/handover/`: start here. State, backlog, history; plus `CONTRIBUTING.md` at the root
 - `docs/blueprint/` — architecture, data model, API, threat model, roadmap, evaluation plan
 - `docs/adr/` — decision records
 - `docs/PROJECT_SPEC.md`, `docs/THREAT_MODEL.md`
