@@ -150,6 +150,9 @@ def test_refresh_replaces_a_fallback_once_the_model_is_back(
 def test_top_findings_task_explains_every_critical(
     api: TestClient, sid: str, settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # F-5-1 left the kitchen sink 9 criticals (co-located findings no longer inherit I*),
+    # so the cap is set below that here to keep exercising it
+    settings = settings.model_copy(update={"explain_top_n": 5})
     monkeypatch.setattr("riskgraph.modules.explain.tasks.get_settings", lambda: settings)
     criticals = api.get("/api/v1/risks", params={"scan_id": sid, "priority": "critical"}).json()
     expected = min(criticals["total"], settings.explain_top_n)  # top N only (§15.3)
