@@ -1,6 +1,6 @@
 """Alembic environment: URL from settings, metadata from ``riskgraph.shared.db.Base``.
 
-Model modules must be imported here (from Phase 2) so autogenerate sees them.
+Every ``modules/<x>/models.py`` is imported here so autogenerate sees all tables.
 """
 
 from __future__ import annotations
@@ -8,6 +8,17 @@ from __future__ import annotations
 from logging.config import fileConfig
 
 from alembic import context
+from riskgraph.modules.audit import models as _audit_models  # noqa: F401
+from riskgraph.modules.context import models as _context_models  # noqa: F401
+from riskgraph.modules.evidence import models as _evidence_models  # noqa: F401
+from riskgraph.modules.explain import models as _explain_models  # noqa: F401
+from riskgraph.modules.findings import models as _findings_models  # noqa: F401
+from riskgraph.modules.graph import models as _graph_models  # noqa: F401
+from riskgraph.modules.reachability import models as _reachability_models  # noqa: F401
+from riskgraph.modules.repositories import models as _repositories_models  # noqa: F401
+from riskgraph.modules.risk import models as _risk_models  # noqa: F401
+from riskgraph.modules.runtime import models as _runtime_models  # noqa: F401
+from riskgraph.modules.scans import models as _scans_models  # noqa: F401
 from riskgraph.shared.config import get_settings
 from riskgraph.shared.db import Base
 from sqlalchemy import engine_from_config, pool

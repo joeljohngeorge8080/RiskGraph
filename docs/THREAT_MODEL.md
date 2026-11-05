@@ -71,3 +71,31 @@ S12 CI action (token in runner)
 5. Every outbound HTTP host is in a static allow-list.
 6. Scanner containers cannot reach the network (test: scanner image runs `curl` → fails).
 7. The LLM output validator rejects any claim without a valid evidence id (golden tests).
+
+## MVP note (2026-10-21)
+
+The MVP vertical slice (ADR-0009, ADR-0010, `docs/phases/PHASE_MVP.md`) runs scanners as subprocesses in the worker, not in isolated containers, and has no authentication.
+
+- **T-01** residual risk is raised until the DockerRunner lands: scanner compromise = worker compromise.
+- **Invariant 1** holds in a weaker form: no string commands; list argv via `SubprocessRunner` instead of the Docker API.
+- **Invariant 6** (scanners cannot reach the network) does **not** hold yet.
+- **Invariants 2, 3 and 5** are implemented and tested: `test_workspace.py`, `tests/e2e`, `test_context.py`.
+
+Do not expose the API beyond localhost before Phase 2 (auth) and Phase 3 (DockerRunner).
+
+## MVP level 2 note (2026-10-21): manifest context
+
+ADR-0011 makes `riskgraph.yaml` an input to scoring, so the manifest becomes attacker-controlled input (the scanned repository is untrusted).
+
+- **Parsing:** only fixed names at the repository root, read through `safe_resolve` (symlinks out of the checkout are ignored), 64 KiB cap, `yaml.safe_load`, aliases and nesting deeper than 8 refused before construction (billion laughs, recursion), strict schema with list caps, warnings length-capped. Tested in `tests/test_manifest.py`.
+- **T-12 (graph poisoning)** is now live: a repository can under-declare its exposure to lower its own scores. Mitigations in place: every context factor shows `source = manifest` in the score breakdown, and the scan's Context panel lists every declared service. Not in place yet: an IaC-vs-manifest conflict flag (Phase 7).
+- Manifest content is never logged; only its status and file name are.
+
+## MVP level 2 extended note (2026-10-22)
+
+ADR-0012 and ADR-0013, `docs/phases/PHASE_MVP2_EXT.md`.
+
+- **T-07 (reachability parser):** now implemented as planned. tree-sitter runs in a separate process through `SubprocessRunner` with an address-space limit (RLIMIT_AS 2 GiB), CPU and file-size limits, a timeout, no network and `-I`. Files over 2 MB, binary files and symlinks are skipped. Repository code is never imported or executed.
+- **T-12 (graph poisoning):** the manifest can now also link credential families to identities (`identities[].credentials`). Each link creates attack-graph edges, so under-declaring hides paths. Edges and factors carry their source.
+- **T-16 (repudiation):** `audit_logs` records every triage change in the same transaction. The actor is `local` until Phase 2.
+- **Invariant 3 (no raw secrets):** the e2e test now also covers `graph_nodes`, `graph_edges`, `attack_paths`, `reachability_results` and `audit_logs`.

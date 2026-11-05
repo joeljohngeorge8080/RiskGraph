@@ -1,0 +1,2 @@
+sql-injection	helper.py	14	app.py:17;helper.py:13;helper.py:14
+sql-injection	helper.py	14	app.py:17;app.py:17;helper.py:13;helper.py:14

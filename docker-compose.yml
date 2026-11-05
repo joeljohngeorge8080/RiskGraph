@@ -5,10 +5,20 @@ x-backend: &backend
   build:
     context: .
     dockerfile: docker/backend.Dockerfile
+    target: runtime
   env_file: .env
   environment:
     RISKGRAPH_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-riskgraph}:${POSTGRES_PASSWORD:-riskgraph}@postgres:5432/${POSTGRES_DB:-riskgraph}
     RISKGRAPH_REDIS_URL: redis://:${REDIS_PASSWORD:-riskgraph}@redis:6379/0
+    # P12: the host's Ollama. `make dev` (infrastructure/scripts/llm.sh) loads the model,
+    # keeps it resident and exposes Ollama as a socket file, mounted below, because a host
+    # firewall may drop container-to-host TCP; `make down` unloads it. Without the socket,
+    # explanations fall back to the template. Set RISKGRAPH_OLLAMA_SOCKET= (empty) to use
+    # RISKGRAPH_OLLAMA_URL over the network instead.
+    RISKGRAPH_OLLAMA_URL: ${RISKGRAPH_OLLAMA_URL:-http://host.docker.internal:11434}
+    RISKGRAPH_OLLAMA_SOCKET: ${RISKGRAPH_OLLAMA_SOCKET-/run/ollama/ollama.sock}
+    RISKGRAPH_OLLAMA_KEEP_ALIVE: ${RISKGRAPH_OLLAMA_KEEP_ALIVE:--1}
+  extra_hosts: ["host.docker.internal:host-gateway"]
   volumes:                       # source-only mounts: the image's /app/.venv must stay intact
     - ./backend/riskgraph:/app/riskgraph:ro
     - ./backend/alembic:/app/alembic:ro
@@ -46,6 +56,25 @@ services:
       timeout: 3s
       retries: 10
 
+  # The only route to the Docker daemon (blueprint §9.3, "Trusted side"). Allow-list:
+  # containers and images, POST for create/start/kill, nothing else. Residual risk: POST
+  # to /containers/create accepts binds, so a worker compromise is still host compromise.
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2
+    environment:
+      CONTAINERS: 1
+      IMAGES: 1
+      POST: 1
+      EXEC: 0
+      VOLUMES: 0
+      NETWORKS: 0
+      BUILD: 0
+      SWARM: 0
+      SYSTEM: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # read-write: connecting needs it
+    restart: unless-stopped
+
   migrate:
     <<: *backend
     restart: "no"
@@ -54,15 +83,48 @@ services:
   api:
     <<: *backend
     command: ["uvicorn", "--factory", "riskgraph.entrypoints.api:create_app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-    ports: ["127.0.0.1:${API_PORT:-8000}:8000"]
+    ports: ["127.0.0.1:${API_PORT:-8000}:8000"]   # MVP has no auth: never publish beyond localhost
+    volumes:
+      - ./backend/riskgraph:/app/riskgraph:ro
+      - ./backend/alembic:/app/alembic:ro
+      - ./backend/alembic.ini:/app/alembic.ini:ro
+      - ./backend/tests:/app/tests:ro
+      - riskgraph_data:/var/lib/riskgraph:ro      # stored reports, for downloads
+      - ./.data/ollama:/run/ollama:ro             # socket to the host's Ollama (llm.sh)
     depends_on:
       migrate: { condition: service_completed_successfully }
 
   worker:
     <<: *backend
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      target: worker
+    volumes:
+      - ./backend/riskgraph:/app/riskgraph:ro
+      - ./backend/alembic:/app/alembic:ro
+      - ./backend/alembic.ini:/app/alembic.ini:ro
+      - ./backend/tests:/app/tests:ro
+      - riskgraph_data:/var/lib/riskgraph          # workspaces + stored reports
+      - trivy_cache:/var/cache/riskgraph/trivy
+      - ./.data/ollama:/run/ollama:ro              # socket to the host's Ollama (llm.sh)
+    # The anchor's environment is replaced, not merged, so the database URLs are repeated.
+    environment:
+      RISKGRAPH_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-riskgraph}:${POSTGRES_PASSWORD:-riskgraph}@postgres:5432/${POSTGRES_DB:-riskgraph}
+      RISKGRAPH_REDIS_URL: redis://:${REDIS_PASSWORD:-riskgraph}@redis:6379/0
+      RISKGRAPH_OLLAMA_URL: ${RISKGRAPH_OLLAMA_URL:-http://host.docker.internal:11434}
+      RISKGRAPH_OLLAMA_SOCKET: ${RISKGRAPH_OLLAMA_SOCKET-/run/ollama/ollama.sock}
+      RISKGRAPH_OLLAMA_KEEP_ALIVE: ${RISKGRAPH_OLLAMA_KEEP_ALIVE:--1}
+      # Scanners run as containers through the socket proxy (ADR-0014). The host paths are
+      # where Docker keeps the volumes below; `make dev` sets them.
+      RISKGRAPH_SCANNER_RUNNER: docker
+      RISKGRAPH_HOST_DATA_DIR: ${RISKGRAPH_HOST_DATA_DIR:?run make dev}
+      RISKGRAPH_HOST_TRIVY_CACHE_DIR: ${RISKGRAPH_HOST_TRIVY_CACHE_DIR:?run make dev}
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
     command: ["celery", "-A", "riskgraph.entrypoints.worker:celery_app", "worker", "-Q", "scan,analysis", "--concurrency", "2", "--loglevel", "INFO"]
     depends_on:
       migrate: { condition: service_completed_successfully }
+      docker-socket-proxy: { condition: service_started }
     healthcheck:
       test: ["CMD-SHELL", "celery -A riskgraph.entrypoints.worker:celery_app inspect ping -d celery@$$HOSTNAME --timeout 5 | grep -q pong"]
       interval: 30s
@@ -83,6 +145,13 @@ services:
       context: .
       dockerfile: docker/frontend.Dockerfile
       target: dev
+    # node_modules lives in a named volume, which Docker fills from the image only once.
+    # A dependency added later would never arrive, so install again when the lockfile is
+    # newer than the last install (npm records it in node_modules/.package-lock.json).
+    command:
+      - sh
+      - -c
+      - '[ node_modules/.package-lock.json -nt package-lock.json ] || npm ci --no-audit --no-fund; exec npm run dev'
     environment:
       VITE_API_PROXY_TARGET: http://api:8000
     volumes:
@@ -94,3 +163,14 @@ services:
 volumes:
   pgdata:
   frontend_node_modules:
+  # Fixed names: the Makefile looks up their host paths (RISKGRAPH_HOST_DATA_DIR).
+  riskgraph_data:
+    name: riskgraph-data
+  trivy_cache:
+    name: riskgraph-trivy-cache
+
+networks:
+  # Created by `make dev` (idempotent). Only fetcher and tool-DB containers join it.
+  riskgraph_egress:
+    name: riskgraph_egress
+    external: true

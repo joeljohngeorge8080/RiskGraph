@@ -1,0 +1,174 @@
+{
+ "ArtifactName": ".",
+ "ArtifactType": "filesystem",
+ "CreatedAt": "2026-10-25T05:21:21.194318843Z",
+ "ReportID": "01a17181-992a-74d3-abcb-c0cf2575d78d",
+ "Results": [
+  {
+   "Class": "lang-pkgs",
+   "Packages": [
+    {
+     "AnalyzedBy": "pip",
+     "Identifier": {
+      "PURL": "pkg:pypi/flask@3.0.3",
+      "UID": "2f6ebe36676ebe6a"
+     },
+     "Locations": [
+      {
+       "EndLine": 1,
+       "StartLine": 1
+      }
+     ],
+     "Name": "flask",
+     "Version": "3.0.3"
+    },
+    {
+     "AnalyzedBy": "pip",
+     "Identifier": {
+      "PURL": "pkg:pypi/requests@2.32.4",
+      "UID": "60e0faea8f004d55"
+     },
+     "Locations": [
+      {
+       "EndLine": 2,
+       "StartLine": 2
+      }
+     ],
+     "Name": "requests",
+     "Version": "2.32.4"
+    }
+   ],
+   "Target": "requirements.txt",
+   "Type": "pip",
+   "Vulnerabilities": [
+    {
+     "CVSS": {
+      "ghsa": {
+       "V40Score": 2.3,
+       "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:P/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N"
+      },
+      "nvd": {
+       "V3Score": 4.3,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N"
+      },
+      "redhat": {
+       "V3Score": 4.3,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N"
+      }
+     },
+     "CweIDs": [
+      "CWE-524"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "Flask is a web server gateway interface (WSGI) web application framework. In versions 3.1.2 and below, when the session object is accessed, Flask should set the Vary: Cookie header., resulting in a Use of Cache Containing Sensitive Information vulnerability. The logic instructs caches not to cache the response, as it may contain information specific to a logged in user. This is handled in most cases, but some forms of access such as the Python in operator were overlooked. The severity and risk depend on the application being hosted behind a caching proxy that doesn't ignore responses with cookies, not setting a Cache-Control header to mark pages as private or non-cacheable, and accessing the session in a way that only touches keys without reading values or mutating the session. The issue has been fixed in version 3.1.3.",
+     "Fingerprint": "sha256:f274ff1e302131bc77cbe0f2e3049f060b30b9dc4aee6eb0e681274cc23e1575",
+     "FixedVersion": "3.1.3",
+     "InstalledVersion": "3.0.3",
+     "LastModifiedDate": "2026-06-17T10:26:50.7Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/flask@3.0.3",
+      "UID": "2f6ebe36676ebe6a"
+     },
+     "PkgName": "flask",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-27205",
+     "PublishedDate": "2026-02-21T06:17:00.91Z",
+     "References": [
+      "https://access.redhat.com/security/cve/CVE-2026-27205",
+      "https://github.com/pallets/flask",
+      "https://github.com/pallets/flask/commit/089cb86dd22bff589a4eafb7ab8e42dc357623b4",
+      "https://github.com/pallets/flask/releases/tag/3.1.3",
+      "https://github.com/pallets/flask/security/advisories/GHSA-68rp-wp8r-4726",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-27205",
+      "https://ubuntu.com/security/notices/USN-8104-1",
+      "https://www.cve.org/CVERecord?id=CVE-2026-27205"
+     ],
+     "Severity": "LOW",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "flask: Flask: Information disclosure via improper caching of session data",
+     "VendorIDs": [
+      "GHSA-68rp-wp8r-4726"
+     ],
+     "VendorSeverity": {
+      "amazon": 2,
+      "ghsa": 1,
+      "nvd": 2,
+      "redhat": 2,
+      "ubuntu": 1
+     },
+     "VulnerabilityID": "CVE-2026-27205"
+    },
+    {
+     "CVSS": {
+      "ghsa": {
+       "V3Score": 4.4,
+       "V3Vector": "CVSS:3.1/AV:L/AC:H/PR:L/UI:R/S:U/C:N/I:H/A:N"
+      },
+      "nvd": {
+       "V3Score": 5.5,
+       "V3Vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:H/A:N"
+      },
+      "redhat": {
+       "V3Score": 4.7,
+       "V3Vector": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:N/I:H/A:N"
+      }
+     },
+     "CweIDs": [
+      "CWE-377"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "Requests is a HTTP library. Prior to version 2.33.0, the `requests.utils.extract_zipped_paths()` utility function uses a predictable filename when extracting files from zip archives into the system temporary directory. If the target file already exists, it is reused without validation. A local attacker with write access to the temp directory could pre-create a malicious file that would be loaded in place of the legitimate one. Standard usage of the Requests library is not affected by this vulnerability. Only applications that call `extract_zipped_paths()` directly are impacted. Starting in version 2.33.0, the library extracts files to a non-deterministic location. If developers are unable to upgrade, they can set `TMPDIR` in their environment to a directory with restricted write access.",
+     "Fingerprint": "sha256:f9e4a954a3c3570e5175dc04c7898930449bd97d035332c05555903ee9fd6e2c",
+     "FixedVersion": "2.33.0",
+     "InstalledVersion": "2.32.4",
+     "LastModifiedDate": "2026-06-17T10:25:00.443Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/requests@2.32.4",
+      "UID": "60e0faea8f004d55"
+     },
+     "PkgName": "requests",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-25645",
+     "PublishedDate": "2026-03-25T17:16:52.97Z",
+     "References": [
+      "https://access.redhat.com/security/cve/CVE-2026-25645",
+      "https://github.com/psf/requests",
+      "https://github.com/psf/requests/commit/66d21cb07bd6255b1280291c4fafb71803cdb3b7",
+      "https://github.com/psf/requests/releases/tag/v2.33.0",
+      "https://github.com/psf/requests/security/advisories/GHSA-gc5v-m9x4-r6x2",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-25645",
+      "https://ubuntu.com/security/notices/USN-8825-1",
+      "https://www.cve.org/CVERecord?id=CVE-2026-25645"
+     ],
+     "Severity": "MEDIUM",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "requests: Requests: Security bypass due to predictable temporary file creation",
+     "VendorIDs": [
+      "GHSA-gc5v-m9x4-r6x2"
+     ],
+     "VendorSeverity": {
+      "azure": 2,
+      "ghsa": 2,
+      "nvd": 2,
+      "photon": 2,
+      "redhat": 2,
+      "ubuntu": 1
+     },
+     "VulnerabilityID": "CVE-2026-25645"
+    }
+   ]
+  }
+ ],
+ "SchemaVersion": 2,
+ "Trivy": {
+  "Version": "0.76.0"
+ }
+}

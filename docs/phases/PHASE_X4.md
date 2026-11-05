@@ -1,0 +1,165 @@
+# PHASE X4: deep code analysis (expansion plan)
+
+**Status:** part 1 (tier-1 taint catalogue, generated Semgrep rules, the taint evidence contract, correlation, the 40-case suite) done on 2026-10-27. **Tier 1 is off by default** until the owner runs it against the real Semgrep (F-2-1, L-4). Part 2 (the Joern adapter) is **gated**: the owner's spike (L-2) had not run by day 3, so nothing of it is built (F-3-1). Day 3 hardened tier 1 instead (multi-line sinks, below). Decision: ADR-0021. No migration. Plan: `docs/proposals/EXPANSION_A-D.md` §3.A, §4 (X4), §6.
+
+## A. Objective
+X4 row of the plan: interprocedural taint with evidence. Tier 1 comes from Semgrep CE with RiskGraph's own rules; tier 2 from Joern, if its spike passes. Part 1 is tier 1 and the contract both tiers share.
+
+Day 2 exit criteria, and where they stand:
+1. Catalogue, rule generator and parser are tested. **Done.**
+2. The taint finding contract: `sast`, `analysis = intraprocedural`, `taint_flow` evidence with ordered steps (≤ 50), assurance `inferred`. **Done.**
+3. A tier-1 hit and a generic Semgrep finding at the same sink merge as one finding with two occurrences. **Done**, for CWEs in one family.
+4. The 40-case suite as code. **Done**, with a scorer.
+5. Recall: **not claimed.** UNVERIFIED until L-4.
+
+## B. Why
+The vendored Semgrep rules flag patterns; they do not say that request data reaches the sink, and their licence keeps them separate from RiskGraph's own content (G12). A catalogue RiskGraph owns can feed both tiers, and a trace shows a reviewer the path from source to sink.
+
+## C. Architecture
+```
+taint_catalogue.yaml ─▶ taint.load_catalogue (strict) ─▶ build_rules ─▶ taint_rules.yaml (committed, drift-tested)
+semgrep scan --config <vendored rules> [--config taint_rules.yaml if semgrep_taint_rules_path]
+redact:  dataflow_trace ─▶ riskgraph_taint_steps [{file, line, role}] (no code), then snippets dropped
+parse:   riskgraph.taint.* ─▶ sast, attrs.analysis = intraprocedural, attrs.taint_steps
+merge:   tier-1 group ─▶ joins a generic group at the same (file, line) with a CWE in its family
+evidence: taint member ─▶ taint_flow, inferred, steps;  generic member ─▶ code_match, verified
+```
+
+## D. Components
+| Component | File |
+|---|---|
+| Catalogue | `backend/riskgraph/modules/scanners/semgrep/taint_catalogue.yaml` |
+| Loader and generator | `modules/scanners/semgrep/taint.py` |
+| Generated rules | `modules/scanners/semgrep/taint_rules.yaml` |
+| Trace redaction and parsing | `modules/scanners/semgrep/parser.py` (`taint_steps`, `keep_taint_steps`, `_stored_steps`), `adapter.py::redact` |
+| Setting | `shared/config.py::semgrep_taint_rules_path` (default unset) |
+| CWE families, rule prefix | `modules/normalization/families.py` |
+| Correlation | `modules/normalization/merge.py::_join_taint_hits` |
+| Evidence | `modules/scans/finding_evidence.py::_match` |
+| Suite and scorer | `backend/evaluation/taint_suite.py` |
+
+## E. Technical decisions
+See ADR-0021.
+- Tier 1 is off by default (F-2-1). One rule Semgrep refuses would fail every Semgrep run.
+- Tier-1 evidence is `inferred`, never `verified`.
+- The generic finding's merge key is kept, so existing finding history is unchanged.
+- K stays 1 for two Semgrep rules: it counts scanners.
+- Sink patterns mark the tainted argument with `$SINK`, so `cur.execute(q, params)` only matters through `q`.
+
+## G. Database
+None. `attrs` and evidence `steps` already exist (ADR-0017).
+
+## H. API
+No new fields. A tier-1 finding's `evidence[]` (finding detail) shows a `taint_flow` record with its steps.
+
+## L. Configuration
+`RISKGRAPH_SEMGREP_TAINT_RULES_PATH`:
+- unset (default): tier 1 off;
+- set to the rules file: tier 1 on. For the subprocess runner, that is `backend/riskgraph/modules/scanners/semgrep/taint_rules.yaml`. For the docker runner, the scanner image must contain the file (L-4).
+
+## M. Testing
+- `test_taint_tier1.py` (27 on day 2, 31 after day 3; unit):
+  - catalogue coverage;
+  - a broken catalogue is refused (7 cases);
+  - rule shape, and every catalogue entry reaches a rule;
+  - the committed file has no drift and no anchors;
+  - the adapter argv with and without the setting;
+  - redaction drops the code and keeps the steps;
+  - the parser contract (`CliLoc` and `CliCall` traces), the cap at 50 with the sink kept, malformed traces (5), hostile stored steps;
+  - `taint_flow` evidence, inferred;
+  - correlation: joined, kept apart, alone, generic keys unchanged;
+  - joining at scale: 6,000 findings in 0.04 s, against 0.72 s before the self-attack fix.
+- `test_taint_suite.py` (9, unit):
+  - 40 cases, every combination once;
+  - the classes match the catalogue;
+  - one marked sink in the right file;
+  - the Python cases parse (`ast`) and the JS cases pass `node --check`;
+  - the written layout and labels;
+  - the scorer against hand-counted results; a wrong class; empty documents.
+- The sample report `tests/fixtures/semgrep_taint/sample.json` is hand-written. The real Semgrep was not run.
+
+## O. Validation
+See `docs/auto/DAY_2_REPORT.md`.
+
+## Q. Known limits (part 1)
+- No recall or precision numbers (L-4).
+- The trace shape is not emitted by Semgrep CE 1.182.0 (L-4, F-L-1, answered a): tier-1 `steps` are empty, tier 2 supplies them. `sample.json` is hand-written; the real run is `real-1.182.0-suite-run.json`.
+- Sources are matched by name (`request`, `req`).
+- JS SQL sinks match any `$DB.query`, so their confidence is `medium`.
+- Tier 1 cannot see across functions or files; that is tier 2's job.
+
+## Part 2 (2026-10-28): gated, and tier-1 hardening instead
+- **Joern adapter: not built.** At the start of day 3, `docs/auto/spikes/joern/RESULT.md` said "Not run yet", and there were no fixtures under `backend/tests/fixtures/joern/` (F-3-1). Building a parser without recorded output would mean inventing Joern's format. The resume steps are in F-3-1.
+- **Multi-line sinks** (`merge.py::_join_taint_hits`, `SINK_SPAN_LINES = 30`).
+  - The tier-1 rules focus on `$SINK`, so a hit starts at the tainted argument. A generic rule that matches the whole call starts at the call.
+  - For a call written over several lines, the two hits used to stay two findings.
+  - Now, after the exact-line join, a taint-only group joins a generic group of the same family in the same file. That group must start at most 30 lines above the hit and still cover its line; the nearest start wins, and the exact line wins over a covering span.
+  - The look-back is bounded, so merging stays linear.
+  - Tests (4 new): the multi-line join; a hit below the span, of another family, or too far below; exact line and nearest start win; two taint hits never join each other. The scaling test now also covers the look-back path.
+  - A mutation check (look-back switched off) fails 2 of them.
+  - That Semgrep reports the argument's line for a focused sink: BELIEVE, from the documented `focus-metavariable` semantics. It is checked with L-4.
+
+## Part 3 (2026-11-05): the Joern adapter (F-3-1 answered (a), ADR-0025)
+
+### A. Objective
+Tier 2 for Python in the opt-in `deep` profile: Joern follows request data across functions and files and gives location-only traces. Correlated with tier 1 and generic Semgrep hits at the same sink, and evidence like tier 1's.
+
+### C. Architecture
+`scans.run_scanner` → `JoernScanner.command` → one `joern --script` run in `riskgraph/scanner-joern:4.0.671` (DockerRunner, network none, read-only root, source read-only, cwd = the scanner HOME, 3 GB) → `joern.json` → `collect` (redaction = `parser.clean`) → `parser.parse` → merge (same rule id and sink as tier 1) → `taint_flow` evidence.
+
+### D. Components
+- `backend/riskgraph/modules/scanners/joern/{adapter,parser}.py`; `scanners/joern/{Dockerfile,taint.sc}`.
+- Catalogue `lookup_sanitizers` (loader: `semgrep/taint.py::_lookups`).
+- Seams:
+  - `Command.cwd` and `Command.memory`;
+  - `RunSpec.container_memory`;
+  - `JAVA_TOOL_OPTIONS` on the container env allow-list;
+  - the Joern lock in `pipeline.redis_scanner_lock`.
+- API: `ScanCreate.profile` (`default` | `deep`), `service.DEEP_SCANNERS`, `DeepProfileDisabled` (409).
+- `make scanner-images-deep`; `JOERN_VERSION` in `docker/scanner-versions.env`.
+
+### E. Technical decisions
+- In ADR-0025: one command, allow-list lookups, no scoring change.
+- I chose JSON output (not the spike's TSV) so the report goes through the same capped JSON reader and redaction step as every other scanner.
+
+### G. Database
+Migration `d4e8b2c6f1a3`: `scanner_name` checks on `scanner_runs` and `finding_occurrences` accept `joern`. Downgrade refuses while joern rows exist. Verified: up / down to base / up on a fresh database; `alembic check` clean.
+
+### H. API
+`POST /scans` takes `"profile": "deep"` (409 unless the deployment enables it; 422 for an unknown profile). Responses are unchanged: a deep scan lists a `joern` run.
+
+### L. Configuration
+`RISKGRAPH_DEEP_PROFILE_ENABLED` (false), `RISKGRAPH_JOERN_QUERY_PATH` (`/opt/riskgraph/joern/taint.sc`), `RISKGRAPH_TIMEOUT_JOERN_S` (900), `RISKGRAPH_JOERN_MEMORY` (`3g`).
+
+### M. Testing
+`tests/test_joern.py` (47 tests):
+- golden parsing of the real run on all 20 Python cases, plus the two hostile lookup cases;
+- the plan targets;
+- malformed and hostile reports;
+- caps;
+- path normalization;
+- redaction;
+- the command against the container profile;
+- the query/catalogue drift check;
+- evidence;
+- the tier-1 E row is not fed;
+- the Joern lock.
+
+Also:
+- `test_merge.py`: the kitchen-sink Joern hit joins the CWE-78 finding;
+- `test_canvas.py`, `test_api.py` (profile refused and enabled);
+- `test_scanner_images.py`: the digest pin and the shipped query.
+
+The kitchen-sink fixture `fixtures/scanners/joern/4.0.671/` was recorded from the real image.
+
+### O. Validation
+- Suite (real Joern, adapter command): intraprocedural 5/5, cross-function 5/5, cross-file 5/5, precision 1.00, sanitized flagged 0/5.
+- L-5 through the pipeline's DockerRunner: 13.1 s, 592 MB, COMPLETED.
+
+### Q. Known limits (part 3)
+- Python only.
+- Name-based sanitizers other than lookups (ADR-0025).
+- Tier-2 evidence is `inferred`, never `verified`.
+- No tier-2 E row (an owner decision).
+- Synthetic suite.
+- The 3.6 GB image.

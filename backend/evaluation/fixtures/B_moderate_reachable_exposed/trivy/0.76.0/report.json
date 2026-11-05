@@ -1,0 +1,242 @@
+{
+ "ArtifactName": ".",
+ "ArtifactType": "filesystem",
+ "CreatedAt": "2026-10-25T05:19:27.267711102Z",
+ "ReportID": "01a1717f-dc23-7acf-981c-698a30638167",
+ "Results": [
+  {
+   "Class": "lang-pkgs",
+   "Packages": [
+    {
+     "AnalyzedBy": "pip",
+     "Identifier": {
+      "PURL": "pkg:pypi/fastapi@0.115.0",
+      "UID": "d982fe3ed07a3403"
+     },
+     "Locations": [
+      {
+       "EndLine": 1,
+       "StartLine": 1
+      }
+     ],
+     "Name": "fastapi",
+     "Version": "0.115.0"
+    },
+    {
+     "AnalyzedBy": "pip",
+     "Identifier": {
+      "PURL": "pkg:pypi/pyyaml@5.3",
+      "UID": "60de057893a1c33f"
+     },
+     "Locations": [
+      {
+       "EndLine": 2,
+       "StartLine": 2
+      }
+     ],
+     "Name": "pyyaml",
+     "Version": "5.3"
+    }
+   ],
+   "Target": "requirements.txt",
+   "Type": "pip",
+   "Vulnerabilities": [
+    {
+     "CVSS": {
+      "ghsa": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+       "V40Score": 9.3,
+       "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      },
+      "nvd": {
+       "V2Score": 10,
+       "V2Vector": "AV:N/AC:L/Au:N/C:C/I:C/A:C",
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "redhat": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      }
+     },
+     "CweIDs": [
+      "CWE-20"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "A vulnerability was discovered in the PyYAML library in versions before 5.4, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. This flaw allows an attacker to execute arbitrary code on the system by abusing the python/object/new constructor. This flaw is due to an incomplete fix for CVE-2020-1747.",
+     "Fingerprint": "sha256:755471f94d457ae636b282ae01c6c890ee79575fc0087c6770186d51c56ef96d",
+     "FixedVersion": "5.4",
+     "InstalledVersion": "5.3",
+     "LastModifiedDate": "2026-06-17T02:54:34.453Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/pyyaml@5.3",
+      "UID": "60de057893a1c33f"
+     },
+     "PkgName": "pyyaml",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2020-14343",
+     "PublishedDate": "2021-02-09T21:15:12.707Z",
+     "References": [
+      "https://access.redhat.com/security/cve/CVE-2020-14343",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1860466",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-14343",
+      "https://errata.almalinux.org/8/ALSA-2021-2583.html",
+      "https://errata.rockylinux.org/RLSA-2021:2583",
+      "https://github.com/SeldonIO/seldon-core/issues/2252",
+      "https://github.com/advisories/GHSA-8q59-q68h-6hv4",
+      "https://github.com/pypa/advisory-database/tree/main/vulns/pyyaml/PYSEC-2021-142.yaml",
+      "https://github.com/yaml/pyyaml",
+      "https://github.com/yaml/pyyaml/commit/a001f2782501ad2d24986959f0239a354675f9dc",
+      "https://github.com/yaml/pyyaml/issues/420",
+      "https://github.com/yaml/pyyaml/issues/420#issuecomment-663673966",
+      "https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load%28input%29-Deprecation",
+      "https://linux.oracle.com/cve/CVE-2020-14343.html",
+      "https://linux.oracle.com/errata/ELSA-2021-2583.html",
+      "https://nvd.nist.gov/vuln/detail/CVE-2020-14343",
+      "https://pypi.org/project/PyYAML",
+      "https://ubuntu.com/security/notices/USN-4940-1",
+      "https://www.cve.org/CVERecord?id=CVE-2020-14343",
+      "https://www.oracle.com/security-alerts/cpuapr2022.html",
+      "https://www.oracle.com/security-alerts/cpujul2022.html"
+     ],
+     "Severity": "CRITICAL",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "PyYAML: incomplete fix for CVE-2020-1747",
+     "VendorIDs": [
+      "GHSA-8q59-q68h-6hv4"
+     ],
+     "VendorSeverity": {
+      "alma": 2,
+      "cbl-mariner": 4,
+      "ghsa": 4,
+      "nvd": 4,
+      "oracle-oval": 2,
+      "photon": 4,
+      "redhat": 2,
+      "rocky": 2,
+      "ubuntu": 2
+     },
+     "VulnerabilityID": "CVE-2020-14343"
+    },
+    {
+     "CVSS": {
+      "ghsa": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+       "V40Score": 9.3,
+       "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      },
+      "nvd": {
+       "V2Score": 10,
+       "V2Vector": "AV:N/AC:L/Au:N/C:C/I:C/A:C",
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "redhat": {
+       "V3Score": 9.8,
+       "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      }
+     },
+     "CweIDs": [
+      "CWE-20"
+     ],
+     "DataSource": {
+      "ID": "ghsa",
+      "Name": "GitHub Security Advisory pip",
+      "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+     },
+     "Description": "A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor.",
+     "Fingerprint": "sha256:a7e0b43278fa3b09e382bd4f526dd35e87e675788bdbb5327b21e11899e45103",
+     "FixedVersion": "5.3.1",
+     "InstalledVersion": "5.3",
+     "LastModifiedDate": "2026-06-17T03:02:19.383Z",
+     "PkgIdentifier": {
+      "PURL": "pkg:pypi/pyyaml@5.3",
+      "UID": "60de057893a1c33f"
+     },
+     "PkgName": "pyyaml",
+     "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2020-1747",
+     "PublishedDate": "2020-03-24T15:15:12.293Z",
+     "References": [
+      "http://lists.opensuse.org/opensuse-security-announce/2020-04/msg00017.html",
+      "http://lists.opensuse.org/opensuse-security-announce/2020-05/msg00017.html",
+      "https://access.redhat.com/security/cve/CVE-2020-1747",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1806005",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1807367",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1809065",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1815643",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1847416",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1854926",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=1856481",
+      "https://bugzilla.redhat.com/show_bug.cgi?id=CVE-2020-1747",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-20477",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-20907",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-14422",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-1747",
+      "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-8492",
+      "https://errata.almalinux.org/8/ALSA-2020-4641.html",
+      "https://errata.rockylinux.org/RLSA-2020:4641",
+      "https://github.com/advisories/GHSA-6757-jp84-gxfx",
+      "https://github.com/github/advisory-database/pull/4942",
+      "https://github.com/pypa/advisory-database/tree/main/vulns/pyyaml/PYSEC-2020-96.yaml",
+      "https://github.com/yaml/pyyaml",
+      "https://github.com/yaml/pyyaml/commit/0cedb2a0697b2bc49e4f3841b8d4590b6b15657e",
+      "https://github.com/yaml/pyyaml/commit/5080ba513377b6355a0502104846ee804656f1e0",
+      "https://github.com/yaml/pyyaml/pull/386",
+      "https://linux.oracle.com/cve/CVE-2020-1747.html",
+      "https://linux.oracle.com/errata/ELSA-2020-4641.html",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/7PPAS6C4SZRDQLR7C22A5U3QOLXY33JX",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/7PPAS6C4SZRDQLR7C22A5U3QOLXY33JX/",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/K5HEPD7LEVDPCITY5IMDYWXUMX37VFMY",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/K5HEPD7LEVDPCITY5IMDYWXUMX37VFMY/",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/MMQXSZXNJT6ERABJZAAICI3DQSQLCP3D",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/MMQXSZXNJT6ERABJZAAICI3DQSQLCP3D/",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/WORRFHPQVAFKKXXWLSSW6XKUYLWM6CSH",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/WORRFHPQVAFKKXXWLSSW6XKUYLWM6CSH/",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/ZBJA3SGNJKCAYPSHOHWY3KBCWNM5NYK2",
+      "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/ZBJA3SGNJKCAYPSHOHWY3KBCWNM5NYK2/",
+      "https://nvd.nist.gov/vuln/detail/CVE-2020-1747",
+      "https://www.cve.org/CVERecord?id=CVE-2020-1747",
+      "https://www.oracle.com/security-alerts/cpujul2022.html"
+     ],
+     "Severity": "CRITICAL",
+     "SeveritySource": "ghsa",
+     "Status": "fixed",
+     "Title": "PyYAML: arbitrary command execution through python/object/new when FullLoader is used",
+     "VendorIDs": [
+      "GHSA-6757-jp84-gxfx"
+     ],
+     "VendorSeverity": {
+      "alma": 2,
+      "cbl-mariner": 4,
+      "ghsa": 4,
+      "nvd": 4,
+      "oracle-oval": 2,
+      "photon": 4,
+      "redhat": 2,
+      "rocky": 2
+     },
+     "VulnerabilityID": "CVE-2020-1747"
+    }
+   ]
+  },
+  {
+   "Class": "config",
+   "MisconfSummary": {
+    "Failures": 0,
+    "Successes": 61
+   },
+   "Target": "deploy/ingress.yaml",
+   "Type": "kubernetes"
+  }
+ ],
+ "SchemaVersion": 2,
+ "Trivy": {
+  "Version": "0.76.0"
+ }
+}

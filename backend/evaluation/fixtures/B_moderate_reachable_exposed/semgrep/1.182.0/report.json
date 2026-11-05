@@ -1,0 +1,139 @@
+{
+ "engine_requested": "OSS",
+ "errors": [],
+ "paths": {
+  "scanned": [
+   "api/main.py",
+   "deploy/ingress.yaml",
+   "requirements.txt",
+   "riskgraph.yaml"
+  ]
+ },
+ "profiling_results": [],
+ "results": [
+  {
+   "check_id": "opt.scanners.semgrep-rules.python.django.security.audit.avoid-insecure-deserialization.avoid-insecure-deserialization",
+   "end": {
+    "col": 38,
+    "line": 10,
+    "offset": 201
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Avoid using insecure deserialization library, backed by `pickle`, `_pickle`, `cpickle`, `dill`, `shelve`, or `yaml`, which are known to lead to remote code execution vulnerabilities.",
+    "metadata": {
+     "category": "security",
+     "confidence": "MEDIUM",
+     "cwe": [
+      "CWE-502: Deserialization of Untrusted Data"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "MEDIUM",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "likelihood": "MEDIUM",
+     "owasp": [
+      "A08:2017 - Insecure Deserialization",
+      "A08:2021 - Software and Data Integrity Failures",
+      "A08:2025 - Software or Data Integrity Failures"
+     ],
+     "references": [
+      "https://docs.python.org/3/library/pickle.html"
+     ],
+     "shortlink": "https://sg.run/9oyr",
+     "source": "https://semgrep.dev/r/python.django.security.audit.avoid-insecure-deserialization.avoid-insecure-deserialization",
+     "subcategory": [
+      "vuln"
+     ],
+     "technology": [
+      "django"
+     ],
+     "vulnerability_class": [
+      "Insecure Deserialization "
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "api/main.py",
+   "start": {
+    "col": 23,
+    "line": 10,
+    "offset": 186
+   }
+  }
+ ],
+ "skipped_rules": [],
+ "time": {
+  "fixpoint_timeouts": [],
+  "matching_time": {
+   "per_file_and_rule_time": {
+    "mean": 0.00010270408437221867,
+    "std_dev": 1.721509400912715e-07
+   },
+   "total_time": 0.008113622665405273,
+   "very_slow_rules_on_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "max_memory_bytes": 752215680,
+  "parsing_time": {
+   "per_file_time": {
+    "mean": 0.0001226165626622454,
+    "std_dev": 5.687646491215264e-07
+   },
+   "total_time": 0.009686708450317383,
+   "very_slow_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "prefiltering": {
+   "file_level_time": 0.0,
+   "project_level_time": 0.0,
+   "rules_matched_ratio": 0.15768463073852296,
+   "rules_selected_ratio": 0.15768463073852296,
+   "rules_with_file_prefilters_ratio": 0.8662674650698603,
+   "rules_with_project_prefilters_ratio": 0.0
+  },
+  "profiling_times": {
+   "config_time": 11.399711608886719,
+   "core_time": 0.7384071350097656,
+   "ignores_time": 0.001424551010131836,
+   "total_time": 12.147879838943481
+  },
+  "rules": [],
+  "rules_parse_time": 0.43834900856018066,
+  "scanning_time": {
+   "per_file_time": {
+    "mean": 0.002131852236661044,
+    "std_dev": 1.5864449378493516e-05
+   },
+   "total_time": 0.023450374603271484,
+   "very_slow_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "tainting_time": {
+   "per_def_and_rule_time": {
+    "mean": 2.9861927032470703e-05,
+    "std_dev": 1.3558221212406352e-10
+   },
+   "total_time": 0.00035834312438964844,
+   "very_slow_rules_on_defs": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "targets": [],
+  "total_bytes": 0
+ },
+ "version": "1.182.0"
+}

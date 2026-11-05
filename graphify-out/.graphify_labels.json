@@ -1,0 +1,18 @@
+{
+  "19": "Dev Stack and CI Docs",
+  "22": "Finding Drawer and Triage UI",
+  "23": "Frontend Shell and Routing",
+  "28": "Frontend Build Config",
+  "47": "TS App Config",
+  "62": "TS Node Config",
+  "77": "Scanner Installer",
+  "80": "TS Root Config",
+  "81": "Entrypoints Package",
+  "82": "Test DB Init",
+  "83": "E2E Package",
+  "84": "Fixtures Package",
+  "85": "Scanner Fixtures Package",
+  "86": "Tests Package",
+  "89": "Vite Env Types",
+  "90": "Backend Package"
+}

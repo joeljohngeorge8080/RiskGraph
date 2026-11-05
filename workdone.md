@@ -50,3 +50,83 @@ ruff clean · mypy clean (22 files) · 15 unit tests pass · 1 db test passes ag
 
 ## 6. After the commit (uncommitted at time of writing)
 `docs/phases/PHASE_01.md`, README port note, `HANDOFF.md`, `workdone.md`; memory updated.
+
+
+# Work done: session 2 (2026-10-21): MVP vertical slice
+
+The owner asked for an MVP, answering the clarifying questions as follows:
+- scanners run as binaries in the worker;
+- no auth, localhost only;
+- the blueprint score in its context-free form, plus EPSS/KEV;
+- overlapping scanners merged into one finding.
+
+The owner kept the 70/45/20 bands. Plan approved; built on `claude/great-mendel-b58dhj`.
+
+## What was built
+- **Backend modules:** `repositories`, `scans` (workspace, clone, storage, state machine, pipeline stages, Celery tasks and canvas, service, router), `scanners` (protocol, `SubprocessRunner`, redaction, four adapters and parsers), `normalization` (canonical model, paths, severity, CWE categories, fingerprints, curated merge families, merge), `findings`, `context` (CVSS sub-scores, EPSS, KEV with CISA GitHub-mirror fallback), `risk` (model `v1-cf.1`).
+- **Data:** one migration with 9 tables.
+- **Shared:** `shared/celery.py` (factory moved out of the worker entrypoint), `shared/http.py` (allow-listed outbound client), `shared/vocabulary.py`.
+- **Frontend:** router, new-scan form, scan list, scan detail (scanner cards, summary tiles, findings table with URL-synced filters and sort, score-breakdown drawer).
+- **Packaging:** `install-scanners.sh` (checksum-verified tarballs, uv tool venvs, vendored Semgrep rules), Dockerfile `worker` target, Compose volumes, Make targets (`scanner-tools`, `api-local`, `worker-local`, `e2e`), CI tweaks.
+- **Docs:** ADR-0009, ADR-0010, `PHASE_MVP.md`, `TECH_STACK.md`, threat-model note, README.
+
+## Problems hit and fixed
+| Problem | Fix |
+|---|---|
+| semgrep.dev, api.first.org and www.cisa.gov blocked by this session's proxy | Rules from `semgrep/semgrep-rules` at a pinned sha; KEV from CISA's GitHub mirror; EPSS degrades to CVSS |
+| `semgrep --version` hangs with no network | Version probe reuses the scan env (`SEMGREP_ENABLE_VERSION_CHECK=0`) |
+| Trivy misconfig IDs are now `AWS-0086`, not `AVD-AWS-0086` | `normalize_check_id` accepts all three historic forms |
+| Gitleaks and Trivy report the same PEM key with different line ranges | Secret merge uses overlapping ranges within a credential family |
+| Semgrep check ids prefixed by the local rules path | `clean_rule_id` |
+| CVSS sub-scores off by 0.1 | NVD rounds half-up (not CVSS Roundup) for sub-scores |
+| API returned a stale PENDING status after CAS to QUEUED | `session.expire_all()` after `start_scan` |
+| Celery folds post-chord tasks into the chord body | Canvas test asserts the real shape |
+| Controlled checkboxes snapped back (React Router URL updates are transitions) | Findings view state is local and mirrored to the URL |
+| 2 new high npm advisories in the existing lockfile (Vite, source-map-js) | `npm audit fix` gives 0 |
+
+
+# Work done: session 4 (2026-10-22): MVP level 2 extended
+
+The owner had built MVP level 2 (manifest context) on `cloud-mvp-integration` and asked to extend it with reachability, attack paths + graph, and triage + scan history. The work went on a new branch, `mvp-level2-extended`. The plan was approved.
+
+## What was built
+- **`modules/reachability`:**
+  - a tree-sitter extractor that runs as an isolated subprocess (runner gains `memory_limit` and the `riskgraph-python` alias);
+  - an import graph with entry points;
+  - tiers L0/L1/L2, with indirect dependencies inheriting through Trivy's `Relationship`/`DependsOn` (new `trivy.parser.dependency_graph`), and a "used without import" list plus npm script commands;
+  - a `reachability_results` table.
+- **`modules/graph`:**
+  - an attack graph from the manifest and findings (the manifest gains an optional `identities[].credentials` key);
+  - NetworkX Yen paths;
+  - effective impact;
+  - `graph_nodes`, `graph_edges`, `attack_paths` and `attack_path_findings` tables, and a router.
+- **`modules/audit`:** `audit_logs`.
+- **Findings:**
+  - `history.py` (change, fixed/reopened, diff);
+  - `triage.py` (status changes, gate policy);
+  - router: `PATCH`, diff, gate, new filters.
+- **Repositories router:** trend.
+- **Risk model `v1-ctx.2`:** R from reachability, the `I*` adjustment, the L0 ceiling.
+- **`analyze`:** restructured into pure passes followed by one write transaction.
+- **CLI:** `entrypoints/cli.py`.
+- **Frontend:**
+  - attack paths panel, a lazy Cytoscape graph view, triage panel, reachability column and filters, history line, repository page;
+  - `lib/level2.ts` with tests;
+  - `cytoscape` 3.34.3 and `vitest` 5.0.3, both pinned.
+- **Tests:**
+  - kitchen-sink extended (a yaml route, `scripts/legacy.py`, `MANIFEST`);
+  - fixtures re-recorded, with Trivy's trim made round-robin per package;
+  - new test files `test_reachability`, `test_attack_paths`, `test_cli`, `test_level2_ext_db`;
+  - e2e extended.
+
+## Problems hit and fixed
+| Problem | Fix |
+|---|---|
+| `dict(result.tuples())` called `Result.keys()` | `.tuples().all()` |
+| The trimmed Trivy fixture kept only django CVEs | Round-robin trim per package |
+| NodeGoat: deps of `forever` (started from npm scripts) came out L0 | Extractor reads `package.json` script commands; such packages are "used without import" → unknown |
+| `npm install` crashed in arborist (`edgesOut`) when pinning vitest | Restore the lock, `npm ci`, then pin step by step |
+| vitest ≤ 5.0.2 advisories | Pinned 5.0.3 (more than 2 weeks old) |
+| Cytoscape tripled the bundle | `React.lazy` graph chunk (main 332 kB) |
+| Long scanner titles as credential labels | `<family> credential · file:line` |
+| `setSearchParams` during render | View state is the source of truth; an effect mirrors it to the URL |

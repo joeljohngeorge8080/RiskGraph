@@ -1,0 +1,72 @@
+{
+ "$schema": "http://cyclonedx.org/schema/bom-1.7.schema.json",
+ "bomFormat": "CycloneDX",
+ "components": [
+  {
+   "bom-ref": "pkg:pypi/requests@2.19.0?package-id=93a0daacc39c1a57",
+   "cpe": "cpe:2.3:a:python:requests:2.19.0:*:*:*:*:*:*:*",
+   "name": "requests",
+   "properties": [
+    {
+     "name": "syft:package:foundBy",
+     "value": "python-package-cataloger"
+    },
+    {
+     "name": "syft:package:language",
+     "value": "python"
+    },
+    {
+     "name": "syft:package:type",
+     "value": "python"
+    },
+    {
+     "name": "syft:package:metadataType",
+     "value": "python-pip-requirements-entry"
+    },
+    {
+     "name": "syft:location:0:path",
+     "value": "/requirements.txt"
+    }
+   ],
+   "purl": "pkg:pypi/requests@2.19.0",
+   "type": "library",
+   "version": "2.19.0"
+  },
+  {
+   "bom-ref": "26ca2b7dc025d550",
+   "hashes": [
+    {
+     "alg": "SHA-1",
+     "content": "75706037c14028a1e64aebf648b185f739dae5b8"
+    },
+    {
+     "alg": "SHA-256",
+     "content": "ba866c0dec7a887ce90b4e8259d234aceb8deb3b32f083f4e7a9d86384a43322"
+    }
+   ],
+   "name": "/tmp/tmpymk7zhug/src/requirements.txt",
+   "type": "file"
+  }
+ ],
+ "metadata": {
+  "component": {
+   "bom-ref": "af63bd4c8601b7f1",
+   "name": ".",
+   "type": "file"
+  },
+  "timestamp": "2026-10-25T05:21:13Z",
+  "tools": {
+   "components": [
+    {
+     "author": "anchore",
+     "name": "syft",
+     "type": "application",
+     "version": "1.54.1"
+    }
+   ]
+  }
+ },
+ "serialNumber": "urn:uuid:f550bc1a-0f31-4161-93a9-e2628cd9bd36",
+ "specVersion": "1.7",
+ "version": 1
+}

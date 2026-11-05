@@ -1,0 +1,43 @@
+{
+ "check_type": "kubernetes",
+ "results": {
+  "failed_checks": [
+   {
+    "bc_category": null,
+    "bc_check_id": null,
+    "benchmarks": null,
+    "caller_file_line_range": null,
+    "check_class": "checkov.kubernetes.checks.resource.k8s.DefaultNamespace",
+    "check_id": "CKV_K8S_21",
+    "check_len": null,
+    "check_name": "The default namespace should not be used",
+    "check_result": {
+     "evaluated_keys": [],
+     "result": "FAILED"
+    },
+    "description": null,
+    "details": [],
+    "file_line_range": [
+     1,
+     10
+    ],
+    "file_path": "/deploy/ingress.yaml",
+    "guideline": null,
+    "repo_file_path": "/deploy/ingress.yaml",
+    "resource": "Ingress.default.api",
+    "resource_address": null,
+    "severity": null,
+    "short_description": null,
+    "vulnerability_details": null
+   }
+  ]
+ },
+ "summary": {
+  "checkov_version": "3.3.30",
+  "failed": 1,
+  "parsing_errors": 0,
+  "passed": 3,
+  "resource_count": 1,
+  "skipped": 0
+ }
+}

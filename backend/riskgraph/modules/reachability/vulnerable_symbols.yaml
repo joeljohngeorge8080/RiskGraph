@@ -1,0 +1,13 @@
+# Curated CVE -> vulnerable call sites (blueprint §11.3, L3). A call to one of these symbols,
+# reached from an entry point, makes the CVE's finding L3. Extend by adding entries; keep
+# the list to symbols whose call is the vulnerability (not every use of the package).
+version: 1
+entries:
+  - cve: CVE-2020-14343
+    package: pyyaml
+    note: yaml.load without a safe Loader executes arbitrary Python tags
+    symbols: [yaml.load, yaml.full_load, yaml.unsafe_load]
+  - cve: CVE-2017-18342
+    package: pyyaml
+    note: yaml.load without a safe Loader executes arbitrary Python tags
+    symbols: [yaml.load]

@@ -1,0 +1,671 @@
+{
+ "engine_requested": "OSS",
+ "errors": [],
+ "paths": {
+  "scanned": [
+   "Dockerfile",
+   "app.py",
+   "deploy/id_rsa",
+   "main.tf",
+   "requirements.txt",
+   "scripts/legacy.py"
+  ]
+ },
+ "profiling_results": [],
+ "results": [
+  {
+   "check_id": "opt.scanners.semgrep-rules.dockerfile.security.missing-user.missing-user",
+   "end": {
+    "col": 30,
+    "line": 4,
+    "offset": 98
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "By not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can control a process running as root, they may have control over the container. Ensure that the last USER in a Dockerfile is a USER other than 'root'.",
+    "metadata": {
+     "category": "security",
+     "confidence": "MEDIUM",
+     "cwe": [
+      "CWE-250: Execution with Unnecessary Privileges"
+     ],
+     "impact": "MEDIUM",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "likelihood": "LOW",
+     "owasp": [
+      "A04:2021 - Insecure Design",
+      "A06:2025 - Insecure Design"
+     ],
+     "references": [
+      "https://owasp.org/Top10/A04_2021-Insecure_Design"
+     ],
+     "shortlink": "https://sg.run/Gbvn",
+     "source": "https://semgrep.dev/r/dockerfile.security.missing-user.missing-user",
+     "subcategory": [
+      "audit"
+     ],
+     "technology": [
+      "dockerfile"
+     ],
+     "vulnerability_class": [
+      "Improper Authorization"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "Dockerfile",
+   "start": {
+    "col": 1,
+    "line": 4,
+    "offset": 69
+   }
+  },
+  {
+   "check_id": "opt.scanners.semgrep-rules.python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query",
+   "end": {
+    "col": 67,
+    "line": 14,
+    "offset": 287
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Avoiding SQL string concatenation: untrusted input concatenated with raw SQL query can result in SQL Injection. In order to execute raw query safely, prepared statement should be used. SQLAlchemy provides TextualSQL to easily used prepared statement with named parameters. For complex SQL composition, use SQL Expression Language or Schema Definition Language. In most cases, SQLAlchemy ORM will be a better option.",
+    "metadata": {
+     "category": "security",
+     "confidence": "LOW",
+     "cwe": [
+      "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "HIGH",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "likelihood": "LOW",
+     "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+     ],
+     "references": [
+      "https://docs.sqlalchemy.org/en/14/core/tutorial.html#using-textual-sql",
+      "https://www.tutorialspoint.com/sqlalchemy/sqlalchemy_quick_guide.htm",
+      "https://docs.sqlalchemy.org/en/14/core/tutorial.html#using-more-specific-text-with-table-expression-literal-column-and-expression-column"
+     ],
+     "shortlink": "https://sg.run/2b1L",
+     "source": "https://semgrep.dev/r/python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query",
+     "subcategory": [
+      "audit"
+     ],
+     "technology": [
+      "sqlalchemy"
+     ],
+     "vulnerability_class": [
+      "SQL Injection"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "app.py",
+   "start": {
+    "col": 5,
+    "line": 14,
+    "offset": 225
+   }
+  },
+  {
+   "check_id": "opt.scanners.semgrep-rules.python.django.security.injection.tainted-sql-string.tainted-sql-string",
+   "end": {
+    "col": 66,
+    "line": 14,
+    "offset": 286
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction could accidentally result in a SQL injection. An attacker could use a SQL injection to steal or modify contents of the database. Instead, use a parameterized query which is available by default in most database engines. Alternatively, consider using the Django object-relational mappers (ORM) instead of raw SQL queries.",
+    "metadata": {
+     "category": "security",
+     "confidence": "LOW",
+     "cwe": [
+      "CWE-915: Improperly Controlled Modification of Dynamically-Determined Object Attributes"
+     ],
+     "impact": "LOW",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "likelihood": "MEDIUM",
+     "owasp": [
+      "A08:2021 - Software and Data Integrity Failures",
+      "A08:2025 - Software or Data Integrity Failures"
+     ],
+     "references": [
+      "https://docs.djangoproject.com/en/3.0/topics/security/#sql-injection-protection"
+     ],
+     "shortlink": "https://sg.run/PbZp",
+     "source": "https://semgrep.dev/r/python.django.security.injection.tainted-sql-string.tainted-sql-string",
+     "subcategory": [
+      "audit"
+     ],
+     "technology": [
+      "django"
+     ],
+     "vulnerability_class": [
+      "Mass Assignment"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "app.py",
+   "start": {
+    "col": 17,
+    "line": 14,
+    "offset": 237
+   }
+  },
+  {
+   "check_id": "opt.scanners.semgrep-rules.python.flask.security.injection.tainted-sql-string.tainted-sql-string",
+   "end": {
+    "col": 66,
+    "line": 14,
+    "offset": 286
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction could accidentally result in a SQL injection. An attacker could use a SQL injection to steal or modify contents of the database. Instead, use a parameterized query which is available by default in most database engines. Alternatively, consider using an object-relational mapper (ORM) such as SQLAlchemy which will protect your queries.",
+    "metadata": {
+     "category": "security",
+     "confidence": "MEDIUM",
+     "cwe": [
+      "CWE-704: Incorrect Type Conversion or Cast"
+     ],
+     "impact": "MEDIUM",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "likelihood": "MEDIUM",
+     "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+     ],
+     "references": [
+      "https://docs.sqlalchemy.org/en/14/core/tutorial.html#using-textual-sql",
+      "https://www.tutorialspoint.com/sqlalchemy/sqlalchemy_quick_guide.htm",
+      "https://docs.sqlalchemy.org/en/14/core/tutorial.html#using-more-specific-text-with-table-expression-literal-column-and-expression-column"
+     ],
+     "shortlink": "https://sg.run/JxZj",
+     "source": "https://semgrep.dev/r/python.flask.security.injection.tainted-sql-string.tainted-sql-string",
+     "subcategory": [
+      "vuln"
+     ],
+     "technology": [
+      "sqlalchemy",
+      "flask"
+     ],
+     "vulnerability_class": [
+      "Improper Validation"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "app.py",
+   "start": {
+    "col": 17,
+    "line": 14,
+    "offset": 237
+   }
+  },
+  {
+   "check_id": "opt.scanners.semgrep-rules.python.flask.security.injection.subprocess-injection.subprocess-injection",
+   "end": {
+    "col": 68,
+    "line": 21,
+    "offset": 456
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Detected user input entering a `subprocess` call unsafely. This could result in a command injection vulnerability. An attacker could use this vulnerability to execute arbitrary commands on the host, which allows them to download malware, scan sensitive data, or run any command they wish on the server. Do not let users choose the command to run. In general, prefer to use Python API versions of system commands. If you must use subprocess, use a dictionary to allowlist a set of commands.",
+    "metadata": {
+     "category": "security",
+     "confidence": "HIGH",
+     "cwe": [
+      "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "MEDIUM",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "likelihood": "HIGH",
+     "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+     ],
+     "references": [
+      "https://semgrep.dev/docs/cheat-sheets/python-command-injection/"
+     ],
+     "shortlink": "https://sg.run/5gW3",
+     "source": "https://semgrep.dev/r/python.flask.security.injection.subprocess-injection.subprocess-injection",
+     "subcategory": [
+      "vuln"
+     ],
+     "technology": [
+      "flask"
+     ],
+     "vulnerability_class": [
+      "Command Injection"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "app.py",
+   "start": {
+    "col": 12,
+    "line": 21,
+    "offset": 400
+   }
+  },
+  {
+   "check_id": "opt.scanners.semgrep-rules.python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use",
+   "end": {
+    "col": 55,
+    "line": 21,
+    "offset": 443
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Detected subprocess function 'check_output' with user controlled data. A malicious actor could leverage this to perform command injection. You may consider using 'shlex.escape()'.",
+    "metadata": {
+     "asvs": {
+      "control_id": "5.3.8 OS Command Injection",
+      "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v53-output-encoding-and-injection-prevention-requirements",
+      "section": "V5: Validation, Sanitization and Encoding Verification Requirements",
+      "version": "4"
+     },
+     "category": "security",
+     "confidence": "MEDIUM",
+     "cwe": [
+      "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "HIGH",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "likelihood": "MEDIUM",
+     "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+     ],
+     "references": [
+      "https://stackoverflow.com/questions/3172470/actual-meaning-of-shell-true-in-subprocess",
+      "https://docs.python.org/3/library/subprocess.html",
+      "https://docs.python.org/3/library/shlex.html",
+      "https://semgrep.dev/docs/cheat-sheets/python-command-injection/"
+     ],
+     "shortlink": "https://sg.run/NWxp",
+     "source": "https://semgrep.dev/r/python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use",
+     "subcategory": [
+      "vuln"
+     ],
+     "technology": [
+      "python"
+     ],
+     "vulnerability_class": [
+      "Command Injection"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "app.py",
+   "start": {
+    "col": 36,
+    "line": 21,
+    "offset": 424
+   }
+  },
+  {
+   "check_id": "opt.scanners.semgrep-rules.python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
+   "end": {
+    "col": 67,
+    "line": 21,
+    "offset": 455
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Found 'subprocess' function 'check_output' with 'shell=True'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use 'shell=False' instead.",
+    "metadata": {
+     "category": "security",
+     "confidence": "MEDIUM",
+     "cwe": [
+      "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "LOW",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "likelihood": "HIGH",
+     "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+     ],
+     "references": [
+      "https://stackoverflow.com/questions/3172470/actual-meaning-of-shell-true-in-subprocess",
+      "https://docs.python.org/3/library/subprocess.html"
+     ],
+     "shortlink": "https://sg.run/J92w",
+     "source": "https://semgrep.dev/r/python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
+     "source-rule-url": "https://bandit.readthedocs.io/en/latest/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+     "subcategory": [
+      "secure default"
+     ],
+     "technology": [
+      "python"
+     ],
+     "vulnerability_class": [
+      "Command Injection"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "app.py",
+   "start": {
+    "col": 63,
+    "line": 21,
+    "offset": 451
+   }
+  },
+  {
+   "check_id": "opt.scanners.semgrep-rules.generic.secrets.security.detected-private-key.detected-private-key",
+   "end": {
+    "col": 24,
+    "line": 2,
+    "offset": 55
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "Private Key detected. This is a sensitive credential and should not be hardcoded here. Instead, store this in a separate, private file.",
+    "metadata": {
+     "category": "security",
+     "confidence": "LOW",
+     "cwe": [
+      "CWE-798: Use of Hard-coded Credentials"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "MEDIUM",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "likelihood": "LOW",
+     "owasp": [
+      "A07:2021 - Identification and Authentication Failures",
+      "A07:2025 - Authentication Failures"
+     ],
+     "references": [
+      "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures"
+     ],
+     "shortlink": "https://sg.run/b7dr",
+     "source": "https://semgrep.dev/r/generic.secrets.security.detected-private-key.detected-private-key",
+     "source-rule-url": "https://github.com/grab/secret-scanner/blob/master/scanner/signatures/pattern.go",
+     "subcategory": [
+      "audit"
+     ],
+     "technology": [
+      "secrets"
+     ],
+     "vulnerability_class": [
+      "Hard-coded Secrets"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "deploy/id_rsa",
+   "start": {
+    "col": 1,
+    "line": 1,
+    "offset": 0
+   }
+  },
+  {
+   "check_id": "opt.scanners.semgrep-rules.generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value",
+   "end": {
+    "col": 37,
+    "line": 3,
+    "offset": 80
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.",
+    "metadata": {
+     "category": "security",
+     "confidence": "LOW",
+     "cwe": [
+      "CWE-798: Use of Hard-coded Credentials"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "HIGH",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "likelihood": "LOW",
+     "owasp": [
+      "A07:2021 - Identification and Authentication Failures",
+      "A07:2025 - Authentication Failures"
+     ],
+     "references": [
+      "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures"
+     ],
+     "shortlink": "https://sg.run/GeD1",
+     "source": "https://semgrep.dev/r/generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value",
+     "source-rule-url": "https://github.com/grab/secret-scanner/blob/master/scanner/signatures/pattern.go",
+     "subcategory": [
+      "audit"
+     ],
+     "technology": [
+      "secrets",
+      "aws"
+     ],
+     "vulnerability_class": [
+      "Hard-coded Secrets"
+     ]
+    },
+    "severity": "ERROR",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "main.tf",
+   "start": {
+    "col": 17,
+    "line": 3,
+    "offset": 60
+   }
+  },
+  {
+   "check_id": "opt.scanners.semgrep-rules.terraform.aws.security.aws-provider-static-credentials.aws-provider-static-credentials",
+   "end": {
+    "col": 57,
+    "line": 4,
+    "offset": 138
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "A hard-coded credential was detected. It is not recommended to store credentials in source-code, as this risks secrets being leaked and used by either an internal or external malicious adversary. It is recommended to use environment variables to securely provide credentials or retrieve credentials from a secure vault or HSM (Hardware Security Module).",
+    "metadata": {
+     "category": "security",
+     "confidence": "MEDIUM",
+     "cwe": [
+      "CWE-798: Use of Hard-coded Credentials"
+     ],
+     "cwe2021-top25": true,
+     "cwe2022-top25": true,
+     "impact": "MEDIUM",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "likelihood": "MEDIUM",
+     "owasp": [
+      "A07:2021 - Identification and Authentication Failures",
+      "A07:2025 - Authentication Failures"
+     ],
+     "references": [
+      "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+     ],
+     "shortlink": "https://sg.run/L3kn",
+     "source": "https://semgrep.dev/r/terraform.aws.security.aws-provider-static-credentials.aws-provider-static-credentials",
+     "subcategory": [
+      "vuln"
+     ],
+     "technology": [
+      "secrets",
+      "aws",
+      "terraform"
+     ],
+     "vulnerability_class": [
+      "Hard-coded Secrets"
+     ]
+    },
+    "severity": "WARNING",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "main.tf",
+   "start": {
+    "col": 17,
+    "line": 4,
+    "offset": 98
+   }
+  },
+  {
+   "check_id": "opt.scanners.semgrep-rules.terraform.lang.security.s3-public-read-bucket.s3-public-read-bucket",
+   "end": {
+    "col": 25,
+    "line": 9,
+    "offset": 232
+   },
+   "extra": {
+    "engine_kind": "OSS",
+    "fingerprint": "requires login",
+    "message": "S3 bucket with public read access detected.",
+    "metadata": {
+     "category": "security",
+     "confidence": "LOW",
+     "cwe": [
+      "CWE-200: Exposure of Sensitive Information to an Unauthorized Actor"
+     ],
+     "cwe2021-top25": true,
+     "impact": "LOW",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "likelihood": "LOW",
+     "owasp": [
+      "A01:2021 - Broken Access Control",
+      "A01:2025 - Broken Access Control"
+     ],
+     "references": [
+      "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket#acl",
+      "https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl"
+     ],
+     "shortlink": "https://sg.run/WgAy",
+     "source": "https://semgrep.dev/r/terraform.lang.security.s3-public-read-bucket.s3-public-read-bucket",
+     "subcategory": [
+      "audit"
+     ],
+     "technology": [
+      "terraform",
+      "aws"
+     ],
+     "vulnerability_class": [
+      "Mishandled Sensitive Information"
+     ]
+    },
+    "severity": "WARNING",
+    "validation_state": "NO_VALIDATOR"
+   },
+   "path": "main.tf",
+   "start": {
+    "col": 3,
+    "line": 9,
+    "offset": 210
+   }
+  }
+ ],
+ "skipped_rules": [],
+ "time": {
+  "fixpoint_timeouts": [],
+  "matching_time": {
+   "per_file_and_rule_time": {
+    "mean": 0.00015438771715351176,
+    "std_dev": 1.2593493669512394e-07
+   },
+   "total_time": 0.015747547149658203,
+   "very_slow_rules_on_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "max_memory_bytes": 735860480,
+  "parsing_time": {
+   "per_file_time": {
+    "mean": 8.284578136369292e-05,
+    "std_dev": 3.6241121195540734e-07
+   },
+   "total_time": 0.00845026969909668,
+   "very_slow_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "prefiltering": {
+   "file_level_time": 0.0,
+   "project_level_time": 0.0,
+   "rules_matched_ratio": 0.12,
+   "rules_selected_ratio": 0.12,
+   "rules_with_file_prefilters_ratio": 0.9931428571428571,
+   "rules_with_project_prefilters_ratio": 0.0
+  },
+  "profiling_times": {
+   "config_time": 10.988662719726562,
+   "core_time": 0.7499845027923584,
+   "ignores_time": 0.0012776851654052734,
+   "total_time": 11.748163938522339
+  },
+  "rules": [],
+  "rules_parse_time": 0.3908579349517822,
+  "scanning_time": {
+   "per_file_time": {
+    "mean": 0.0037983804941177373,
+    "std_dev": 7.237981866103917e-05
+   },
+   "total_time": 0.06077408790588379,
+   "very_slow_files": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "tainting_time": {
+   "per_def_and_rule_time": {
+    "mean": 0.00022294918696085615,
+    "std_dev": 1.759235670025166e-06
+   },
+   "total_time": 0.013376951217651367,
+   "very_slow_rules_on_defs": [],
+   "very_slow_stats": {
+    "count_ratio": 0.0,
+    "time_ratio": 0.0
+   }
+  },
+  "targets": [],
+  "total_bytes": 0
+ },
+ "version": "1.182.0"
+}
