@@ -152,7 +152,7 @@ def report(res: Result) -> str:
         "",
         "- Outside X0 on purpose (`OUTSIDE_X0`, owner answer F-4-1 (a)): X0's labels predate "
         "authorization findings. This scenario's labels were committed before its first run "
-        "(`backend/evaluation/authz_scenario.py`, commit `99ae3ca`).",
+        "(`backend/evaluation/authz_scenario.py`, commit `e4a6e21`).",
         "- The pipeline's own authorization path, no database: extractor, route inventory, "
         "`authz.analyze` (manifest guards, rules, `public`), findings, merge, context, score.",
         f"- Scenario: {scenario.DESCRIPTION}",

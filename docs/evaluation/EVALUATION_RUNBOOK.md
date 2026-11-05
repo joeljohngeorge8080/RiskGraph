@@ -5,7 +5,7 @@ How to measure every criterion of `docs/proposals/EXPANSION_A-D.md` §6 and fill
 
 ## Rules (from §6 and the blueprint)
 - **The thresholds are pre-registered.** Do not change a target, a dataset or a metric after you see a result. If a result is weak, report it as it is.
-- **Write labels before ranking.** A new scenario, or new ground truth for an old one, gets committed before its first run. The git history is the proof; `authz_scenario.py` (commit `99ae3ca`) shows how.
+- **Write labels before ranking.** A new scenario, or new ground truth for an old one, gets committed before its first run. The git history is the proof; `authz_scenario.py` (commit `e4a6e21`) shows how.
 - **Never edit a generated report by hand.** Change the code or the inputs, then run the target again.
 - `BASELINE.md` (X0) is frozen. Its known differences from a re-run are recorded in `HANDOFF.md` (X1 and X5 notes).
 

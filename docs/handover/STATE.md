@@ -2,6 +2,8 @@
 
 Branch `extended_phase_auto`, pushed, with PR #3 open to `main` (see "Owner items" below). PR #2 (`mvp-level2-integration`) and #1 were never merged; #3 contains them. Labels: VERIFIED (run and checked), CONFIDENT (read in code), BELIEVE (expected, not measured).
 
+**Commit SHAs:** the history was rewritten on 2026-11-05 (author and trailer cleanup, contents unchanged). SHAs quoted in older notes and in `HISTORY.md` are the old ones; `SHA_MAP.md` maps them to the new ones.
+
 ## Verified at handover
 - Backend: ruff, format and mypy clean (247 files).
 - Tests: **759 unit** (`make test`), **86 db** (`make test-db`; 2 e2e skipped: no host scanners), 4 perf.
@@ -30,12 +32,12 @@ Branch `extended_phase_auto`, pushed, with PR #3 open to `main` (see "Owner item
 ## Done in the handover session (2026-11-05)
 | Item | Result | Commit |
 |---|---|---|
-| F-4-2 `authz.public` | Unguarded-sensitive precision 3/5 → 3/3 with the forms declared (the code-only number stays pinned) | `04d0dc0` |
-| F-5-1 foothold-only I* | Only findings that are themselves at least inferred **and** a foothold take a path's effective impact. X0 unchanged (measured) | `4295244`, `5333439` |
-| F-3-1 Joern adapter | Python tier 2, opt-in `deep` profile, one slot. Suite: recall 1.00, precision 1.00, sanitized FP 0/5. L-5: 13.1 s, 592 MB | `84f0183` |
-| F-4-1 authz evaluation | Scenario I, labels committed first; 7 TP / 1 FP / 0 FN | `99ae3ca`, `fd3dbb4` |
-| X8 harness | `make eval-expansion(-full)`: 5 PASS, 3 FAIL, 5 NOT RUN, each NOT RUN with what it needs | `24dea05` |
-| Tooling | CI actions pinned by SHA; pre-commit aligned with the locked ruff and gitleaks; dependency log filled | `1c82fb3` |
+| F-4-2 `authz.public` | Unguarded-sensitive precision 3/5 → 3/3 with the forms declared (the code-only number stays pinned) | `bf4827f` |
+| F-5-1 foothold-only I* | Only findings that are themselves at least inferred **and** a foothold take a path's effective impact. X0 unchanged (measured) | `c85c571`, `81333c2` |
+| F-3-1 Joern adapter | Python tier 2, opt-in `deep` profile, one slot. Suite: recall 1.00, precision 1.00, sanitized FP 0/5. L-5: 13.1 s, 592 MB | `3c9b750` |
+| F-4-1 authz evaluation | Scenario I, labels committed first; 7 TP / 1 FP / 0 FN | `e4a6e21`, `bafbc85` |
+| X8 harness | `make eval-expansion(-full)`: 5 PASS, 3 FAIL, 5 NOT RUN, each NOT RUN with what it needs | `4d96094` |
+| Tooling | CI actions pinned by SHA; pre-commit aligned with the locked ruff and gitleaks; dependency log filled | `05e12de` |
 
 ## Evaluation today (`docs/evaluation/EVALUATION_EXPANSION.md`)
 - **PASS:** A2 taint precision 0.80; B1 authz precision 0.90; B2 inventory recall 0.968; B3 BOLA always a hypothesis; D2 scenario H 0 paths.

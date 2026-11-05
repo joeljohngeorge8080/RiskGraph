@@ -10,12 +10,12 @@ New sessions add a section below, newest first.
 
 ## Session 10 (2026-11-05, branch `extended_phase_auto`, PR #3 to `main`): handover
 - **Built:**
-  - F-4-2 `authz.public` (`04d0dc0`);
-  - F-5-1 foothold-only effective impact (`4295244`, `5333439`);
-  - F-3-1 the Joern adapter and the opt-in `deep` profile (`84f0183`, ADR-0025, migration `d4e8b2c6f1a3`);
-  - F-4-1 authz scenario I, labels first (`99ae3ca`, `fd3dbb4`);
-  - the X8 harness and run book (`24dea05`);
-  - CI SHA pins and tooling alignment (`1c82fb3`);
+  - F-4-2 `authz.public` (`bf4827f`);
+  - F-5-1 foothold-only effective impact (`c85c571`, `81333c2`);
+  - F-3-1 the Joern adapter and the opt-in `deep` profile (`3c9b750`, ADR-0025, migration `d4e8b2c6f1a3`);
+  - F-4-1 authz scenario I, labels first (`e4a6e21`, `bafbc85`);
+  - the X8 harness and run book (`4d96094`);
+  - CI SHA pins and tooling alignment (`05e12de`);
   - these handover docs.
 - **Not built, on purpose:**
   - X7: there is no frontend work in the handover. It is in the backlog, and its backend parts (SARIF, `--assurance-min`) are X7-1 and X7-2.
