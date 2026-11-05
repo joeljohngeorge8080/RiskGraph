@@ -98,3 +98,68 @@ See `docs/auto/DAY_2_REPORT.md`.
   - Tests (4 new): the multi-line join; a hit below the span, of another family, or too far below; exact line and nearest start win; two taint hits never join each other. The scaling test now also covers the look-back path.
   - A mutation check (look-back switched off) fails 2 of them.
   - That Semgrep reports the argument's line for a focused sink: BELIEVE, from the documented `focus-metavariable` semantics. It is checked with L-4.
+
+## Part 3 (2026-11-05): the Joern adapter (F-3-1 answered (a), ADR-0025)
+
+### A. Objective
+Tier 2 for Python in the opt-in `deep` profile: Joern follows request data across functions and files and gives location-only traces. Correlated with tier 1 and generic Semgrep hits at the same sink, and evidence like tier 1's.
+
+### C. Architecture
+`scans.run_scanner` → `JoernScanner.command` → one `joern --script` run in `riskgraph/scanner-joern:4.0.671` (DockerRunner, network none, read-only root, source read-only, cwd = the scanner HOME, 3 GB) → `joern.json` → `collect` (redaction = `parser.clean`) → `parser.parse` → merge (same rule id and sink as tier 1) → `taint_flow` evidence.
+
+### D. Components
+- `backend/riskgraph/modules/scanners/joern/{adapter,parser}.py`; `scanners/joern/{Dockerfile,taint.sc}`.
+- Catalogue `lookup_sanitizers` (loader: `semgrep/taint.py::_lookups`).
+- Seams:
+  - `Command.cwd` and `Command.memory`;
+  - `RunSpec.container_memory`;
+  - `JAVA_TOOL_OPTIONS` on the container env allow-list;
+  - the Joern lock in `pipeline.redis_scanner_lock`.
+- API: `ScanCreate.profile` (`default` | `deep`), `service.DEEP_SCANNERS`, `DeepProfileDisabled` (409).
+- `make scanner-images-deep`; `JOERN_VERSION` in `docker/scanner-versions.env`.
+
+### E. Technical decisions
+- In ADR-0025: one command, allow-list lookups, no scoring change.
+- I chose JSON output (not the spike's TSV) so the report goes through the same capped JSON reader and redaction step as every other scanner.
+
+### G. Database
+Migration `d4e8b2c6f1a3`: `scanner_name` checks on `scanner_runs` and `finding_occurrences` accept `joern`. Downgrade refuses while joern rows exist. Verified: up / down to base / up on a fresh database; `alembic check` clean.
+
+### H. API
+`POST /scans` takes `"profile": "deep"` (409 unless the deployment enables it; 422 for an unknown profile). Responses are unchanged: a deep scan lists a `joern` run.
+
+### L. Configuration
+`RISKGRAPH_DEEP_PROFILE_ENABLED` (false), `RISKGRAPH_JOERN_QUERY_PATH` (`/opt/riskgraph/joern/taint.sc`), `RISKGRAPH_TIMEOUT_JOERN_S` (900), `RISKGRAPH_JOERN_MEMORY` (`3g`).
+
+### M. Testing
+`tests/test_joern.py` (47 tests):
+- golden parsing of the real run on all 20 Python cases, plus the two hostile lookup cases;
+- the plan targets;
+- malformed and hostile reports;
+- caps;
+- path normalization;
+- redaction;
+- the command against the container profile;
+- the query/catalogue drift check;
+- evidence;
+- the tier-1 E row is not fed;
+- the Joern lock.
+
+Also:
+- `test_merge.py`: the kitchen-sink Joern hit joins the CWE-78 finding;
+- `test_canvas.py`, `test_api.py` (profile refused and enabled);
+- `test_scanner_images.py`: the digest pin and the shipped query.
+
+The kitchen-sink fixture `fixtures/scanners/joern/4.0.671/` was recorded from the real image.
+
+### O. Validation
+- Suite (real Joern, adapter command): intraprocedural 5/5, cross-function 5/5, cross-file 5/5, precision 1.00, sanitized flagged 0/5.
+- L-5 through the pipeline's DockerRunner: 13.1 s, 592 MB, COMPLETED.
+
+### Q. Known limits (part 3)
+- Python only.
+- Name-based sanitizers other than lookups (ADR-0025).
+- Tier-2 evidence is `inferred`, never `verified`.
+- No tier-2 E row (an owner decision).
+- Synthetic suite.
+- The 3.6 GB image.

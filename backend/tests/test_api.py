@@ -192,3 +192,37 @@ def test_inline_runner_matches_api_flow(api: TestClient, settings: Settings) -> 
     with session_scope() as s:
         sid = service.create_scan(s, URL, None, settings).scan.id
     assert run_pipeline_inline(sid, ALL_SCANNERS, make_deps(settings)).value == "COMPLETED"  # type: ignore[union-attr]
+
+
+def test_the_deep_profile_is_refused_unless_the_deployment_enables_it(
+    api: TestClient, enqueued: list[uuid.UUID]
+) -> None:
+    resp = api.post("/api/v1/scans", json={"repo_url": URL, "profile": "deep"})
+    assert resp.status_code == 409 and resp.json()["type"].endswith("deep-profile-disabled")
+    assert enqueued == []
+    bad = api.post("/api/v1/scans", json={"repo_url": URL, "profile": "everything"})
+    assert bad.status_code == 422
+
+
+def test_a_deep_scan_runs_joern_too(
+    db: None, settings: Settings, enqueued: list[uuid.UUID], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    deep = settings.model_copy(update={"deep_profile_enabled": True})
+    scanners: list[list[str]] = []
+    monkeypatch.setattr(
+        orchestration,
+        "enqueue",
+        lambda sid, names, s: scanners.append([n.value for n in names]),
+    )
+    app = create_app(deep)
+    app.dependency_overrides[get_settings] = lambda: deep
+    with TestClient(app, raise_server_exceptions=False) as c:
+        resp = c.post("/api/v1/scans", json={"repo_url": URL, "ref": "deep", "profile": "deep"})
+        default = c.post("/api/v1/scans", json={"repo_url": URL, "ref": "plain"})
+    dispose_engine()
+    assert resp.status_code == 202, resp.text
+    assert {r["scanner"] for r in resp.json()["scanner_runs"]} == {
+        s.value for s in ALL_SCANNERS
+    } | {"joern"}
+    assert scanners[0][-1] == "joern" and "joern" not in scanners[1]
+    assert default.status_code == 202 and len(default.json()["scanner_runs"]) == 5

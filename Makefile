@@ -39,6 +39,9 @@ HOST_PATHS = export RISKGRAPH_HOST_DATA_DIR=$$(docker volume create riskgraph-da
 scanner-images: ## Build the pinned scanner images (docker/scanner-versions.env, ADR-0014)
 > infrastructure/scripts/build-scanner-images.sh
 
+scanner-images-deep: ## Also build the deep profile's Joern image (3.6 GB, ADR-0025)
+> infrastructure/scripts/build-scanner-images.sh --deep
+
 dev: .env ## Start the full local stack and the explanation model; both stop with Ctrl-C
 > @$(LLM) up; trap '$(LLM) down' EXIT; $(HOST_PATHS) docker compose up --build
 

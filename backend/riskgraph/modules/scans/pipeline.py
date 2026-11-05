@@ -138,6 +138,13 @@ log = get_logger(__name__)
 
 TRIVY_LOCK_KEY = "riskgraph:lock:trivy"
 TRIVY_LOCK_WAIT_S = 900
+# the deep profile's one slot (ADR-0025): Joern runs one at a time on the machine
+JOERN_LOCK_KEY = "riskgraph:lock:joern"
+JOERN_LOCK_WAIT_S = 1800
+_LOCKS = {
+    ScannerName.TRIVY: (TRIVY_LOCK_KEY, TRIVY_LOCK_WAIT_S),
+    ScannerName.JOERN: (JOERN_LOCK_KEY, JOERN_LOCK_WAIT_S),
+}
 EXCERPT_LIMIT = 2000
 EGRESS_FSIZE = 4 * 1024 * 1024 * 1024  # Trivy writes its vulnerability DB
 DEFAULT_FSIZE = 512 * 1024 * 1024
@@ -155,13 +162,13 @@ class PipelineDeps:
 
 @contextmanager
 def redis_scanner_lock(name: ScannerName, timeout_s: int) -> Iterator[bool]:
-    """Serialize Trivy runs: concurrent scans would contend for its cache DB lock."""
-    if name is not ScannerName.TRIVY:
+    """Serialize Trivy runs (concurrent scans would contend for its cache DB lock) and
+    Joern runs (the deep profile has one slot: each run takes up to 3 GB)."""
+    if name not in _LOCKS:
         yield True
         return
-    lock = get_redis().lock(
-        TRIVY_LOCK_KEY, timeout=timeout_s + 120, blocking_timeout=TRIVY_LOCK_WAIT_S
-    )
+    key, wait_s = _LOCKS[name]
+    lock = get_redis().lock(key, timeout=timeout_s + 120, blocking_timeout=wait_s)
     acquired = bool(lock.acquire())
     try:
         yield acquired
@@ -376,18 +383,19 @@ def run_scanner(scan_id: uuid.UUID, name: ScannerName, deps: PipelineDeps) -> Ru
         timeout = scanner.timeout_s(settings)
         with deps.scanner_lock(name, timeout) as acquired:
             if not acquired:
-                status, excerpt = RunStatus.TIMED_OUT, "waited too long for the trivy cache lock"
+                status, excerpt = RunStatus.TIMED_OUT, f"waited too long for the {name} lock"
             else:
                 result = deps.runner.run(
                     RunSpec(
                         cmd.argv,
-                        ws.src,
+                        cmd.cwd or ws.src,
                         ws.logs(name),
                         timeout,
                         scanner.network,
                         cmd.env,
                         EGRESS_FSIZE if scanner.network == "egress" else DEFAULT_FSIZE,
                         log_name="scan",
+                        container_memory=cmd.memory,
                         **fields,
                     )
                 )

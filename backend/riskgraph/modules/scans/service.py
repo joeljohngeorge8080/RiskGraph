@@ -6,6 +6,7 @@ import datetime as dt
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -22,7 +23,12 @@ from riskgraph.modules.scans.models import ScanJob, ScannerRun
 from riskgraph.modules.scans.storage import report_path
 from riskgraph.shared.config import Settings
 from riskgraph.shared.logging import get_logger
-from riskgraph.shared.problems import Conflict, NotFound, ServiceUnavailable, TooManyRequests
+from riskgraph.shared.problems import (
+    Conflict,
+    NotFound,
+    ServiceUnavailable,
+    TooManyRequests,
+)
 from riskgraph.shared.vocabulary import RunStatus, ScannerName, ScanStatus
 
 log = get_logger(__name__)
@@ -33,6 +39,18 @@ ALL_SCANNERS = [
     ScannerName.GITLEAKS,
     ScannerName.SYFT,
 ]
+# the opt-in deep profile adds tier-2 taint (X4 part 2, ADR-0025)
+DEEP_SCANNERS = [*ALL_SCANNERS, ScannerName.JOERN]
+Profile = Literal["default", "deep"]
+
+
+def scanners_for(profile: Profile) -> list[ScannerName]:
+    return DEEP_SCANNERS if profile == "deep" else ALL_SCANNERS
+
+
+class DeepProfileDisabled(Conflict):
+    slug = "deep-profile-disabled"
+    title = "The deep scan profile is not enabled"
 
 
 class TooManyActiveScans(TooManyRequests):
@@ -55,7 +73,20 @@ def _view(session: Session, scan: ScanJob, deduplicated: bool = False) -> ScanVi
     return ScanView(scan, repository, repo.runs_for(session, scan.id), deduplicated)
 
 
-def create_scan(session: Session, repo_url: str, ref: str | None, settings: Settings) -> ScanView:
+def create_scan(
+    session: Session,
+    repo_url: str,
+    ref: str | None,
+    settings: Settings,
+    profile: Profile = "default",
+) -> ScanView:
+    """A new scan, or the active one for the same repository and ref (``deduplicated``;
+    that scan keeps the profile it was started with, which its runs show)."""
+    if profile == "deep" and not settings.deep_profile_enabled:
+        raise DeepProfileDisabled(
+            "This deployment does not run the deep profile (RISKGRAPH_DEEP_PROFILE_ENABLED)"
+        )
+    scanners = scanners_for(profile)
     owner, name = parse_github_url(repo_url)
     ref = validate_ref(ref)
     repository = get_or_create(session, owner, name)
@@ -72,7 +103,7 @@ def create_scan(session: Session, repo_url: str, ref: str | None, settings: Sett
         repository_id=repository.id,
         requested_ref=ref,
         status=ScanStatus.PENDING,
-        enabled_scanners=[s.value for s in ALL_SCANNERS],
+        enabled_scanners=[s.value for s in scanners],
         summary={},
     )
     try:
@@ -86,7 +117,7 @@ def create_scan(session: Session, repo_url: str, ref: str | None, settings: Sett
             raise
         return _view(session, existing, deduplicated=True)
     session.add_all(
-        ScannerRun(scan_job_id=scan.id, scanner=s, status=RunStatus.QUEUED) for s in ALL_SCANNERS
+        ScannerRun(scan_job_id=scan.id, scanner=s, status=RunStatus.QUEUED) for s in scanners
     )
     session.flush()
     return _view(session, scan)
@@ -94,10 +125,14 @@ def create_scan(session: Session, repo_url: str, ref: str | None, settings: Sett
 
 def start_scan(session: Session, scan_id: uuid.UUID, settings: Settings) -> None:
     """Mark QUEUED, commit, then enqueue; a queue failure marks the scan FAILED (503)."""
+    scan = session.get(ScanJob, scan_id)
+    if scan is None:
+        raise NotFound("Scan not found")
+    scanners = [ScannerName(v) for v in scan.enabled_scanners]
     repo.cas_scan(session, scan_id, ScanStatus.PENDING, ScanStatus.QUEUED)
     session.commit()
     try:
-        orchestration.enqueue(scan_id, ALL_SCANNERS, settings)
+        orchestration.enqueue(scan_id, scanners, settings)
     except Exception as exc:
         log.exception("enqueue_failed", scan_id=str(scan_id))
         repo.cas_scan(session, scan_id, ScanStatus.QUEUED, ScanStatus.FAILED, "queue unavailable")

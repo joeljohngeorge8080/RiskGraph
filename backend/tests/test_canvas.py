@@ -39,3 +39,14 @@ def test_canvas_shape_and_queues(settings: Settings) -> None:
     assert images.options["queue"] == "scan" and images.immutable
     assert images.options["soft_time_limit"] < images.options["time_limit"]
     assert all(t.options["queue"] == "analysis" for t in [collect, *rest])
+
+
+def test_a_deep_scan_adds_joern_to_the_header(settings: Settings) -> None:
+    from riskgraph.modules.scans.service import DEEP_SCANNERS
+
+    canvas: Any = build_canvas(uuid.uuid4(), DEEP_SCANNERS, settings)
+    _, chord = canvas.tasks
+    header = list(chord.tasks)
+    assert {t.args[1] for t in header} == {s.value for s in ALL_SCANNERS} | {"joern"}
+    joern = next(t for t in header if t.args[1] == "joern")
+    assert joern.options["time_limit"] == settings.timeout_joern_s + 120

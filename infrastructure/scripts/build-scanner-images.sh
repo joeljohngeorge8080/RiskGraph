@@ -30,3 +30,8 @@ build scanner-semgrep "${SEMGREP_VERSION}" \
   "SEMGREP_VERSION=${SEMGREP_VERSION}" "SEMGREP_RULES_COMMIT=${SEMGREP_RULES_COMMIT}"
 build scanner-checkov "${CHECKOV_VERSION}" "CHECKOV_VERSION=${CHECKOV_VERSION}"
 build git-fetcher bookworm
+
+# The deep profile's Joern image (3.6 GB) only when asked: `--deep` or `make scanner-images-deep`.
+if [[ "${1:-}" == "--deep" ]]; then
+  build scanner-joern "${JOERN_VERSION}" "JOERN_VERSION=${JOERN_VERSION}"
+fi

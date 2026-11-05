@@ -61,6 +61,7 @@ class RunSpec:
     fsize_limit: int = DEFAULT_FSIZE_LIMIT
     log_name: str = "run"
     memory_limit: int | None = None  # RLIMIT_AS bytes (parsers of untrusted input)
+    container_memory: str | None = None  # container runner only: the cap, e.g. "3g"
     # Container runner only (ignored by SubprocessRunner): the image to run, the paths
     # to mount (same path inside, see containers.py), and labels for cancel and cleanup.
     image: str | None = None

@@ -74,6 +74,12 @@ class Settings(BaseSettings):
     image_scan_max_refs: int = 5
     image_scan_max_bytes: int = 2 * 1024 * 1024 * 1024
     timeout_trivy_image_s: int = 300
+    # Tier-2 taint with Joern (X4 part 2, ADR-0025): the `deep` scan profile, off unless
+    # the deployment turns it on (a 3.6 GB image; one run at a time, see pipeline).
+    deep_profile_enabled: bool = False
+    joern_query_path: Path = Path("/opt/riskgraph/joern/taint.sc")
+    timeout_joern_s: int = 900
+    joern_memory: str = Field(default="3g", pattern=r"^[1-9][0-9]{0,2}[mg]$")
 
     # --- scanner containers (P3, ADR-0014) --------------------------------------------
     # "subprocess" is the MVP runner (host tools, dev only); "docker" runs every scanner

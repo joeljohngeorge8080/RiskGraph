@@ -1,0 +1,1 @@
+{"version": 1, "language": "py", "flows": [{"class": "sql-injection", "sink": {"file": "app.py", "line": 15}, "steps": [{"file": "app.py", "line": 19}, {"file": "app.py", "line": 14}, {"file": "app.py", "line": 15}]}]}

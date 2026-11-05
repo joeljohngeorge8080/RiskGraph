@@ -5,6 +5,7 @@ from __future__ import annotations
 from riskgraph.modules.scanners.base import Scanner
 from riskgraph.modules.scanners.checkov import CheckovScanner
 from riskgraph.modules.scanners.gitleaks import GitleaksScanner
+from riskgraph.modules.scanners.joern import JoernScanner
 from riskgraph.modules.scanners.semgrep import SemgrepScanner
 from riskgraph.modules.scanners.syft import SyftScanner
 from riskgraph.modules.scanners.trivy import TrivyScanner
@@ -16,6 +17,7 @@ SCANNERS: dict[ScannerName, Scanner] = {
     ScannerName.CHECKOV: CheckovScanner(),
     ScannerName.GITLEAKS: GitleaksScanner(),
     ScannerName.SYFT: SyftScanner(),
+    ScannerName.JOERN: JoernScanner(),  # deep profile only (ADR-0025)
 }
 
 # Gitleaks first: its redaction yields the raw secrets every other report is scrubbed of.
@@ -25,6 +27,7 @@ REDACTION_ORDER = (
     ScannerName.SEMGREP,
     ScannerName.CHECKOV,
     ScannerName.SYFT,
+    ScannerName.JOERN,
 )
 
 

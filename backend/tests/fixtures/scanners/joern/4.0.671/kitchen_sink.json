@@ -1,0 +1,40 @@
+{
+ "version": 1,
+ "language": "python",
+ "flows": [
+  {
+   "class": "sql-injection",
+   "sink": {
+    "file": "app.py",
+    "line": 14
+   },
+   "steps": [
+    {
+     "file": "app.py",
+     "line": 11
+    },
+    {
+     "file": "app.py",
+     "line": 14
+    }
+   ]
+  },
+  {
+   "class": "os-command-injection",
+   "sink": {
+    "file": "app.py",
+    "line": 21
+   },
+   "steps": [
+    {
+     "file": "app.py",
+     "line": 20
+    },
+    {
+     "file": "app.py",
+     "line": 21
+    }
+   ]
+  }
+ ]
+}
