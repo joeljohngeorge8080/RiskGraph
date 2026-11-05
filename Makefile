@@ -108,7 +108,7 @@ eval-baseline: ## Replay scenarios A-E offline and write docs/evaluation/BASELIN
 eval-expansion: ## X8 criteria that run offline: write docs/evaluation/EVALUATION_EXPANSION.md
 > @RISKGRAPH_ENV=test RISKGRAPH_SECRET_KEY=evaluation-only-not-a-secret-evaluation-only $(UV) run python -m evaluation.expansion
 
-eval-expansion-x0: ## X8 criteria, plus X0 prioritization (needs test-services; empties *_test)
+eval-expansion-full: ## X8 criteria, plus X0 prioritization (needs test-services; empties *_test)
 > @$(TEST_DB_ENV) $(UV) run python -m evaluation.expansion --x0
 
 eval-authz: ## Authorization scenario I, outside X0: write docs/evaluation/AUTHZ_EVAL.md (no services)
