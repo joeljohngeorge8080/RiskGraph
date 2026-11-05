@@ -8,7 +8,7 @@ The project moved from its original owner to collaborators on 2026-11-05. Start 
 
 New sessions add a section below, newest first.
 
-## Session 10 (2026-11-05, local, branch `extended_phase_auto`, nothing pushed): handover
+## Session 10 (2026-11-05, branch `extended_phase_auto`, PR #3 to `main`): handover
 - **Built:**
   - F-4-2 `authz.public` (`04d0dc0`);
   - F-5-1 foothold-only effective impact (`4295244`, `5333439`);
@@ -26,4 +26,4 @@ New sessions add a section below, newest first.
   - migration round trip on a fresh DB; `alembic check` clean;
   - X0 byte-identical with and without F-5-1;
   - L-5 through the DockerRunner: 13.1 s, 592 MB.
-- **Open for the owner:** push and PR; a tier-2 E row (ADR-0025); disabling the nightly routine. All three are listed in `STATE.md`.
+- **PR #3** is open to `main`; CI is green on all four jobs. A tier-2 E row (ADR-0025) and disabling the nightly routine are still open for the owner (see `STATE.md`).

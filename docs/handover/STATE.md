@@ -1,6 +1,6 @@
 # Where RiskGraph stands (handover, 2026-11-05)
 
-Branch `extended_phase_auto`, local commits only, **nothing pushed** (see "Owner items" below). `main` is behind; PR #2 (`mvp-level2-integration`) was never merged. Labels: VERIFIED (run and checked), CONFIDENT (read in code), BELIEVE (expected, not measured).
+Branch `extended_phase_auto`, pushed, with PR #3 open to `main` (see "Owner items" below). PR #2 (`mvp-level2-integration`) and #1 were never merged; #3 contains them. Labels: VERIFIED (run and checked), CONFIDENT (read in code), BELIEVE (expected, not measured).
 
 ## Verified at handover
 - Backend: ruff, format and mypy clean (247 files).
@@ -46,7 +46,7 @@ Branch `extended_phase_auto`, local commits only, **nothing pushed** (see "Owner
 - **NOT RUN:** C1, D1, D3, P2 ablations, O1 overhead. How to build each one is in the run book.
 
 ## Owner items (decide; not engineering tasks)
-- **Push and PR.** Nothing on this branch is pushed. CI changes (SHA pins) are UNVERIFIED until a push runs them.
+- **Merge PR #3** (`extended_phase_auto` → `main`, opened 2026-11-05). CI is green on all four jobs (backend, frontend, images, security-self-scan), so the SHA pins are verified. #3 contains #1 and #2, which can be closed after the merge.
 - **Tier-2 exploitability.** Should a Joern flow raise E the way a tier-1 flow does (ADR-0024 table), or keep the SAST row? Today it keeps the SAST row (ADR-0025, "Consequences").
 - **P2 auth** has not started. The MVP has no authentication: keep every deployment on localhost until P2 is built.
 - **The nightly cloud routine** (`docs/auto/RUNBOOK.md`) fires next on 2027-10-25. Disable it if nobody wants it.
