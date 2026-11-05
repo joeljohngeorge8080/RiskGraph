@@ -1104,6 +1104,7 @@ def analyze(scan_id: uuid.UUID, deps: PipelineDeps) -> None:
                     exploit_p=x.result.exploit_likelihood,
                     tier=x.verdict.tier.value,
                     secret_family=x.merged.attrs.get("secret_family"),
+                    category=x.merged.representative.category,
                     credential_p=(x.result.factor("E").value if x.result.factor("E") else 0.0),  # type: ignore[union-attr]
                     public_secret=x.merged.source_type is SourceType.SECRET,
                     title=_graph_label(x.merged),

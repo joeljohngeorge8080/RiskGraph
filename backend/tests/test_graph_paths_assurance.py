@@ -28,7 +28,14 @@ identities:
 
 def _sqli(index: int = 0, p: float = 0.3, tier: str = "L2") -> GraphFinding:
     return GraphFinding(
-        index, "web", S.SAST, exploit_p=p, tier=tier, title=f"sqli {index}", evidence=(f"e{index}",)
+        index,
+        "web",
+        S.SAST,
+        exploit_p=p,
+        tier=tier,
+        title=f"sqli {index}",
+        evidence=(f"e{index}",),
+        category="sql_injection",
     )
 
 
@@ -102,7 +109,16 @@ def _random_findings(draw: st.DrawFn, names: set[str], start: int) -> list[Graph
         )
     )
     return [
-        GraphFinding(i, svc, kind, exploit_p=p, tier=tier, title=f"f{i}", evidence=(f"e{i}",))
+        GraphFinding(
+            i,
+            svc,
+            kind,
+            exploit_p=p,
+            tier=tier,
+            title=f"f{i}",
+            evidence=(f"e{i}",),
+            category="sql_injection" if kind is S.SAST else None,
+        )
         for i, (svc, kind, p, tier) in enumerate(rows, start)
     ]
 
@@ -239,3 +255,63 @@ identities:
 """
     m = parse_manifest(text).manifest
     assert m is not None and m.identities[0].owns[0].file == "keys/1.env"
+
+
+# --- F-5-1: only a finding that is itself an attack step takes I* ----------------------
+
+_CATEGORIES = ["sql_injection", "ssrf", "deserialization", "crypto", "xss", "other", None]
+
+
+@st.composite
+def mixed_findings(draw: st.DrawFn) -> tuple[str, list[GraphFinding]]:
+    text = draw(manifests())
+    m = parse_manifest(text).manifest
+    assert m is not None
+    names = sorted(s.name for s in m.services)
+    rows = draw(
+        st.lists(
+            st.tuples(
+                st.sampled_from(names),
+                st.sampled_from([S.SCA, S.SAST]),
+                st.floats(0.05, 1.0),
+                st.sampled_from(["L3", "L2", "L1", "unknown", "n_a"]),
+                st.sampled_from(_CATEGORIES),
+            ),
+            min_size=1,
+            max_size=8,
+        )
+    )
+    found = [
+        GraphFinding(
+            i, svc, kind, exploit_p=p, tier=tier, title=f"f{i}", evidence=(f"e{i}",), category=cat
+        )
+        for i, (svc, kind, p, tier, cat) in enumerate(rows)
+    ]
+    return text, found
+
+
+@settings(max_examples=200, deadline=None)
+@given(scenario=mixed_findings())
+def test_a_hypothesis_or_non_foothold_finding_never_takes_effective_impact(
+    scenario: tuple[str, list[GraphFinding]],
+) -> None:
+    text, found = scenario
+    a = analyze(_manifest(text), found)
+    for f in found:
+        if f.index in a.effective:
+            assert f.tier in ("L2", "L3"), f  # its own support is at least inferred
+            assert f.source_type is S.SCA or f.category in (
+                "sql_injection",
+                "ssrf",
+                "deserialization",
+            ), f
+
+
+def test_a_weak_hash_next_to_an_sqli_is_evidence_but_takes_no_effective_impact() -> None:
+    weak_hash = GraphFinding(
+        1, "web", S.SAST, exploit_p=0.2, tier="L2", title="md5", evidence=("e1",), category="crypto"
+    )
+    a = analyze(_manifest(ADMIN_BEHIND_WEB), [_sqli(), weak_hash])
+    [edge] = [e for e in a.edges if e.kind == "EXPLOIT"]
+    assert set(edge.findings) == {0, 1}  # both stay on the edge as evidence
+    assert a.effective.keys() == {0}

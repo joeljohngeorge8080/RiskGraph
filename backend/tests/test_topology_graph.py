@@ -84,7 +84,15 @@ def _repo(root: Path, k8s: str = K8S, compose: str = COMPOSE) -> Topology:
 
 def _code(index: int, file: str, tier: str = "L2", p: float = 0.5) -> GraphFinding:
     return GraphFinding(
-        index, None, S.SAST, p, tier, title=f"f{index}", evidence=(f"ev{index}",), file=file
+        index,
+        None,
+        S.SAST,
+        p,
+        tier,
+        title=f"f{index}",
+        evidence=(f"ev{index}",),
+        file=file,
+        category="sql_injection",  # a foothold: it may take a path's effective impact
     )
 
 

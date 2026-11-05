@@ -102,7 +102,9 @@ def test_hypothesis_exploit_paths_are_listed_but_never_raise_a_score() -> None:
 
 
 def test_a_verified_l3_path_still_raises_the_score() -> None:
-    strong = GraphFinding(0, "api", S.SAST, exploit_p=0.8, tier="L3", title="ssrf", evidence=("s",))
+    strong = GraphFinding(
+        0, "api", S.SAST, exploit_p=0.8, tier="L3", title="ssrf", evidence=("s",), category="ssrf"
+    )
     a = analyze(_manifest(SCENARIO_E), [strong])
     assert all(p.assurance is VER for p in a.paths)
     assert a.effective[0].value == pytest.approx(1.0)

@@ -32,7 +32,9 @@ identity (inferred). CONTAINS_SECRET is verified. AUTHENTICATES_AS matches a sec
 family to an identity's ``credentials`` list, which proves nothing about this key: a
 hypothesis. EXPLOIT takes the reachability tier of the finding that sets its p (L3
 verified, L2 inferred, otherwise hypothesis). A path is as assured as its weakest edge,
-and only paths of at least ``inferred`` raise a finding's effective impact.
+and only paths of at least ``inferred`` raise a finding's effective impact. On an EXPLOIT
+edge, only a finding that is itself at least inferred and a foothold (SCA, or SAST with
+T >= 0.8) does (F-5-1, ``takes_effective_impact``).
 """
 
 from __future__ import annotations
@@ -58,7 +60,7 @@ from riskgraph.modules.graph.topology import Declared, DerivedService, Topology
 from riskgraph.modules.normalization import Location
 from riskgraph.modules.normalization.fingerprint import stable_hash
 from riskgraph.modules.risk import EffectiveImpact
-from riskgraph.modules.risk.tables import C_VALUES, D_VALUES, P_VALUES
+from riskgraph.modules.risk.tables import C_VALUES, D_VALUES, P_VALUES, T_SAST
 from riskgraph.shared.vocabulary import SourceType
 
 K_PATHS = 3
@@ -76,6 +78,7 @@ IAC_PRODUCER = "riskgraph.iac@1"  # X3: facts stated by Compose and Kubernetes f
 SINK_SENSITIVITY = frozenset({"confidential", "pii", "financial", "credentials"})
 SINK_PRIVILEGE = frozenset({"elevated", "admin"})
 ASSUMED_STORE_SENSITIVITY = "confidential"  # a Compose database says nothing about its data
+FOOTHOLD_T = 0.8  # F-5-1: a SAST category with T_SAST at least this gives an attacker a foothold
 
 
 class GraphInvariantError(RuntimeError):
@@ -125,6 +128,7 @@ class GraphFinding:
     line: int | None = None  # the finding's first line: matches a manifest ``owns:`` link
     authz_rule: str | None = None  # X5: inconsistent | unguarded-sensitive | policy | bola
     route: str | None = None  # X5: "METHOD full path" of the route the authz finding is on
+    category: str | None = None  # normalized category: decides whether it is a foothold (F-5-1)
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,6 +229,22 @@ def _idn(name: str) -> str:
 
 def _ds(name: str) -> str:
     return f"data_store:{name}"
+
+
+def takes_effective_impact(f: GraphFinding) -> bool:
+    """Whether an EXPLOIT edge's path may raise this finding's effective impact (F-5-1,
+    ADR-0024 note): its **own** support of the edge is at least inferred (an image package
+    only with KEV), and it is a foothold, i.e. SCA, or SAST whose category has
+    ``T_SAST >= FOOTHOLD_T``. A finding that only sits in an exploitable service is
+    evidence on the edge, but sharing the service is not an attack step."""
+    own = image_assurance(f) if f.image is not None else exploit_assurance(f.tier)
+    if own is Assurance.HYPOTHESIS:
+        return False
+    if f.source_type is SourceType.SCA:
+        return True
+    if f.source_type is SourceType.SAST:
+        return T_SAST.get(f.category or "other", T_SAST["other"]) >= FOOTHOLD_T
+    return False
 
 
 def image_assurance(f: GraphFinding) -> Assurance:
@@ -510,7 +530,8 @@ def analyze(
         raise GraphInvariantError("; ".join(broken[:5]))
     for src in sources:
         g.add_edge(_VIRTUAL, src, kind="VIRTUAL", p=1.0, w=0.0, findings=[])
-    _search(g, out, sinks)
+    footholds = frozenset(f.index for f in findings if takes_effective_impact(f))
+    _search(g, out, sinks, footholds)
     return out
 
 
@@ -751,10 +772,19 @@ def assured_view(g: nx.DiGraph[str]) -> nx.DiGraph[str]:
     return view
 
 
-def _search(g: nx.DiGraph[str], out: AttackAnalysis, sinks: dict[str, float]) -> None:
+def _search(
+    g: nx.DiGraph[str],
+    out: AttackAnalysis,
+    sinks: dict[str, float],
+    footholds: frozenset[int] = frozenset(),
+) -> None:
     """Two searches per sink (ADR-0020). The assured graph gives the paths that set
     effective impact, so a cheaper hypothesis can never take an inferred path's slot. The
-    full graph adds the hypothesis paths among its k best, listed as paths to verify."""
+    full graph adds the hypothesis paths among its k best, listed as paths to verify.
+
+    On an EXPLOIT edge, only the findings in ``footholds`` take the path's effective impact
+    (F-5-1); the edge's other findings stay its evidence. An AUTHENTICATES_AS edge's
+    finding is the credential that makes the step, so it always does."""
     assured = assured_view(g)
     found: dict[str, list[tuple[list[str], nx.DiGraph[str]]]] = {}
     for sink in sorted(sinks):
@@ -784,6 +814,8 @@ def _search(g: nx.DiGraph[str], out: AttackAnalysis, sinks: dict[str, float]) ->
             conditional = path.probability / e["p"]
             value = path.sink_impact * conditional
             for idx in e["findings"]:
+                if e["kind"] == "EXPLOIT" and idx not in footholds:
+                    continue
                 current = out.effective.get(idx)
                 if current is None or value > current.value:
                     out.effective[idx] = EffectiveImpact(

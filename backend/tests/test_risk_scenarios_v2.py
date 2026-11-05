@@ -84,6 +84,7 @@ def _run(cases: list[Case], manifest: str | None = None, root: Path | None = Non
                 file=c.file,
                 image=c.image if c.inp.source_type is S.SCA else None,
                 kev=c.kev,
+                category=inp.category,  # as the pipeline does (F-5-1)
             )
         )
     analysis = analyze(parsed.manifest, graph, topology=topology)
@@ -263,12 +264,12 @@ def test_f_ssrf_flow_reaches_the_admin_identity_and_the_metadata() -> None:
     e = f1.factor("E")
     assert e is not None and e.source == "sast_severity"  # high + HIGH = 0.8 ≥ taint 0.75
     assert f1.priority is Priority.CRITICAL and f1.factor("I*") is not None
-    # F-5-1 (OPEN): every code finding of the service is evidence on its EXPLOIT edge and
-    # takes the path's effective impact, so the weak hash (F2) and the L1 CVE (F3) inherit
-    # I* = 1.0 by co-location. Pinned here so a change to that rule is seen.
+    # F-5-1 (answer b): the weak hash (F2, L2 but not a foothold) and the L1 CVE (F3, only a
+    # hypothesis on its own) are evidence on the EXPLOIT edge, but sharing the service is
+    # not an attack step: neither takes the path's effective impact.
     for other in ("F2 weak hash", "F3 low-EPSS CVE"):
-        inherited = run.results[other].factor("I*")
-        assert inherited is not None and inherited.value == pytest.approx(1.0, abs=1e-5)
+        assert run.results[other].factor("I*") is None, other
+    assert run.analysis.effective.keys() == {0}
 
 
 def test_g_kev_image_cve_gives_an_inferred_path_and_a_non_kev_one_only_a_hypothesis(
@@ -283,6 +284,8 @@ def test_g_kev_image_cve_gives_an_inferred_path_and_a_non_kev_one_only_a_hypothe
     assert paths and {p.sink for p in paths} == {"identity:sa:web-sa", "data_store:postgres"}
     assert all(p.assurance is Assurance.INFERRED for p in paths)
     assert g1.priority.rank >= Priority.HIGH.rank  # KEV floor at least
+    # F-5-1: the non-KEV image CVE next to it is a hypothesis on its own: no I*
+    assert run.results["G2 image CVE"].factor("I*") is None
 
     # the same CVE without KEV: a hypothesis path to verify, and no score moves
     (tmp_path / "plain").mkdir()
