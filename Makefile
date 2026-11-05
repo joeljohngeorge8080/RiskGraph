@@ -105,6 +105,9 @@ e2e: ## Full pipeline with the real scanners (needs scanner-tools, postgres, red
 eval-baseline: ## Replay scenarios A-E offline and write docs/evaluation/BASELINE.md (needs test-services)
 > @$(TEST_DB_ENV) $(UV) run python -m evaluation.report
 
+eval-authz: ## Authorization scenario I, outside X0: write docs/evaluation/AUTHZ_EVAL.md (no services)
+> @RISKGRAPH_ENV=test RISKGRAPH_SECRET_KEY=evaluation-only-not-a-secret-evaluation-only $(UV) run python -m evaluation.authz
+
 migrate: ## Apply migrations against the running compose postgres
 > docker compose run --rm migrate
 
