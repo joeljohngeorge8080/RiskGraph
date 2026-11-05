@@ -17,6 +17,7 @@ from riskgraph.modules.context.manifest import (
     ManifestResult,
     load_manifest,
     parse_manifest,
+    route_matches,
 )
 from riskgraph.modules.context.models import Vulnerability
 from riskgraph.modules.context.service import (
@@ -49,5 +50,6 @@ __all__ = [
     "parse_manifest",
     "persist_assets",
     "refresh_intel",
+    "route_matches",
     "subscores",
 ]

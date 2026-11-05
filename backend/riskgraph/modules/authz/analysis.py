@@ -16,6 +16,9 @@ in; issues out. Four rules, each with honest assurance:
 - ``bola``: the handler passes a path parameter into a call and nothing in it compares
   against an owner or the current user. **Always a hypothesis**, listed as "test this".
 
+A route the manifest declares open on purpose (``authz.public``, F-4-2) is never
+inconsistent or unguarded-sensitive; it is listed in ``declared_public`` instead.
+
 "No guard" here is only ever the inventory's ``none_found``: the framework is known and
 every place a guard could come from was resolved. ``unresolved`` and
 ``unknown_framework`` routes never produce an unguarded or inconsistent issue; they go to
@@ -31,7 +34,7 @@ from dataclasses import dataclass
 
 from riskgraph.modules.authz.guards import Catalogue, load_catalogue
 from riskgraph.modules.authz.inventory import Route
-from riskgraph.modules.context import AuthzRule
+from riskgraph.modules.context import AuthzRule, route_matches
 from riskgraph.modules.evidence import Assurance
 from riskgraph.shared.vocabulary import Severity
 
@@ -73,6 +76,8 @@ class AuthzResult:
     issues: list[AuthzIssue]
     # route key -> the manifest rule paths it could not be checked against
     unchecked: dict[tuple[str, int, tuple[str, ...], str], tuple[str, ...]]
+    # routes the manifest's ``authz.public`` declares open on purpose (F-4-2)
+    declared_public: tuple[Route, ...] = ()
 
 
 def resource(full_path: str | None) -> str | None:
@@ -95,15 +100,21 @@ def analyze(
     rules: Iterable[AuthzRule] = (),
     code_findings: Mapping[str, Iterable[int]] | None = None,
     catalogue: Catalogue | None = None,
+    public: Iterable[str] = (),
 ) -> AuthzResult:
     """``code_findings``: per file, the first lines of the scan's injection-like code
-    findings; a route whose handler span contains one is sensitive."""
+    findings; a route whose handler span contains one is sensitive. ``public``: the
+    manifest's normalized route patterns for routes open on purpose; those routes are
+    never inconsistent or unguarded-sensitive (policy and BOLA still apply)."""
     cat = catalogue or load_catalogue()
     lines = {f: sorted(set(ls)) for f, ls in (code_findings or {}).items()}
+    patterns = tuple(public)
+    open_routes = tuple(r for r in routes if any(route_matches(p, r.full_path) for p in patterns))
+    skip = {r.key for r in open_routes}
     issues: list[AuthzIssue] = []
-    inconsistent = _inconsistent(routes)
+    inconsistent = [i for i in _inconsistent(routes) if i.route.key not in skip]
     issues += inconsistent
-    flagged = {i.route.key for i in inconsistent}
+    flagged = {i.route.key for i in inconsistent} | skip
     for r in routes:
         if r.status == "none_found" and r.key not in flagged:
             issue = _unguarded_sensitive(r, lines, cat)
@@ -115,7 +126,7 @@ def analyze(
     policy, unchecked = _policy(routes, tuple(rules))
     issues += policy
     issues.sort(key=lambda i: (i.route.key, RULES.index(i.rule)))
-    return AuthzResult(issues, unchecked)
+    return AuthzResult(issues, unchecked, open_routes)
 
 
 def _inconsistent(routes: list[Route]) -> list[AuthzIssue]:

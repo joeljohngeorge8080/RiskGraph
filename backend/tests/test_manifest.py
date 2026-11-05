@@ -77,6 +77,11 @@ def test_valid_manifest_parses_and_normalizes_paths() -> None:
         ("version: 1\nauthz:\n  rules:\n    - path: /a\n", "require"),
         ("version: 1\nauthz:\n  guards: ['rm -rf']\n", "guard name"),
         ("version: 1\nauthz:\n  roles: [admin]\n", "roles"),
+        # authz.public (F-4-2): rule path syntax only
+        ("version: 1\nauthz:\n  public: [contact]\n", "public"),
+        ("version: 1\nauthz:\n  public: ['/a b']\n", "public"),
+        ("version: 1\nauthz:\n  public: ['']\n", "public"),
+        ("version: 1\nauthz:\n  public: [1]\n", "public"),
     ],
 )
 def test_strict_validation_rejects_with_a_reason(text: str, needle: str) -> None:
@@ -223,3 +228,9 @@ def test_a_hostile_authz_pattern_matches_in_linear_time() -> None:
     rule = AuthzRule(path="/" + "/".join(["**", "a"] * 40), require="authenticated")
     assert rule.matches("/" + "/".join(["a"] * 40), ("GET",))
     assert not rule.matches("/" + "/".join(["b"] * 300), ("GET",))
+
+
+def test_authz_public_patterns_are_normalized_and_deduplicated() -> None:
+    r = parse_manifest("version: 1\nauthz:\n  public: [/contact/, //contact, /pub/**, /]\n")
+    authz = r.manifest.authz  # type: ignore[union-attr]
+    assert authz is not None and authz.public == ("/contact", "/pub/**", "/")

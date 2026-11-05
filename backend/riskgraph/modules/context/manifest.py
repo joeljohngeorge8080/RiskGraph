@@ -137,12 +137,7 @@ class AuthzRule(_Strict):
     @field_validator("path")
     @classmethod
     def _route_pattern(cls, value: str) -> str:
-        if value == "/":
-            return value
-        parts = value.split("/")
-        if parts[0] != "" or not all(_ROUTE_SEGMENT.match(p) for p in parts[1:] if p):
-            raise ValueError("path must start with / and use plain segments, * or **")
-        return "/" + "/".join(p for p in parts[1:] if p)
+        return _route_pattern(value)
 
     @field_validator("methods")
     @classmethod
@@ -170,6 +165,24 @@ class AuthzRule(_Strict):
         if self.methods and not set(self.methods) & set(methods):
             return False
         return _segments_match(_segments(self.path), _segments(full_path))
+
+
+def _route_pattern(value: str) -> str:
+    """A route pattern as rules and ``public`` write it, normalized: ``/a//b/`` is
+    ``/a/b``. Plain segments, ``*`` or ``**`` only."""
+    if value == "/":
+        return value
+    parts = value.split("/")
+    if parts[0] != "" or not all(_ROUTE_SEGMENT.match(p) for p in parts[1:] if p):
+        raise ValueError("path must start with / and use plain segments, * or **")
+    return "/" + "/".join(p for p in parts[1:] if p)
+
+
+def route_matches(pattern: str, full_path: str | None) -> bool:
+    """Whether a normalized route pattern covers a route's full path."""
+    if full_path is None:
+        return False
+    return _segments_match(_segments(pattern), _segments(full_path))
 
 
 @lru_cache(maxsize=8192)
@@ -201,10 +214,13 @@ def _segments_match(pattern: tuple[str, ...], path: tuple[str, ...]) -> bool:
 
 class AuthzDecl(_Strict):
     """Additive and optional (X5, ADR-0023). ``guards`` are this repository's own guard
-    names, counted like catalogued ones; ``rules`` are route policies."""
+    names, counted like catalogued ones; ``rules`` are route policies. ``public`` lists
+    route patterns (rule path syntax, any method) that are open on purpose: they are not
+    reported as unguarded or inconsistent (F-4-2). A rule still applies to them."""
 
     guards: tuple[str, ...] = Field(default=(), max_length=50)
     rules: tuple[AuthzRule, ...] = Field(default=(), max_length=MAX_ITEMS)
+    public: tuple[str, ...] = Field(default=(), max_length=MAX_ITEMS)
 
     @field_validator("guards")
     @classmethod
@@ -213,6 +229,19 @@ class AuthzDecl(_Strict):
         if bad:
             raise ValueError(f"guards: {bad[0]!r} is not a guard name")
         return value
+
+    @field_validator("public")
+    @classmethod
+    def _public_patterns(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        out = []
+        for v in value:
+            if not isinstance(v, str) or not 1 <= len(v) <= 300:
+                raise ValueError("public: each entry is a route pattern of 1 to 300 characters")
+            try:
+                out.append(_route_pattern(v))
+            except ValueError as exc:
+                raise ValueError(f"public: {v!r}: {exc}") from None
+        return tuple(dict.fromkeys(out))
 
 
 class Manifest(_Strict):
