@@ -813,12 +813,13 @@ def _authz(
     failure is reported and the scan goes on without them."""
     authz = manifest.manifest.authz if manifest.manifest is not None else None
     rules = authz.rules if authz is not None else ()
+    public = authz.public if authz is not None else ()
     code: dict[str, list[int]] = {}
     for f in raw:
         if f.source_type is SourceType.SAST and f.category in SENSITIVE_CATEGORIES:
             code.setdefault(f.location.file, []).append(f.location.line_start or 0)
     try:
-        result = authz_analysis(routes, rules, code)
+        result = authz_analysis(routes, rules, code, public=public)
     except Exception:
         log.exception("authz_analysis_crashed", scan_id=str(scan_id))
         return AuthzResult([], {}), {"status": "failed", "findings": 0}
@@ -832,6 +833,7 @@ def _authz(
         "hypotheses": sum(1 for i in result.issues if i.assurance.value == "hypothesis"),
         "policy_rules": len(rules),
         "policy_unchecked_routes": len(result.unchecked),
+        "declared_public_routes": len(result.declared_public),
     }
 
 

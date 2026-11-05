@@ -303,3 +303,40 @@ def test_the_largest_hostile_policy_is_bounded() -> None:
     start = time.perf_counter()
     analyze(routes, rules)
     assert time.perf_counter() - start < 15.0
+
+
+def test_declared_public_routes_are_never_unguarded_or_inconsistent() -> None:
+    """F-4-2: ``authz.public`` answers "is this meant to be public?" for those routes."""
+    routes = [
+        _route("/orders", "GET", "guarded", line=1, guards=("login_required",)),
+        _route("/orders/<id>", "GET", "guarded", line=2, guards=("login_required",)),
+        _route("/orders/<id>", "DELETE", "none_found", line=3),
+        _route("/contact", "POST", line=4),
+        _route("/search", "GET", line=5, span=(5, 9)),
+    ]
+    code = {"app.py": [6]}
+    before = analyze(routes, (), code)
+    assert _rules(before.issues, "inconsistent") == ["DELETE /orders/<id>"]
+    assert set(_rules(before.issues, "unguarded-sensitive")) == {"POST /contact", "GET /search"}
+    after = analyze(routes, (), code, public=("/orders/*", "/contact", "/search"))
+    assert _rules(after.issues, "inconsistent") == []
+    assert _rules(after.issues, "unguarded-sensitive") == []
+    assert {r.full_path for r in after.declared_public} == {"/orders/<id>", "/contact", "/search"}
+
+
+def test_a_policy_rule_still_applies_to_a_declared_public_route() -> None:
+    """An explicit rule wins over ``public``: the two contradict, and the rule is the
+    stricter statement, so the route is still reported."""
+    routes = [_route("/admin/stats", "GET", line=1)]
+    rule = AuthzRule(path="/admin/**", require="authenticated")
+    result = analyze(routes, (rule,), public=("/admin/**",))
+    assert _rules(result.issues, "policy") == ["GET /admin/stats"]
+
+
+def test_bola_hypotheses_are_unchanged_by_public() -> None:
+    r = _route("/notes/<id>", params=("id",), loads=("id",), ownership=False)
+    assert _rules(analyze([r], public=("/**",)).issues, "bola") == ["GET /notes/<id>"]
+
+
+def test_no_public_patterns_declare_nothing() -> None:
+    assert analyze([_route("/contact", "POST")]).declared_public == ()

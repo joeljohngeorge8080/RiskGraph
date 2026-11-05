@@ -85,6 +85,7 @@ authz:
   - BOLA 6 TP and 1 FP (a public catalogue), all low hypotheses.
 - (+) NodeGoat at `c5cb68a`: all 20 routes resolve (8 were `unresolved`). No authz issue is raised: its unguarded routes are login, signup, logout and the tutorial.
 - (−) Unguarded-sensitive precision is 0.6 on the suite, below plan §6's 0.8. A public form looks like any other unguarded write. The manifest has no "public" declaration yet; that would be a new field, so it is left to the owner.
+  - **Amendment 2026-11-05 (F-4-2, owner answer (a)):** `authz.public` lists route patterns (rule path syntax, any method) that are open on purpose. A matching route is never `inconsistent` or `unguarded-sensitive`; it is counted in `summary.authz.declared_public_routes`. A `policy` rule still applies to it (an explicit rule is the stricter statement), and BOLA hypotheses are unchanged. With the two forms declared, unguarded-sensitive precision on the suite is 3/3; without the declaration it stays 3/5, and both numbers are pinned in `tests/test_authz_findings_suite.py`.
 - (−) BOLA needs the handler's code in the route's file. NodeGoat's documented IDOR (`/allocations/:userId`, handler `allocationsHandler.displayAllocations` in another file) is therefore not raised: a recall gap until handlers are resolved across files.
 - (−) The ownership words are a heuristic. A comparison against `owner` on an unrelated object suppresses a hypothesis.
 - (−) Until X6, an authz finding never ranks above Low, however real.

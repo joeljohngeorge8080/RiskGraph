@@ -138,6 +138,7 @@ FLASK_MANIFEST = """
 version: 1
 authz:
   guards: [admin_required]
+  public: [/contact]
   rules:
     - path: /admin/**
       require: [admin_required]
@@ -299,14 +300,25 @@ EXPRESS_LABELS: dict[tuple[str, str, str], set[str]] = {
     ("web/routes/users.js", "DELETE", "/api/users/:id"): {"inconsistent", "bola"},
 }
 
+# the owner declares the public feedback form open on purpose (F-4-2)
+EXPRESS_MANIFEST = """
+version: 1
+authz:
+  public: [/feedback]
+"""
+
 APPS = [
     (FLASK, FLASK_LABELS, FLASK_MANIFEST),
     (FASTAPI, FASTAPI_LABELS, None),
-    (EXPRESS, EXPRESS_LABELS, None),
+    (EXPRESS, EXPRESS_LABELS, EXPRESS_MANIFEST),
 ]
 
 
-def _run(root: Path) -> tuple[dict[tuple[str, str, str], set[str]], list]:  # type: ignore[type-arg]
+def _run(
+    root: Path, declare_public: bool = True
+) -> tuple[dict[tuple[str, str, str], set[str]], list]:  # type: ignore[type-arg]
+    """``declare_public=False`` drops the manifests' ``authz.public`` lists: the numbers
+    the rules give on code alone, before the owner says which routes are open on purpose."""
     found: dict[tuple[str, str, str], set[str]] = {}
     issues_all = []
     for i, (files, labels, manifest_text) in enumerate(APPS):
@@ -324,7 +336,8 @@ def _run(root: Path) -> tuple[dict[tuple[str, str, str], set[str]], list]:  # ty
         for r in routes:
             for method in r.methods:
                 found.setdefault((r.file, method, r.full_path or ""), set())
-        result = analyze(routes, authz.rules if authz else (), marks)
+        public = authz.public if authz and declare_public else ()
+        result = analyze(routes, authz.rules if authz else (), marks, public=public)
         for issue in result.issues:
             for method in issue.route.methods:
                 found[(issue.route.file, method, issue.route.full_path or "")].add(issue.rule)
@@ -358,10 +371,12 @@ def test_inconsistency_precision_meets_the_target(tmp_path: Path) -> None:
     assert (tp, fp, fn) == (4, 0, 0)
 
 
-def test_unguarded_sensitive_numbers_and_its_known_false_positives(tmp_path: Path) -> None:
-    """Precision 3/5 = 0.6 here, below plan §6's 0.8 for "unguarded": pinned, not hidden.
-    SCHEDULE day 5 sets the target for inconsistency only; this is reported as a gap."""
-    found, _ = _run(tmp_path)
+def test_unguarded_sensitive_on_code_alone_has_two_known_false_positives(
+    tmp_path: Path,
+) -> None:
+    """Without ``authz.public``: precision 3/5 = 0.6, below plan §6's 0.8. Pinned, not
+    hidden: this is what a repository without the declaration gets."""
+    found, _ = _run(tmp_path, declare_public=False)
     tp, fp, fn = _score("unguarded-sensitive", found)
     assert (tp, fp, fn) == (3, 2, 0)
     # the two public forms (contact, feedback) are the false positives: a write without a
@@ -392,3 +407,14 @@ def test_no_bola_finding_is_more_than_a_low_hypothesis(tmp_path: Path) -> None:
         i.assurance is Assurance.HYPOTHESIS and i.severity is Severity.LOW for i in bola
     )
     assert all(i.assurance is not Assurance.VERIFIED for i in issues)
+
+
+def test_declared_public_routes_lift_unguarded_sensitive_precision(tmp_path: Path) -> None:
+    """F-4-2: with the two forms declared public, precision is 3/3, and nothing else moves."""
+    found, _ = _run(tmp_path)
+    tp, fp, fn = _score("unguarded-sensitive", found)
+    assert tp / (tp + fp) >= PRECISION_TARGET, (tp, fp, fn)
+    assert (tp, fp, fn) == (3, 0, 0)
+    before, _ = _run(tmp_path / "before", declare_public=False)
+    for rule in ("inconsistent", "policy", "bola"):
+        assert _score(rule, found) == _score(rule, before), rule
