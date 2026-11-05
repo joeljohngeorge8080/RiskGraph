@@ -40,7 +40,16 @@ def _manifest(text: str = MANIFEST):  # type: ignore[no-untyped-def]
 
 
 FINDINGS = [
-    GraphFinding(0, "web", S.SAST, exploit_p=0.6, tier="L2", title="SQLi in web", evidence=("e0",)),
+    GraphFinding(
+        0,
+        "web",
+        S.SAST,
+        exploit_p=0.6,
+        tier="L2",
+        title="SQLi in web",
+        evidence=("e0",),
+        category="sql_injection",
+    ),
     GraphFinding(1, "web", S.SCA, exploit_p=0.9, tier="L0", title="unused CVE", evidence=("e1",)),
     GraphFinding(2, "api", S.SCA, exploit_p=0.5, tier="L2", title="CVE in api", evidence=("e2",)),
     GraphFinding(
@@ -219,6 +228,7 @@ def test_scenario_e_ssrf_path_to_metadata_and_pii_with_evidence() -> None:
         tier="L3",
         title="SSRF in fetch()",
         evidence=("ssrf",),
+        category="ssrf",
     )
     noise = GraphFinding(
         1, "worker", S.SCA, exploit_p=0.9, tier="L2", title="worker CVE", evidence=("cve",)
