@@ -40,8 +40,16 @@ def test_kitchen_sink_merges_across_scanners() -> None:
     assert secrets["aws"].attrs["live_credential"] is True
     # the pinned semgrep image flags this line with three CWE-78 rules: one finding.
     # (The MVP host rule set reported four; fixtures are recorded from the image, ADR-0014.)
+    # Joern's tier-2 hit at the same sink joins it (ADR-0025): a fourth member, still one
+    # finding, and Semgrep stays the representative
     shell = [m for m in merged if m.source_type is SourceType.SAST and m.location.line_start == 21]
-    assert len(shell) == 1 and len(shell[0].members) == 3
+    assert len(shell) == 1 and len(shell[0].members) == 4
+    assert shell[0].detected_by == ("joern", "semgrep")
+    assert shell[0].representative.scanner is ScannerName.SEMGREP
+    # every Joern hit of the kitchen sink joins a Semgrep finding: none stands alone
+    for m in merged:
+        if ScannerName.JOERN.value in m.detected_by:
+            assert ScannerName.SEMGREP.value in m.detected_by, m.location
 
 
 def test_merge_is_deterministic() -> None:

@@ -115,9 +115,11 @@ def _match(
     kind = "image_package" if image and f.source_type is SourceType.SCA else _KIND[f.source_type]
     assurance = Assurance.VERIFIED
     steps: list[FlowStep] = []
-    if f.attrs.get("analysis") == "intraprocedural":
+    if f.attrs.get("analysis") in ("intraprocedural", "interprocedural"):
+        # tier 1 (Semgrep, one function) or tier 2 (Joern, across functions and files):
+        # a rule applied to parsed code, inferred either way (ADR-0021, ADR-0025)
         kind, assurance = "taint_flow", Assurance.INFERRED
-        facts["analysis"] = "intraprocedural"
+        facts["analysis"] = f.attrs["analysis"]
         steps = [
             FlowStep(Location(s["file"], s["line"], s["line"]), s["role"])
             for s in f.attrs.get("taint_steps") or []

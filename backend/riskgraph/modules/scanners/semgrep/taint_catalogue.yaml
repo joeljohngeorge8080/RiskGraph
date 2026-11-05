@@ -10,6 +10,15 @@
 # whose tainted argument is the vulnerability.
 version: 1
 
+# Lookups that clean a value for every class (X4 part 2, F-3-1): the request data is only
+# the KEY of a lookup in a module-level constant mapping (ALLOWED_URLS.get(x), TRUSTED[x]),
+# so what flows on is one of the mapping's own values. One regex per entry, matched against
+# the start of the lookup call's code. Used by the deep profile's Joern query (tier 2) only;
+# tier-1 Semgrep rules do not read it.
+lookup_sanitizers:
+  python:
+    - '[A-Z][A-Z0-9_]*(\.get\(|\[)'
+
 sources:
   python:
     - id: flask-request

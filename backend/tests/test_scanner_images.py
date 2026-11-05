@@ -16,6 +16,7 @@ KEYS = {
     "semgrep": "SEMGREP_VERSION",
     "checkov": "CHECKOV_VERSION",
     "syft": "SYFT_VERSION",
+    "joern": "JOERN_VERSION",  # deep profile only (ADR-0025)
 }
 
 
@@ -44,3 +45,10 @@ def test_every_scanner_has_a_dockerfile_that_takes_its_version() -> None:
 
 def test_the_fetcher_image_exists() -> None:
     assert (ROOT / "scanners" / "git-fetcher" / "Dockerfile").is_file()
+
+
+def test_the_joern_image_pins_its_base_by_digest_and_ships_the_query() -> None:
+    text = (ROOT / "scanners" / "joern" / "Dockerfile").read_text()
+    assert re.search(r"^FROM ghcr\.io/joernio/joern@sha256:[0-9a-f]{64}$", text, flags=re.M)
+    assert "COPY taint.sc /opt/riskgraph/joern/taint.sc" in text
+    assert (ROOT / "scanners" / "joern" / "taint.sc").is_file()

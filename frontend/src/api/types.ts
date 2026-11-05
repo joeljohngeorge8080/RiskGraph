@@ -14,7 +14,14 @@ export type RunStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "TIMED_O
 export type Priority = "critical" | "high" | "medium" | "low";
 export type Severity = "critical" | "high" | "medium" | "low" | "info";
 export type SourceType = "sca" | "sast" | "secret" | "iac" | "runtime" | "authz";
-export type ScannerName = "trivy" | "semgrep" | "checkov" | "gitleaks" | "syft" | "riskgraph";
+export type ScannerName =
+  | "trivy"
+  | "semgrep"
+  | "checkov"
+  | "gitleaks"
+  | "syft"
+  | "riskgraph"
+  | "joern";
 export type FindingStatus = "open" | "fixed" | "false_positive" | "accepted_risk" | "wont_fix";
 export type FindingChange = "new" | "existing" | "reopened";
 export type ReachabilityTier = "L0" | "L1" | "L2" | "L3" | "unknown" | "n_a";

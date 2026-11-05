@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,6 +16,8 @@ class ScanCreate(BaseModel):
 
     repo_url: str = Field(max_length=300, examples=["https://github.com/bridgecrewio/terragoat"])
     ref: str | None = Field(default=None, max_length=255, examples=["master"])
+    # "deep" adds tier-2 taint with Joern, when the deployment enables it (ADR-0025)
+    profile: Literal["default", "deep"] = "default"
 
 
 class RepositoryOut(BaseModel):

@@ -67,7 +67,7 @@ def to_out(view: service.ScanView) -> ScanOut:
 def create_scan(
     body: ScanCreate, response: Response, session: SessionDep, settings: SettingsDep
 ) -> ScanOut:
-    view = service.create_scan(session, body.repo_url, body.ref, settings)
+    view = service.create_scan(session, body.repo_url, body.ref, settings, body.profile)
     if view.deduplicated:
         response.status_code = status.HTTP_200_OK
         return to_out(view)

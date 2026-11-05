@@ -121,7 +121,9 @@ class DockerRunner:
                 labels={**spec.labels, SCANNER_LABEL: spec.log_name},
                 network=spec.network,
                 egress_network=self._egress_network,
-                limits=Limits(fsize_bytes=spec.fsize_limit),
+                limits=Limits(fsize_bytes=spec.fsize_limit)
+                if spec.container_memory is None
+                else Limits(memory=spec.container_memory, fsize_bytes=spec.fsize_limit),
                 **({"user": spec.user} if spec.user else {}),
             )
         except ContainerSpecError as exc:

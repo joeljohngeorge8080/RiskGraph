@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -68,6 +68,8 @@ class TaintClass:
 class Catalogue:
     sources: dict[str, tuple[Source, ...]]
     classes: tuple[TaintClass, ...]
+    # per language, regexes of lookups that clean a value (tier 2 only, X4 part 2)
+    lookup_sanitizers: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 def _keys(where: str, value: Any, allowed: set[str], required: set[str]) -> dict[str, Any]:
@@ -119,7 +121,7 @@ def load_catalogue(path: Path = CATALOGUE_FILE) -> Catalogue:
     doc = _keys(
         "catalogue",
         yaml.safe_load(path.read_text(encoding="utf-8")),
-        {"version", "sources", "classes"},
+        {"version", "sources", "classes", "lookup_sanitizers"},
         {"version", "sources", "classes"},
     )
     if doc["version"] != 1:
@@ -163,7 +165,30 @@ def load_catalogue(path: Path = CATALOGUE_FILE) -> Catalogue:
     ids = [c.id for c in classes]
     if len(set(ids)) != len(ids):
         raise CatalogueError("classes: ids must be unique")
-    return Catalogue(sources, tuple(classes))
+    return Catalogue(sources, tuple(classes), _lookups(doc.get("lookup_sanitizers") or {}))
+
+
+_LOOKUP = re.compile(r"^[A-Za-z0-9_\\.()\[\]|*+?{},^$ -]{1,200}$")
+
+
+def _lookups(raw: Any) -> dict[str, tuple[str, ...]]:
+    """Regexes the Joern query receives as one argv parameter: a small, fixed alphabet, no
+    quotes or shell characters (never needed, and the value is passed without a shell)."""
+    doc = _keys("lookup_sanitizers", raw, set(LANGUAGES), set())
+    out: dict[str, tuple[str, ...]] = {}
+    for lang, items in doc.items():
+        patterns = _strings(f"lookup_sanitizers.{lang}", items or [])
+        for p in patterns:
+            if not _LOOKUP.match(p):
+                raise CatalogueError(
+                    f"lookup_sanitizers.{lang}: {p!r} uses characters outside the allowed set"
+                )
+            try:
+                re.compile(p)
+            except re.error as exc:
+                raise CatalogueError(f"lookup_sanitizers.{lang}: {p!r}: {exc}") from None
+        out[lang] = patterns
+    return out
 
 
 def rule_id(language: str, class_id: str) -> str:

@@ -32,6 +32,10 @@ class ScanPaths:
 class Command:
     argv: tuple[str, ...]
     env: Mapping[str, str]
+    # where the command runs: the checkout unless the tool must write next to its cwd
+    # (Joern's workspace); then the scanner's private HOME, which is mounted writable
+    cwd: Path | None = None
+    memory: str | None = None  # container memory cap, e.g. "3g"; None = the profile default
 
 
 @dataclass(frozen=True, slots=True)

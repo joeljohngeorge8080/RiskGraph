@@ -15,6 +15,8 @@ class ScannerName(StrEnum):
     CHECKOV = "checkov"
     GITLEAKS = "gitleaks"
     SYFT = "syft"
+    # tier-2 taint (X4 part 2, ADR-0025): the opt-in `deep` profile only
+    JOERN = "joern"
     # RiskGraph's own analyzers (runtime EOL now, authorization in X5): not a scanner
     # image, never run by run_scanner, but findings need a producer and a run (ADR-0018).
     RISKGRAPH = "riskgraph"
