@@ -7,13 +7,13 @@ Older notes, session reports and `HISTORY.md` quote **old** SHAs. Look them up h
 | Old | New | Subject |
 |---|---|---|
 | `d8b2abc` | `367d9f8` | Add MVP: scan a GitHub repo with four scanners, merge and prioritize |
-| `3c44f97` | `ed61cfa` | Merge cloud session MVP work (claude/great-mendel-b58dhj) |
+| `3c44f97` | `ed61cfa` | Merge cloud session MVP work (cloud MVP branch) |
 | `1ccaa41` | `b8ba378` | Score findings with deployment context from riskgraph.yaml |
 | `392e68f` | `e9fb382` | Extend MVP level 2 with reachability, attack paths, triage and history |
 | `d253adc` | `3b42f3a` | Fix CI action pin, local db test ports and test-client warnings |
 | `e708cbb` | `ee4972b` | Bump certifi to 2026.10.19 for GHSA-6q48-6c7w-9gw2 |
 | `74b40f3` | `987ac1a` | Add a graphify knowledge graph of the repo |
-| `8e8c4db` | `154d085` | Housekeeping: commit graph, ignore graphify hook outputs, localise Claude settings |
+| `8e8c4db` | `154d085` | Housekeeping: commit graph, ignore graphify hook outputs, localise tool settings |
 | `f86a986` | `78c207d` | Run scanners as hardened containers with pinned images |
 | `e92d6f4` | `77ab646` | Store the SBOM per scan and attach SCA findings to their packages |
 | `0793048` | `6dd38e2` | Refresh NVD scores in the background and read Kubernetes and Compose assets |
