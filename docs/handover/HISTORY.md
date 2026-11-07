@@ -225,7 +225,7 @@ Branch history on top of the merged nightly work (`1a93885`): `de0f3bc` local ta
 
 ## Session 5 (2026-10-22, local): integrate, fix CI, graph — current state
 - **Branch:** `mvp-level2-integration` at `74b40f3`, pushed. It is `cloud-mvp-integration` (`1ccaa41`) plus `mvp-level2-extended` (`392e68f`, a fast-forward), then the fixes and the graphify commit. `main` is still at `8fa3a97`.
-- **PR:** draft **#2** `mvp-level2-integration` → `main`. CI green on `74b40f3`: backend, frontend, security-self-scan, images. Mark ready and merge when you're happy. **PR #1** (`claude/great-mendel-b58dhj`) is superseded by #2 and still open; close it after #2 merges.
+- **PR:** draft **#2** `mvp-level2-integration` → `main`. CI green on `74b40f3`: backend, frontend, security-self-scan, images. Mark ready and merge when you're happy. **PR #1** (the cloud MVP branch) is superseded by #2 and still open; close it after #2 merges.
 - **CI fixes (`d253adc`, `e708cbb`):**
   - `aquasecurity/trivy-action@0.28.0` no longer exists upstream; pinned to v0.36.0 by commit `ed142fd0…`. This was why the security and image jobs died at setup.
   - The image scan then found a **critical** advisory in `certifi 2026.7.22` (GHSA-6q48-6c7w-9gw2, emSign CA keys). Bumped to `2026.10.19`, which is two days old at the time.
@@ -235,9 +235,9 @@ Branch history on top of the merged nightly work (`1a93885`): `de0f3bc` local ta
 - **Verified live (`make dev`, Docker):** all services healthy; migration at head `b7dac1b028da`; readyz OK. Live scan of OWASP/NodeGoat: COMPLETED, 124 findings (1 critical), reachability L0 4 / L1 3 / L2 37 / unknown 74. A rescan showed 0 new, 0 fixed, 124 existing, and the gate went from fail to pass after one finding was marked `accepted_risk`.
 - **Not verified:** attack paths on a live scan. NodeGoat has no `riskgraph.yaml`, so its graph is empty. The DB tests cover the path logic. Scanning a repo with a manifest would close this.
 - **Dev DB leftovers:** two NodeGoat scans and one `accepted_risk` finding (reason "integration test").
-- **graphify:** `graphify-out/` built: 2021 nodes, 5827 edges, 91 communities. Committed in `74b40f3` with the `CLAUDE.md` section, `.claude/settings.json` hook-guards and `.gitattributes`. The graph was built by Claude subagents over the docs and the AST over code; the Gemini extraction was discarded as too sparse.
+- **graphify:** `graphify-out/` built: 2021 nodes, 5827 edges, 91 communities. Committed in `74b40f3` with the project-guide section, tool-settings hook-guards and `.gitattributes`. The graph was built by subagents over the docs and the AST over code; the Gemini extraction was discarded as too sparse.
   - The git post-commit hook rebuilds the graph after every commit and leaves uncommitted changes in `graphify-out/`. How to handle this is still undecided (see Open items).
-  - `.claude/settings.json` points at `/home/jojo/.local/bin/graphify`, which only exists on this machine.
+  - The tool settings file points at a graphify path that only exists on the original machine.
 - **Gotchas found this session:**
   - Dev and test compose both bind 15432/16379 from `.env`. Run one stack at a time; `make test-db` works while `make dev` is up.
   - Starlette 1.6.0 still emits one `anyio` deprecation warning. Starlette 1.7+ removes it.
@@ -246,7 +246,7 @@ Branch history on top of the merged nightly work (`1a93885`): `de0f3bc` local ta
 ## Open items (decide before Phase 2)
 - Graphify post-commit hook: keep it and ignore its outputs (add `.pending`, `.sig` and the dated snapshot folder to `.gitignore`), or remove it with `graphify hook uninstall` and rebuild by hand with `graphify update .`.
 - Commit the rebuilt `graphify-out/graph.json`, or leave it uncommitted. Cloud sessions only see it if it is committed.
-- Move `.claude/settings.json` to `.claude/settings.local.json` if its machine-specific graphify path is a problem for cloud sessions.
+- Move the tool settings to a local-only settings file if its machine-specific graphify path is a problem for cloud sessions.
 - Mark PR #2 ready, merge to `main`, and close PR #1.
 - `docs/TECH_STACK.md` dependency log is still not created (see the session 1 open items).
 
@@ -278,7 +278,7 @@ Branch history on top of the merged nightly work (`1a93885`): `de0f3bc` local ta
 # Session 2 handoff (2026-10-21)
 
 ## Session 2 (2026-10-21): MVP vertical slice, done
-- Branch `claude/great-mendel-b58dhj`. The owner asked for an MVP ahead of the roadmap: a GitHub URL goes in; Trivy, Semgrep, Checkov and Gitleaks run; reports are normalized and merged; findings are scored; a FastAPI + React UI shows the result. Full chapter: `docs/phases/PHASE_MVP.md`. Decisions: ADR-0009 (subprocess runner) and ADR-0010 (scope deviations, including **no auth**).
+- Work happened on the cloud MVP branch. The owner asked for an MVP ahead of the roadmap: a GitHub URL goes in; Trivy, Semgrep, Checkov and Gitleaks run; reports are normalized and merged; findings are scored; a FastAPI + React UI shows the result. Full chapter: `docs/phases/PHASE_MVP.md`. Decisions: ADR-0009 (subprocess runner) and ADR-0010 (scope deviations, including **no auth**).
 - Verified in a cloud container without Docker: 123 unit, 22 db and 1 e2e test (real scanners), plus a live Celery run on terragoat. **Not verified:** `make dev` with the new `worker` image target. Run it on the dev machine first.
 - **Next:** Phase 2 (auth skeleton) on top of migration `fc3b3ff80221`, then Phase 3 (DockerRunner behind `ScannerRunner`, the ADR-0009 trigger).
 - Host runs need scanners: `make scanner-tools` installs them into `~/.local/share/riskgraph-tools`.
@@ -323,7 +323,7 @@ docker compose exec api python -c "from riskgraph.entrypoints.worker import ping
 - Push to a GitHub remote and watch CI go green once.
 - `docs/TECH_STACK.md` (dependency log per kit doc 04) not yet created; `docs/blueprint/04_TECH_STACK.md` holds the decisions. Create it when Phase 2 adds its first dependencies (`pwdlib[argon2]`, `PyJWT`).
 
-## Rules of engagement (from the brief and CLAUDE.md)
+## Rules of engagement (from the brief and the project guide)
 - Implement one phase per `START PHASE N`; each phase writes `docs/phases/PHASE_NN.md` with chapters A–S.
 - Never re-decide an ADR; write a superseding one.
 - Report with VERIFIED / CONFIDENT / BELIEVE / GUESS labels; paste real output.
